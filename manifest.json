@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "EasyApplyLinkedIn",
+  "version": "1.0",
+  "description": "Applying for Jobs Made Effortless!",
+  
+  "icons": {
+    "16": "assets/images/256256.png",
+    "48": "assets/images/256256.png",
+    "128": "assets/images/256256.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "assets/images/256256.png",
+      "48": "assets/images/256256.png",
+      "128": "assets/images/256256.png"
+    },
+    "default_popup": "components/popup/popup.html",
+    "default_title": "CONFIGURATION"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["utils.js", "forGlobalWinElements.js", "content.js", "xpaths.js"]
+    }
+  ],
+  "permissions": [
+    "tabs",
+    "storage",
+    "webRequest",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "components/defaultInput/defaultInput.html",
+        "components/popup/popup.html",
+        "components/formControl/formControl.html",
+        "assets/images/on_search_robot.png",
+        "assets/images/256256.png",
+        "components/filterSettings/filterSettings.html",
+        "components/notOnJobSearchModal/notOnJobSearchModal.html",
+        "components/notOnJobSearchModal/notOnJobSearchModal.js",
+        "components/notOnJobSearchModal/notOnJobSearchModal.css",
+        "components/overlayModalWrapper/overlayModalWrapper.html",
+        "components/overlayModalWrapper/overlayModalWrapper.css"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "update_url": "https://raw.githubusercontent.com/IliyaBrook/EasyApplyLinkedIn/main/update.xml"
+}
