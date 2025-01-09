@@ -31,51 +31,58 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 })
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'externalApplyAction') {
+	if (request.action === 'externalApplyAction') {
 		const { jobTitle, currentPageLink } = request.data
 		saveLinkedInJobData(jobTitle, currentPageLink)
-	  sendResponse({ success: true });
+		sendResponse({ success: true })
+	}
+	if (request.action === 'initStorage') {
+		chrome.storage.local.get(['inputFieldConfigs'], result => {
+			if (!result.inputFieldConfigs) {
+				chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
+					currentInputFieldConfigs = inputFieldConfigs;
+					sendResponse({ success: true });
+				});
+			} else {
+				currentInputFieldConfigs = result.inputFieldConfigs;
+				sendResponse({ success: true });
+			}
+		});
+		return true;
 	}
 	if (request.action === 'startAutoApply') {
 		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+			if (chrome.runtime.lastError) {
+				sendResponse({ success: false, message: chrome.runtime.lastError.message })
+				return
+			}
 			if (tabs?.[0]) {
-				const currentTabId = tabs[0].id;
-				const currentUrl = tabs[0].url || '';
+				const currentTabId = tabs[0].id
+				const currentUrl = tabs[0].url || ''
 				
 				if (currentUrl.includes('linkedin.com/jobs')) {
 					chrome.scripting.executeScript({
 						target: { tabId: currentTabId },
-						func: runScriptInContent,
+						func: runScriptInContent
 					}, () => {
 						if (chrome.runtime.lastError) {
-							console.error('Error running script:', chrome.runtime.lastError);
-							sendResponse({ success: false, message: chrome.runtime.lastError.message });
+							sendResponse({ success: false, message: chrome.runtime.lastError.message })
 						} else {
-							sendResponse({ success: true });
+							sendResponse({ success: true })
 						}
-					});
+					})
 				} else {
-					chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' });
-					sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' });
+					chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
+					sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
 				}
 			} else {
-				sendResponse({ success: false, message: 'No active tab found.' });
+				sendResponse({ success: false, message: 'No active tab found.' })
 			}
-		});
-		return true;
+		})
+		return true
 	} else if (request.action === 'stopAutoApply') {
 		chrome.storage.local.set({ autoApplyRunning: false })
 		sendResponse({ success: true })
-	} else if (request.action === 'initStorage') {
-		chrome.storage.local.get(['inputFieldConfigs'], result => {
-			if (!result.inputFieldConfigs) {
-				chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
-					currentInputFieldConfigs = inputFieldConfigs
-				})
-			} else {
-				currentInputFieldConfigs = result.inputFieldConfigs
-			}
-		})
 	} else if (request.action === 'updateInputFieldValue') {
 		const placeholder = request.data.placeholder
 		const value = request.data.value
@@ -202,7 +209,7 @@ function deleteRadioButtonConfig(placeholder) {
 		const radioButtons = result.radioButtons || []
 		const updatedRadioButtons = radioButtons.filter(config => config.placeholderIncludes !== placeholder)
 		
-		chrome.storage.local.set({'radioButtons': updatedRadioButtons })
+		chrome.storage.local.set({ 'radioButtons': updatedRadioButtons })
 	})
 }
 
