@@ -12,6 +12,7 @@ const ignoreList = [
 	'LICENSE',
 	'yarn.lock',
 	'extension.crx',
+	'privacy_policy.md',
 	'pack-extension.js',
 	'update.xml',
 	'build',
