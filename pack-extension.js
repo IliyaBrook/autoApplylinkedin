@@ -19,7 +19,7 @@ const ignoreList = [
 
 const srcDir = path.resolve('.');
 const buildDir = path.resolve('./build');
-const zipFile = path.resolve(buildDir, 'extension.zip');
+const zipFile = path.resolve(buildDir, 'autoApplylinkedin.zip');
 
 async function packExtension() {
 	try {
