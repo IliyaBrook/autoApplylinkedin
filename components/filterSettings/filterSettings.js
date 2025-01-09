@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load "Bad Words"
     function loadBadWords() {
         chrome.storage.local.get('badWords', (result) => {
-            const badWords = result.badWords || [];
+            const badWords = result?.badWords || [];
             badWordsContainer.innerHTML = '';
             badWords.forEach((word, index) => addWordItem(word, index, badWordsContainer, 'badWords'));
         });
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load "Job Title Must Contain" (Good Words)
     function loadTitleFilter() {
         chrome.storage.local.get('titleFilterWords', (result) => {
-            const titleFilterWords = result.titleFilterWords || [];
+            const titleFilterWords = result?.titleFilterWords || [];
             titleFilterContainer.innerHTML = '';
             titleFilterWords.forEach((word, index) => addWordItem(word, index, titleFilterContainer, 'titleFilterWords'));
         });
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load "Job Title Must Skip" words
     function loadTitleSkip() {
         chrome.storage.local.get('titleSkipWords', (result) => {
-            const titleSkipWords = result.titleSkipWords || [];
+            const titleSkipWords = result?.titleSkipWords || [];
             titleSkipContainer.innerHTML = '';
             titleSkipWords.forEach((word, index) => addWordItem(word, index, titleSkipContainer, 'titleSkipWords'));
         });

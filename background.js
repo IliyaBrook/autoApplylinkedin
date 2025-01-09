@@ -55,11 +55,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 						}
 					});
 				} else {
-					chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' }, (response) => {
-						if (chrome?.runtime?.lastError) {
-							console.error('Error sending message to content script:', chrome.runtime.lastError);
-						}
-					});
+					chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' });
 					sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' });
 				}
 			} else {

@@ -242,8 +242,6 @@ function displayAndUpdateInputFieldConfig(configurations) {
         </div>
     </div>
 `;
-
-
         inputField.type = 'text';
         inputField.id = `config-${config.placeholderIncludes}`;
         inputField.placeholder = 'New Default Value';
