@@ -17,6 +17,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const newTitleSkipInput = document.getElementById('new-title-skip');
     const addTitleSkipButton = document.getElementById('add-title-skip-button');
     
+    const isDuplicate = (word, words) => {
+        if (words.some(w => w.toLowerCase() === word.toLowerCase())){
+            alert("Oops! This word is already in your filter. Try adding a new one!");
+            return true;
+        }
+        return false;
+    }
+    
     // Initialize toggle states
     function initializeToggles() {
         chrome.storage.local.get(['badWordsEnabled', 'titleFilterEnabled', 'titleSkipEnabled'], (result) => {
@@ -68,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Add a word to the UI
     function addWordItem(word, index, container, filterType) {
+        
         const wordItem = document.createElement('div');
         wordItem.className = 'word-item';
         
@@ -92,8 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const newWord = newBadWordInput.value.trim();
         if (newWord) {
             chrome.storage.local.get('badWords', (result) => {
-                const updatedWords = [...(result.badWords || []), newWord];
-                chrome.storage.local.set({ badWords: updatedWords }, loadBadWords);
+                if (!isDuplicate(newWord, result.badWords)) {
+                    const updatedWords = [...(result.badWords || []), newWord];
+                    chrome.storage.local.set({ badWords: updatedWords }, loadBadWords);
+                }
                 newBadWordInput.value = '';
             });
         }
@@ -104,8 +115,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const newWord = newTitleFilterInput.value.trim();
         if (newWord) {
             chrome.storage.local.get('titleFilterWords', (result) => {
-                const updatedWords = [...(result.titleFilterWords || []), newWord];
-                chrome.storage.local.set({ titleFilterWords: updatedWords }, loadTitleFilter);
+                if (!isDuplicate(newWord, result.titleFilterWords)) {
+                    const updatedWords = [...(result.titleFilterWords || []), newWord];
+                    chrome.storage.local.set({ titleFilterWords: updatedWords }, loadTitleFilter);
+                }
                 newTitleFilterInput.value = '';
             });
         }
@@ -116,8 +129,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const newWord = newTitleSkipInput.value.trim();
         if (newWord) {
             chrome.storage.local.get('titleSkipWords', (result) => {
-                const updatedWords = [...(result.titleSkipWords || []), newWord];
-                chrome.storage.local.set({ titleSkipWords: updatedWords }, loadTitleSkip);
+                if (!isDuplicate(newWord, result.titleSkipWords)) {
+                    const updatedWords = [...(result.titleSkipWords || []), newWord];
+                    chrome.storage.local.set({ titleSkipWords: updatedWords }, loadTitleSkip);
+                }
                 newTitleSkipInput.value = '';
             });
         }
