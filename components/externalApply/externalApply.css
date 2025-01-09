@@ -1,0 +1,108 @@
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+body {
+	font-family: Arial, sans-serif;
+	background-color: #f9f9f9;
+	color: #333;
+	padding: 20px;
+}
+
+h1 {
+	color: #0077b5;
+	margin-bottom: 16px;
+	font-size: 24px;
+	text-align: center;
+}
+
+#controls {
+	display: flex;
+	justify-content: center;
+	margin-bottom: 20px;
+}
+
+#remove-all {
+	background-color: #ff9800;
+	color: white;
+	border: none;
+	border-radius: 6px;
+	padding: 12px 20px;
+	cursor: pointer;
+	font-size: 16px;
+	font-weight: bold;
+	transition: all 0.3s ease;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+#remove-all:hover {
+	background-color: #e67e22;
+	box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+	transform: translateY(-2px);
+}
+
+#links {
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+	max-width: 700px;
+	margin: 0 auto;
+}
+
+.link-container {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 15px;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	background-color: white;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+	transition: transform 0.2s ease;
+}
+
+.link-container:hover {
+	transform: scale(1.02);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.link-container .job-title {
+	font-weight: bold;
+	color: #333;
+	font-size: 16px;
+}
+
+.link-container a {
+	color: #0077b5;
+	text-decoration: none;
+	word-break: break-word;
+	display: inline-block;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.link-container a:hover {
+	text-decoration: underline;
+}
+
+.link-container button {
+	align-self: flex-end;
+	background-color: #f44336;
+	color: white;
+	border: none;
+	border-radius: 6px;
+	padding: 8px 16px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: bold;
+	transition: all 0.3s ease;
+}
+
+.link-container button:hover {
+	background-color: #c0392b;
+	transform: translateY(-2px);
+}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" type="text/css" href="filterSettings.css">
+	<title>Filter Settings</title>
+</head>
+
+<body>
+<h1>Filter Settings</h1>
+<h2 id="subtitle">Manage job filters to apply intelligently</h2>
+
+<div class="container">
+	<!-- Exclude Words -->
+	<div id="exclude-words-container" class="column">
+		<h2>
+			Job text content bad words
+			<label class="switch">
+				<input type="checkbox" id="bad-words-toggle">
+				<span class="slider round"></span>
+			</label>
+		</h2>
+		<div id="bad-words-list" class="filter-list"></div>
+		<div id="add-exclude-word-container" class="add-filter-container">
+			<input type="text" id="new-bad-word" placeholder="Enter a new word">
+			<button id="add-bad-word-button">Add</button>
+		</div>
+	</div>
+	
+	<!-- Job Title Must Contain -->
+	<div id="title-filter-container" class="column">
+		<h2>
+			Job Title Must Contain
+			<label class="switch">
+				<input type="checkbox" id="title-filter-toggle">
+				<span class="slider round"></span>
+			</label>
+		</h2>
+		<div id="title-filter-list" class="filter-list"></div>
+		<div id="add-title-filter-container" class="add-filter-container">
+			<input type="text" id="new-title-filter" placeholder="Enter a new word">
+			<button id="add-title-filter-button">Add</button>
+		</div>
+	</div>
+	
+	<!-- Job Title Must Skip -->
+	<div id="title-skip-container" class="column">
+		<h2>
+			Job Title Must Skip
+			<label class="switch">
+				<input type="checkbox" id="title-skip-toggle">
+				<span class="slider round"></span>
+			</label>
+		</h2>
+		<div id="title-skip-list" class="filter-list"></div>
+		<div id="add-title-skip-container" class="add-filter-container">
+			<input type="text" id="new-title-skip" placeholder="Enter a new word">
+			<button id="add-title-skip-button">Add</button>
+		</div>
+	</div>
+</div>
+
+<script src="filterSettings.js"></script>
+</body>
+
+</html>
