@@ -74,6 +74,12 @@ h1 {
 	font-size: 16px;
 }
 
+.link-container .company-name {
+    font-style: italic;
+    color: #555;
+    font-size: 14px;
+}
+
 .link-container a {
 	color: #0077b5;
 	text-decoration: none;

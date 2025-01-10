@@ -357,7 +357,7 @@ async function runFindEasyApply(jobTitle, subtitle) {
 	
 	const externalApplyElements = getElementsByXPath({ xpath: not_easy_apply_button });
 	if (externalApplyElements.length > 0) {
-		await chrome.runtime.sendMessage({ action: 'externalApplyAction', data: { jobTitle, currentPageLink } });
+		await chrome.runtime.sendMessage({ action: 'externalApplyAction', data: { jobTitle, currentPageLink, companyName: subtitle } });
 	}
 	
 	const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button });

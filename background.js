@@ -14,10 +14,10 @@ chrome.runtime.onConnect.addListener(function(port) {
 	}
 })
 
-function saveLinkedInJobData(jobTitle, jobLink) {
+function saveLinkedInJobData(jobTitle, jobLink, companyName) {
 	chrome.storage.local.get(['externalApplyData'], (res) => {
 		const storedData = res.externalApplyData || []
-		storedData.push({ title: jobTitle, link: jobLink })
+		storedData.push({ title: jobTitle, link: jobLink, companyName })
 		chrome.storage.local.set({ externalApplyData: storedData })
 	})
 }
@@ -32,8 +32,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	if (request.action === 'externalApplyAction') {
-		const { jobTitle, currentPageLink } = request.data
-		saveLinkedInJobData(jobTitle, currentPageLink)
+		const { jobTitle, currentPageLink, companyName } = request.data
+		saveLinkedInJobData(jobTitle, currentPageLink, companyName)
 		sendResponse({ success: true })
 	}
 	if (request.action === 'initStorage') {
@@ -238,12 +238,7 @@ function deleteDropdownValueConfig(placeholder) {
 	})
 }
 
-function clearAllLinkedInJobData() {
-	chrome.storage.local.set({ externalApplyData: [] })
-}
-
 // start stop auto apply
-
 function runScriptInContent() {
 	if (typeof runScript === 'function') {
 		runScript()

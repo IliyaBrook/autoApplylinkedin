@@ -21,7 +21,11 @@ document.addEventListener('DOMContentLoaded', () => {
 		
 		const title = document.createElement('div');
 		title.className = 'job-title';
-		title.textContent = job.title.trim();
+		title.textContent = (job?.title ?? '').trim();
+		
+		const company = document.createElement('div');
+		company.className = 'company-name';
+		company.textContent = `Company: ${(job?.companyName ?? '').trim()}`;
 		
 		const link = document.createElement('a');
 		link.href = job.link;
@@ -35,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			container.remove();
 		});
 		
+		container.appendChild(company);
 		container.appendChild(title);
 		container.appendChild(link);
 		container.appendChild(deleteBtn);
