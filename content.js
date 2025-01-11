@@ -45,19 +45,19 @@ async function jobPanelScrollLittle() {
 }
 
 
-async function clickJob(listItem, subtitle, jobTitle, badWordsEnabled) {
+async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 	
-	const jobTitleLink = listItem.querySelector(
+	const jobNameLink = listItem.querySelector(
 		'.artdeco-entity-lockup__title .job-card-container__link'
 	)
 	
-	if (!jobTitleLink) {
+	if (!jobNameLink) {
 		console.warn('[not existed item]:', listItem)
 		console.warn('Inner HTML of problematic listItem:', listItem.innerHTML)
 		return
 	}
 	
-	jobTitleLink.click()
+	jobNameLink.click()
 	await addDelay()
 	if (badWordsEnabled) {
 		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
@@ -76,8 +76,9 @@ async function clickJob(listItem, subtitle, jobTitle, badWordsEnabled) {
 			console.warn('No job details found for filtering bad words.')
 		}
 	}
+
 	
-	await runFindEasyApply(jobTitle, subtitle)
+	await runFindEasyApply(jobTitle, companyName)
 	await jobPanelScrollLittle()
 }
 
@@ -351,13 +352,13 @@ async function runApplyModel() {
 	}
 }
 
-async function runFindEasyApply(jobTitle, subtitle) {
+async function runFindEasyApply(jobTitle, companyName) {
 	await addDelay(1000);
 	const currentPageLink = window.location.href;
 	
 	const externalApplyElements = getElementsByXPath({ xpath: not_easy_apply_button });
 	if (externalApplyElements.length > 0) {
-		await chrome.runtime.sendMessage({ action: 'externalApplyAction', data: { jobTitle, currentPageLink, companyName: subtitle } });
+		await chrome.runtime.sendMessage({ action: 'externalApplyAction', data: { jobTitle, currentPageLink, companyName } });
 	}
 	
 	const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button });
@@ -512,21 +513,21 @@ async function runScript() {
 				break
 			}
 			
-			const jobTitleLink = listItem.querySelector('.job-card-container__link')
-			if (!jobTitleLink) {
+			const jobNameLink = listItem.querySelector('.job-card-container__link')
+			if (!jobNameLink) {
 				continue
 			}
+	
 			
-			const subtitleElements = listItem.querySelectorAll('[class*="subtitle"]')
+			const companyNames = listItem.querySelectorAll('[class*="subtitle"]')
 			
-			const subtitles = Array.from(subtitleElements).map((subtitleElement) => {
-				return subtitleElement.textContent.trim()
+			const companyNamesArray = Array.from(companyNames).map((companyNameElem) => {
+				return companyNameElem.textContent.trim()
 			})
 			
-			const subtitle = subtitles?.[0] ?? ''
-			
-			const jobTitle = jobTitleLink.textContent.trim().toLowerCase()
-			
+			const companyName = companyNamesArray?.[0] ?? ''
+			const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
+			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
 			if (titleSkipEnabled) {
 				const titleSkipWords = await new Promise(resolve => {
 					chrome.storage.local.get('titleSkipWords', (result) => resolve(result.titleSkipWords || []))
@@ -549,9 +550,9 @@ async function runScript() {
 				}
 			}
 			
-			jobTitleLink.scrollIntoView({ block: 'center' })
+			jobNameLink.scrollIntoView({ block: 'center' })
 			await addDelay()
-			jobTitleLink.click()
+			jobNameLink.click()
 			await addDelay()
 			
 			const mainContentElement = document.querySelector('.jobs-details__main-content')
@@ -560,7 +561,7 @@ async function runScript() {
 			}
 			
 			try {
-				await clickJob(listItem, subtitle, jobTitle, badWordsEnabled)
+				await clickJob(listItem, companyName, jobTitle, badWordsEnabled)
 			} catch (error) {
 				console.error('Error in clickJob:', error)
 			}
