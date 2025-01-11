@@ -52,8 +52,6 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 	)
 	
 	if (!jobNameLink) {
-		console.warn('[not existed item]:', listItem)
-		console.warn('Inner HTML of problematic listItem:', listItem.innerHTML)
 		return
 	}
 	
@@ -116,13 +114,10 @@ async function performInputFieldChecks() {
 				
 				inputField.dispatchEvent(new Event('change', { bubbles: true }))
 			} else {
-				
 				inputField.value = defaultFields.YearsOfExperience;
-				
 				['keydown', 'keypress', 'input', 'keyup'].forEach(eventType => {
 					inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }))
 				})
-				
 				inputField.dispatchEvent(new Event('change', { bubbles: true }))
 			}
 			
@@ -441,7 +436,6 @@ async function checkAndPromptFields() {
 		}
 		return new Promise(resolve => {
 			if (!isChromeStorageAvailable()) {
-				console.warn('No chrome.storage here. Skipping check.')
 				return resolve(false)
 			}
 			chrome.storage.local.get('defaultFields', function(result) {
@@ -597,7 +591,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			modalWrapper.style.display = 'flex'
 			sendResponse({ success: true })
 		} else {
-			console.error('overlay-modal-wrapper not found in DOM.')
 			sendResponse({ success: false, error: 'overlay-modal-wrapper not found' })
 		}
 	}

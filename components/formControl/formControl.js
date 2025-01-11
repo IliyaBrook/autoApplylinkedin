@@ -195,10 +195,7 @@ function addUpdateDropDownGroupEventListener(placeholderIncludes) {
         if (newValue !== '') {
             chrome.runtime.sendMessage({ action: 'updateDropdownConfig', data: { placeholderIncludes, value: newValue } });
 
-        } else {
-            console.error('Invalid input');
         }
-
     });
 }
 

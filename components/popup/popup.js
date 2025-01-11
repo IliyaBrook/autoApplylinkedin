@@ -111,8 +111,6 @@ autoApplyButton.addEventListener('click', () => {
 				}
 			});
 		});
-	} else {
-		console.error('Chrome storage not found in popup.js inside autoApplyButton.addEventListener(\'click');
 	}
 });
 
