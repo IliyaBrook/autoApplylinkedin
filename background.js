@@ -16,22 +16,28 @@ chrome.runtime.onConnect.addListener(function(port) {
 
 function saveLinkedInJobData(jobTitle, jobLink, companyName) {
 	chrome.storage.local.get(['externalApplyData'], (res) => {
-		const storedData = res.externalApplyData || []
-		const jobExists = storedData.some(storedJob => storedJob.link === jobLink)
-		if (!jobExists){
-			storedData.push({ title: jobTitle, link: jobLink, companyName, time: Date.now() })
-			chrome.storage.local.set({ externalApplyData: storedData })
+		const storedData = res.externalApplyData || [];
+		
+		const jobExists = storedData.some(storedJob => storedJob.link === jobLink);
+		if (!jobExists) {
+			storedData.push({ title: jobTitle, link: jobLink, companyName, time: Date.now() });
 		}
-	})
+		
+		const sortedData = storedData.sort((a, b) => {
+			if (a.time && b.time) {
+				return b.time - a.time;
+			} else if (a.time) {
+				return -1;
+			} else if (b.time) {
+				return 1;
+			}
+			return 0;
+		});
+		
+		chrome.storage.local.set({ externalApplyData: sortedData });
+	});
 }
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-	const currentUrl = tab.url
-	if (currentUrl && currentUrl.startsWith('http')) {
-		chrome.storage.local.set({ currentUrl }, () => {
-		})
-	}
-})
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	if (request.action === 'externalApplyAction') {
