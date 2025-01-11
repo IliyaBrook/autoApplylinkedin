@@ -17,8 +17,11 @@ chrome.runtime.onConnect.addListener(function(port) {
 function saveLinkedInJobData(jobTitle, jobLink, companyName) {
 	chrome.storage.local.get(['externalApplyData'], (res) => {
 		const storedData = res.externalApplyData || []
-		storedData.push({ title: jobTitle, link: jobLink, companyName })
-		chrome.storage.local.set({ externalApplyData: storedData })
+		const jobExists = storedData.some(storedJob => storedJob.link === jobLink)
+		if (!jobExists){
+			storedData.push({ title: jobTitle, link: jobLink, companyName, time: Date.now() })
+			chrome.storage.local.set({ externalApplyData: storedData })
+		}
 	})
 }
 
