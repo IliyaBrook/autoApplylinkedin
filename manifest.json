@@ -30,7 +30,6 @@
   "permissions": [
     "tabs",
     "storage",
-    "webRequest",
     "activeTab",
     "scripting"
   ],
