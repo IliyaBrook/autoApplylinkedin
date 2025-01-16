@@ -56,6 +56,8 @@
 4. Click **Load unpacked** and select the extension folder.
 5. The extension will now appear in your Chrome toolbar.
 
+### The extension available for now at Official [*Chrome Web Store*](https://chromewebstore.google.com/detail/easyapplylinkedin/gncaadiobcdbnfnapjcjnpnibkgebfnk?hl=en-US&utm_source=ext_sidebar)
+
 #### Please note that the extension will soon be available in the Chrome Web Store for easier installation. Stay tuned!
 
 ## Usage
