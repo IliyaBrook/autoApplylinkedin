@@ -1,6 +1,12 @@
 const inputFieldConfigs = []
 let currentInputFieldConfigs = []
 
+
+chrome.storage.local.get(['externalApplyData'], (res) => {
+  console.log("external apply res:", res)
+  
+});
+
 chrome.runtime.onConnect.addListener(function(port) {
 	if (port.name === 'popup') {
 		chrome.runtime.sendMessage({
@@ -16,23 +22,24 @@ chrome.runtime.onConnect.addListener(function(port) {
 
 function saveLinkedInJobData(jobTitle, jobLink, companyName) {
 	chrome.storage.local.get(['externalApplyData'], (res) => {
-		const storedData = res.externalApplyData || [];
+		const storedData = res.externalApplyData || []
+		storedData.push({ title: jobTitle, link: jobLink, companyName, time: Date.now() });
 		
-		const jobExists = storedData.some(storedJob => storedJob.link === jobLink);
-		if (!jobExists) {
-			storedData.push({ title: jobTitle, link: jobLink, companyName, time: Date.now() });
+		const uniqData = [];
+		const seenLinks = new Set();
+		const seenTitleAndCompany = new Set();
+		for (const item of storedData) {
+			const uniqKeyLink = `${item.link}`;
+			const uniqKeyTitleName = `${item.title}-${item.companyName}`;
+			
+			if (!seenLinks.has(uniqKeyLink) && !seenTitleAndCompany.has(uniqKeyTitleName)) {
+				seenLinks.add(uniqKeyLink);
+				seenTitleAndCompany.add(uniqKeyTitleName);
+				uniqData.push(item);
+			}
 		}
 		
-		const sortedData = storedData.sort((a, b) => {
-			if (a.time && b.time) {
-				return b.time - a.time;
-			} else if (a.time) {
-				return -1;
-			} else if (b.time) {
-				return 1;
-			}
-			return 0;
-		});
+		const sortedData = uniqData.sort((a, b) => b.time - a.time);
 		
 		chrome.storage.local.set({ externalApplyData: sortedData });
 	});
