@@ -5,6 +5,9 @@
 
 **EasyApplyLinkedIn** is a Chrome extension designed to streamline the process of applying for jobs on LinkedIn. By automating the application process for Easy Apply jobs and organizing other applications, this tool saves time and enhances productivity for job seekers.
 
+## What's new in 1.1
+We improved the “External Apply” feature to store only unique job postings. Duplicates are now automatically removed based on the link and the combination of title + company name. This way, you’ll always see the latest and unique listings.
+
 ## Features
 
 ### 1. Popup Menu
