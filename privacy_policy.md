@@ -1,5 +1,5 @@
 
-# Privacy Policy for EasyApplyLinkedIn
+# Privacy Policy for Easy Apply LinkedIn
 
 ## Data Collection
 This extension collects the following data locally on your device:
