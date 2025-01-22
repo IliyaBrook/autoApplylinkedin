@@ -16,6 +16,7 @@ const ignoreList = [
 	'pack-extension.js',
 	'update.xml',
 	'build',
+	'cheatsheet'
 ];
 
 const srcDir = path.resolve('.');

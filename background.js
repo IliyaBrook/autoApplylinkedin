@@ -1,12 +1,6 @@
 const inputFieldConfigs = []
 let currentInputFieldConfigs = []
 
-
-chrome.storage.local.get(['externalApplyData'], (res) => {
-  console.log("external apply res:", res)
-  
-});
-
 chrome.runtime.onConnect.addListener(function(port) {
 	if (port.name === 'popup') {
 		chrome.runtime.sendMessage({

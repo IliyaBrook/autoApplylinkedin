@@ -511,7 +511,6 @@ async function runScript() {
 			if (!jobNameLink) {
 				continue
 			}
-	
 			
 			const companyNames = listItem.querySelectorAll('[class*="subtitle"]')
 			
@@ -522,25 +521,20 @@ async function runScript() {
 			const companyName = companyNamesArray?.[0] ?? ''
 			const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
 			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
-			if (titleSkipEnabled) {
-				const titleSkipWords = await new Promise(resolve => {
-					chrome.storage.local.get('titleSkipWords', (result) => resolve(result.titleSkipWords || []))
-				})
-				
-				const matchedSkipWord = titleSkipWords.find(word => jobTitle.includes(word.toLowerCase()))
-				if (matchedSkipWord) {
-					continue
-				}
-			}
 			
-			if (titleFilterEnabled) {
-				const titleFilterWords = await new Promise(resolve => {
+			if (titleFilterEnabled || titleSkipEnabled) {
+				const titleFilterWords = await new Promise(resolve =>
 					chrome.storage.local.get('titleFilterWords', (result) => resolve(result.titleFilterWords || []))
-				})
-
-				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.includes(word.toLowerCase()))
-				if (!jobTitleMustContains) {
-					continue
+				);
+				const titleSkipWords = await new Promise(resolve =>
+					chrome.storage.local.get('titleSkipWords', (result) => resolve(result.titleSkipWords || []))
+				);
+				
+				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.includes(word.toLowerCase()));
+				const matchedSkipWord = titleSkipWords.find(word => jobTitle.includes(word.toLowerCase()));
+				
+				if (!jobTitleMustContains || matchedSkipWord) {
+					continue;
 				}
 			}
 			
