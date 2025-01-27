@@ -1,4 +1,4 @@
-async function addDelay(delay = 1000) {
+export async function addDelay(delay = 1000) {
     return new Promise(resolve => {
         setTimeout(() => {
             resolve();
@@ -6,7 +6,7 @@ async function addDelay(delay = 1000) {
     });
 }
 
-function getTime() {
+export function getTime() {
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -23,7 +23,7 @@ function getTime() {
  * @param {Document | HTMLElement} [context=document] - The context node to search within.
  * @returns {HTMLElement[]} - An array of found elements.
  */
-function getElementsByXPath({ xpath, context = document }) {
+export function getElementsByXPath({ xpath, context = document }) {
     const result = document.evaluate(
       xpath,
       context,
@@ -42,4 +42,12 @@ function getElementsByXPath({ xpath, context = document }) {
     }
     
     return elements
+}
+
+export async function getStorageData(key, defaultValue = null) {
+    return new Promise(resolve => {
+        chrome.storage.local.get(key, (result) => {
+            resolve(result[key] ?? defaultValue);
+        });
+    });
 }

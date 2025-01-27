@@ -1,3 +1,8 @@
+// noinspection JSCheckFunctionSignatures
+
+import {addDelay, getElementsByXPath, getStorageData} from './utils'
+
+
 let defaultFields = {
 	YearsOfExperience: '',
 	City: '',
@@ -61,9 +66,7 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
 		if (jobDetailsElement) {
 			const jobContentText = jobDetailsElement.textContent.toLowerCase().trim()
-			const badWords = await new Promise(resolve => {
-				chrome.storage.local.get('badWords', (result) => resolve(result.badWords || []))
-			})
+			const badWords = await getStorageData('badWords', (result) => resolve(result.badWords || []))
 			if (badWords.length > 0) {
 				const matchedBadWord = badWords.find(word => jobContentText.includes(word.toLowerCase().trim()))
 				if (matchedBadWord) {
@@ -189,9 +192,6 @@ async function performDropdownChecks() {
 	dropdowns.forEach(dropdown => {
 		const parentElement = dropdown.closest('.fb-dash-form-element') // Adjusted parent class
 		if (parentElement) {
-			const labelElement = parentElement.querySelector('label')
-			const labelText = labelElement?.textContent.trim()
-			
 			const secondOption = dropdown.options[1]
 			if (secondOption) {
 				secondOption.selected = true

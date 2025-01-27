@@ -19,12 +19,14 @@
     "default_title": "CONFIGURATION"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
       "matches": ["https://*.linkedin.com/*"],
-      "js": ["utils.js", "forGlobalWinElements.js", "content.js", "xpaths.js"]
+      "js": ["utils.js", "forGlobalWinElements.js", "content.js", "xpaths.js"],
+      "type": "module"
     }
   ],
   "permissions": [
