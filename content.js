@@ -134,7 +134,7 @@ async function performRadioButtonChecks() {
 	
 	const radioFieldsets = document.querySelectorAll('fieldset[data-test-form-builder-radio-button-form-component="true"]')
 	
-	radioFieldsets.forEach(fieldset => {
+	for (const fieldset of radioFieldsets) {
 		const legendElement = fieldset.querySelector('legend')
 		const questionTextElement = legendElement.querySelector('span[aria-hidden="true"]')
 		const placeholderText = questionTextElement.textContent.trim()
@@ -167,17 +167,12 @@ async function performRadioButtonChecks() {
 					options: options
 				}
 				
-				
 				storedRadioButtons.push(newRadioButtonInfo)
-				
-				chrome.storage.local.set({ 'radioButtons': storedRadioButtons }, () => {
-				})
+				await setStorageData('radioButtons', storedRadioButtons);
 			}
 		}
-	})
-	
-	chrome.storage.local.set({ 'radioButtons': storedRadioButtons }, () => {
-	})
+	}
+	await setStorageData('radioButtons', storedRadioButtons);
 }
 
 
@@ -293,22 +288,18 @@ async function runValidations() {
 
 
 async function runApplyModel() {
-	
 	await addDelay(2000)
-	
 	await performSafetyReminderCheck()
 	
 	const continueApplyingButton = document.querySelector('button[aria-label="Continue applying"]')
 	
 	if (continueApplyingButton) {
 		continueApplyingButton.click()
-		runApplyModel()
+		await runApplyModel()
 	}
 	
 	const nextButton = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Next'))
-	
 	const reviewButton = document.querySelector('button[aria-label="Review your application"]')
-	
 	const submitButton = document.querySelector('button[aria-label="Submit application"]')
 	
 	if (submitButton) {
@@ -485,6 +476,15 @@ async function runScript() {
 			const jobNameLink = listItem.querySelector('.job-card-container__link')
 			if (!jobNameLink) {
 				continue
+			}
+			
+			// check if job is already applied
+			const jobFooter = listItem.querySelector('[class*="footer"]')
+			if (jobFooter) {
+				const isApplied = jobFooter.textContent.trim() === 'Applied'
+				if (isApplied) {
+					continue
+				}
 			}
 			
 			const companyNames = listItem.querySelectorAll('[class*="subtitle"]')
