@@ -71,3 +71,4 @@ function sendMessage(action, data = {}) {
         chrome.runtime.sendMessage({ action, data }, resolve);
     });
 }
+

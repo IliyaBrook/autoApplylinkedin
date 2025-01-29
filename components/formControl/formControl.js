@@ -46,7 +46,7 @@ function fetchInputFieldConfigs(callback) {
 function displayRadioButtonConfigs(radioButtons) {
     const configurationsDiv = document.getElementById('radio');
     configurationsDiv.innerHTML = '';
-    const sortedRadioButtons = radioButtons.sort((a, b) => b.count - a.count); 
+    const sortedRadioButtons = radioButtons.sort((a, b) => b.count - a.count);
 
     sortedRadioButtons.forEach(config => {
         const configContainer = document.createElement('div');
@@ -65,8 +65,7 @@ function displayRadioButtonConfigs(radioButtons) {
             </div>
         `;
         configContainer.appendChild(configDetails);
-
-
+        
         config.options.forEach(option => {
             const radioContainer = document.createElement('div');
             radioContainer.className = 'radio-container';
@@ -117,22 +116,21 @@ function addUpdateRadioButtonGroupEventListener(placeholder) {
     });
 }
 
-function deleteRadioButtonConfig(placeholder) {
-    chrome.runtime.sendMessage({ action: 'deleteRadioButtonConfig', data: placeholder });
-
+async function deleteRadioButtonConfig(placeholder) {
+	  await sendMessage('deleteRadioButtonConfig', placeholder);
 }
 
 function displayDropdownConfigs(dropdowns) {
     const configurationsDiv = document.getElementById('dropdown');
     configurationsDiv.innerHTML = ''; // Clear previous content
 
-    const sortedDropdowns = dropdowns.sort((a, b) => b.count - a.count); 
+    const sortedDropdowns = dropdowns.sort((a, b) => b.count - a.count);
     sortedDropdowns.forEach(config => {
         const configContainer = document.createElement('div');
-        configContainer.className = 'config-container'; 
+        configContainer.className = 'config-container';
         configContainer.id = `dropdown-config-${config.placeholderIncludes}-container`;
 
-        const questionTitle = document.createElement('h3'); 
+        const questionTitle = document.createElement('h3');
         questionTitle.textContent = `${config.placeholderIncludes}`;
         configContainer.appendChild(questionTitle);
 
@@ -185,16 +183,19 @@ function displayDropdownConfigs(dropdowns) {
 }
 
 
-function addUpdateDropDownGroupEventListener(placeholderIncludes) {
+async function addUpdateDropDownGroupEventListener(placeholderIncludes) {
     const select = document.getElementById(`dropdown-config-${placeholderIncludes}-container`).querySelector('select');
-    select.addEventListener('change', () => {
+    select.addEventListener('change', async () => {
         const select = document.getElementById(`dropdown-config-${placeholderIncludes}-container`).querySelector('select');
         const newValue = select.value;
 
     
         if (newValue !== '') {
-            chrome.runtime.sendMessage({ action: 'updateDropdownConfig', data: { placeholderIncludes, value: newValue } });
-
+            try {
+                await sendMessage('updateDropdownConfig', { placeholderIncludes, value: newValue });
+            }catch (error) {
+	              console.error('Error updating dropdown:', error);
+            }
         }
     });
 }
@@ -209,7 +210,6 @@ function deleteDropdownConfig(placeholderIncludes) {
     if (configContainer) {
         configContainer.remove();
     }
-
 }
 
 function displayAndUpdateInputFieldConfig(configurations) {
