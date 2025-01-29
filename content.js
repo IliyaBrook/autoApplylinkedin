@@ -305,11 +305,11 @@ async function runApplyModel() {
 	
 	if (nextButton || reviewButton) {
 		const buttonToClick = reviewButton || nextButton
-		runValidations()
+		await runValidations()
 		const isError = await checkForError()
 		
 		if (isError) {
-			terminateJobModel()
+			await terminateJobModel()
 		} else {
 			await addDelay(2000)
 			buttonToClick.click()
@@ -322,13 +322,22 @@ async function runFindEasyApply(jobTitle, companyName) {
 	await addDelay(1000);
 	const currentPageLink = window.location.href;
 	
+	console.log(`[runFindEasyApply] started for ${jobTitle} at ${companyName}`);
+	
 	const externalApplyElements = getElementsByXPath({ xpath: not_easy_apply_button });
 	if (externalApplyElements.length > 0) {
-		await chrome.runtime.sendMessage({ action: 'externalApplyAction', data: { jobTitle, currentPageLink, companyName } });
+		const response = await chrome.runtime.sendMessage({ action: 'externalApplyAction', data: { jobTitle, currentPageLink, companyName } });
+		
+		if (!response?.success) {
+			console.error(`[runFindEasyApply] Error externalApplyAction:`, response?.message || response?.error);
+		} else {
+			console.log(`[runFindEasyApply] externalApplyAction success for ${jobTitle} at ${companyName}`);
+		}
 	}
 	
 	const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button });
 	if (easyApplyElements.length > 0) {
+		console.log(`[runFindEasyApply] founded ${easyApplyElements.length} button easy apply`);
 		const buttonPromises = Array.from(easyApplyElements).map((button) => {
 			return new Promise((resolve) => {
 				button.click();
@@ -337,6 +346,7 @@ async function runFindEasyApply(jobTitle, companyName) {
 		});
 		await Promise.race(buttonPromises);
 	}
+	console.log(`[runFindEasyApply] finished for ${jobTitle} at ${companyName}`);
 }
 
 
@@ -532,12 +542,16 @@ void stopScript()
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.action === 'showNotOnJobSearchAlert') {
+		console.log(`[content.js ] showNotOnJobSearchAlert started`);
 		const modalWrapper = document.getElementById('overlay-modal-wrapper')
 		if (modalWrapper) {
 			modalWrapper.style.display = 'flex'
+			console.log(`[content.js ] showNotOnJobSearchAlert finished`);
 			sendResponse({ success: true })
 		} else {
+			console.log(`[content.js ] showNotOnJobSearchAlert finished overlay-modal-wrapper not found`);
 			sendResponse({ success: false, error: 'overlay-modal-wrapper not found' })
 		}
 	}
+	return true
 })

@@ -38,92 +38,255 @@ async function saveLinkedInJobData(jobTitle, jobLink, companyName) {
 	const sortedData = uniqData.sort((a, b) => b.time - a.time);
 	
 	await setStorageData('externalApplyData', sortedData);
-	
 }
+
+// chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+// 	let responded = false;
+// 	(async () => {
+// 		try {
+// 			if (request.action === 'externalApplyAction') {
+// 				console.log(`[onMessage] externalApplyAction started`);
+// 				const { jobTitle, currentPageLink, companyName } = request.data;
+// 				sendResponse({ success: true });
+// 				responded = true;
+// 				await saveLinkedInJobData(jobTitle, currentPageLink, companyName);
+// 				console.log(`[onMessage] externalApplyAction done`);
+// 				return;
+// 			}
+// 			if (request.action === 'initStorage') {
+// 				console.log(`[onMessage] initStorage started`);
+// 				sendResponse({ success: true });
+// 				responded = true;
+//
+// 				const storedConfigs = await getStorageData('inputFieldConfigs', []);
+//
+// 				if (!storedConfigs.length) {
+// 					await setStorageData('inputFieldConfigs', inputFieldConfigs);
+// 					currentInputFieldConfigs = inputFieldConfigs;
+// 				} else {
+// 					currentInputFieldConfigs = storedConfigs;
+// 				}
+// 				console.log(`[onMessage] initStorage done`);
+// 				return;
+// 			}
+// 			if (request.action === 'startAutoApply') {
+// 				console.log("[onMessage] startAutoApply started");
+// 				sendResponse({ success: true });
+// 				responded = true;
+//
+// 				const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+//
+// 				if (chrome.runtime.lastError) {
+// 					console.error("[onMessage] startAutoApply error:", chrome.runtime.lastError.message);
+// 					return;
+// 				}
+//
+// 				if (tabs?.[0]) {
+// 					const currentTabId = tabs[0].id;
+// 					const currentUrl = tabs[0].url || '';
+//
+// 					if (currentUrl.includes('linkedin.com/jobs')) {
+// 						await chrome.scripting.executeScript({
+// 							target: { tabId: currentTabId },
+// 							func: runScriptInContent
+// 						});
+// 						console.log("[onMessage] startAutoApply done");
+// 					} else {
+// 						await chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' });
+// 						console.log("[onMessage] startAutoApply failed");
+// 					}
+// 				} else {
+// 					console.log("[onMessage] startAutoApply failed: No active tab");
+// 				}
+// 				return;
+// 			}
+// 			if (request.action === 'stopAutoApply') {
+// 				console.log("[onMessage] stopAutoApply started");
+// 				sendResponse({ success: true });
+// 				responded = true;
+//
+// 				await setStorageData('autoApplyRunning', false);
+// 				console.log("[onMessage] stopAutoApply done");
+// 				return;
+// 			}
+// 			if (request.action === 'updateInputFieldValue') {
+// 				console.log("[onMessage] updateInputFieldValue started");
+// 				const { placeholder, value } = request.data;
+// 				sendResponse({ success: true });
+// 				responded = true;
+// 				await updateOrAddInputFieldValue(placeholder, value);
+// 				console.log("[onMessage] updateInputFieldValue done");
+// 				return;
+// 			}
+// 			if (request.action === 'updateInputFieldConfigsInStorage') {
+// 				console.log("[onMessage] updateInputFieldConfigsInStorage started");
+// 				const placeholder = request.data;
+// 				sendResponse({ success: true });
+// 				responded = true;
+// 				await updateInputFieldConfigsInStorage(placeholder);
+// 				console.log("[onMessage] updateInputFieldConfigsInStorage done");
+// 				return;
+// 			}
+// 			if (request.action === 'deleteInputFieldConfig') {
+// 				console.log("[onMessage] deleteInputFieldConfig started");
+// 				const placeholder = request.data;
+// 				sendResponse({ success: true });
+// 				responded = true;
+// 				await deleteInputFieldConfig(placeholder);
+// 				console.log("[onMessage] deleteInputFieldConfig done");
+// 				return;
+// 			}
+// 			if (request.action === 'getInputFieldConfig') {
+// 				console.log("[onMessage] getInputFieldConfig started");
+// 				getInputFieldConfig().then((config) => {
+// 					console.log("[onMessage] getInputFieldConfig done");
+// 					if (!responded) sendResponse({ success: true, data: config });
+// 				}).catch((error) => {
+// 					console.error("[onMessage] getInputFieldConfig error:", error);
+// 					if (!responded) sendResponse({ success: false, error: error.message });
+// 				});
+// 				return true;
+// 			}
+// 			if (request.action === 'updateRadioButtonValueByPlaceholder') {
+// 				console.log("[onMessage] updateRadioButtonValueByPlaceholder started");
+// 				sendResponse({ success: true });
+// 				responded = true;
+// 				await updateRadioButtonValue(request.placeholderIncludes, request.newValue);
+// 				console.log("[onMessage] updateRadioButtonValueByPlaceholder done");
+// 				return;
+// 			}
+// 			if (request.action === 'deleteRadioButtonConfig') {
+// 				console.log("[onMessage] deleteRadioButtonConfig started");
+// 				sendResponse({ success: true });
+// 				responded = true;
+// 				await deleteRadioButtonConfig(request.data);
+// 				console.log("[onMessage] deleteRadioButtonConfig done");
+// 				return;
+// 			}
+// 			if (request.action === 'updateDropdownConfig') {
+// 				console.log("[onMessage] updateDropdownConfig started");
+// 				const { placeholderIncludes, value } = request.data;
+// 				sendResponse({ success: true });
+// 				responded = true;
+// 				await updateDropdownConfig(placeholderIncludes, value);
+// 				console.log("[onMessage] updateDropdownConfig done");
+// 				return;
+// 			}
+// 			if (request.action === 'deleteDropdownConfig') {
+// 				console.log("[onMessage] deleteDropdownConfig started");
+// 				sendResponse({ success: true });
+// 				responded = true;
+// 				await deleteDropdownValueConfig(request.data);
+// 				console.log("[onMessage] deleteDropdownConfig done");
+// 				return;
+// 			}
+// 			if (request.action === 'openDefaultInputPage') {
+// 				console.log("[onMessage] openDefaultInputPage started");
+// 				chrome.tabs.create({ url: 'components/defaultInput/defaultInput.js' })
+// 					.then(() => {
+// 						console.log("[onMessage] openDefaultInputPage done");
+// 						if (!responded) sendResponse({ success: true });
+// 					})
+// 					.catch((error) => {
+// 						console.error("[onMessage] openDefaultInputPage error:", error);
+// 						if (!responded) sendResponse({ success: false, error: error.message });
+// 					});
+// 				return true;
+// 			}
+// 			console.error("[onMessage] Unknown action:", request.action);
+// 			if (!responded) sendResponse({ success: false, message: 'Unknown action' });
+// 		} catch (error) {
+// 			console.error("[onMessage] error:", error);
+// 			if (!responded) sendResponse({ success: false, error: error.message });
+// 		}
+// 	})();
+//
+// 	return true;
+// });
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-	(async () => {
-		if (request.action === 'externalApplyAction') {
-			const { jobTitle, currentPageLink, companyName } = request.data
-			await saveLinkedInJobData(jobTitle, currentPageLink, companyName)
-			sendResponse({ success: true })
-		}
-		if (request.action === 'initStorage') {
-			const storedConfigs = await getStorageData('inputFieldConfigs', []);
-			
-			if (!storedConfigs.length) {
+	if (request.action === 'externalApplyAction') {
+		const { jobTitle, currentPageLink, companyName } = request.data
+		saveLinkedInJobData(jobTitle, currentPageLink, companyName)
+		sendResponse({ success: true })
+	}
+	if (request.action === 'initStorage') {
+		chrome.storage.local.get(['inputFieldConfigs'], result => {
+			if (!result.inputFieldConfigs) {
 				chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
 					currentInputFieldConfigs = inputFieldConfigs;
 					sendResponse({ success: true });
 				});
 			} else {
-				currentInputFieldConfigs = storedConfigs;
+				currentInputFieldConfigs = result.inputFieldConfigs;
 				sendResponse({ success: true });
 			}
-			return true;
-		}
-		if (request.action === 'startAutoApply') {
-			chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-				if (chrome.runtime.lastError) {
-					sendResponse({ success: false, message: chrome.runtime.lastError.message })
-					return
-				}
-				if (tabs?.[0]) {
-					const currentTabId = tabs[0].id
-					const currentUrl = tabs[0].url || ''
-					
-					if (currentUrl.includes('linkedin.com/jobs')) {
-						chrome.scripting.executeScript({
-							target: { tabId: currentTabId },
-							func: runScriptInContent
-						}, () => {
-							if (chrome.runtime.lastError) {
-								sendResponse({ success: false, message: chrome.runtime.lastError.message })
-							} else {
-								sendResponse({ success: true })
-							}
-						})
-					} else {
-						chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
-						sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
-					}
+		});
+		return true;
+	}
+	if (request.action === 'startAutoApply') {
+		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+			if (chrome.runtime.lastError) {
+				sendResponse({ success: false, message: chrome.runtime.lastError.message })
+				return
+			}
+			if (tabs?.[0]) {
+				const currentTabId = tabs[0].id
+				const currentUrl = tabs[0].url || ''
+				
+				if (currentUrl.includes('linkedin.com/jobs')) {
+					chrome.scripting.executeScript({
+						target: { tabId: currentTabId },
+						func: runScriptInContent
+					}, () => {
+						if (chrome.runtime.lastError) {
+							sendResponse({ success: false, message: chrome.runtime.lastError.message })
+						} else {
+							sendResponse({ success: true })
+						}
+					})
 				} else {
-					sendResponse({ success: false, message: 'No active tab found.' })
+					chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
+					sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
 				}
-			})
-			return true
-		} else if (request.action === 'stopAutoApply') {
-			await chrome.storage.local.set({ autoApplyRunning: false })
-			sendResponse({ success: true })
-		} else if (request.action === 'updateInputFieldValue') {
-			const placeholder = request.data.placeholder
-			const value = request.data.value
-			await updateOrAddInputFieldValue(placeholder, value)
-		} else if (request.action === 'updateInputFieldConfigsInStorage') {
-			const placeholder = request.data
-			await updateInputFieldConfigsInStorage(placeholder)
-		} else if (request.action === 'deleteInputFieldConfig') {
-			const placeholder = request.data
-			await deleteInputFieldConfig(placeholder)
-		} else if (request.action === 'getInputFieldConfig') {
-			await getInputFieldConfig(sendResponse)
-			return true
-		} else if (request.action === 'updateRadioButtonValueByPlaceholder') {
-			await updateRadioButtonValue(request.placeholderIncludes, request.newValue)
-		} else if (request.action === 'deleteRadioButtonConfig') {
-			await deleteRadioButtonConfig(request.data)
-		} else if (request.action === 'updateDropdownConfig') {
-			const { placeholderIncludes, value } = request.data
-			await updateDropdownConfig(placeholderIncludes, value)
-		} else if (request.action === 'deleteDropdownConfig') {
-			await deleteDropdownValueConfig(request.data)
-		} else if (request.action === 'openDefaultInputPage') {
-			await chrome.tabs.create({ url: 'components/defaultInput/defaultInput.js' })
-		}
-	})()
+			} else {
+				sendResponse({ success: false, message: 'No active tab found.' })
+			}
+		})
+		return true
+	} else if (request.action === 'stopAutoApply') {
+		chrome.storage.local.set({ autoApplyRunning: false })
+		sendResponse({ success: true })
+	} else if (request.action === 'updateInputFieldValue') {
+		const placeholder = request.data.placeholder
+		const value = request.data.value
+		updateOrAddInputFieldValue(placeholder, value)
+	} else if (request.action === 'updateInputFieldConfigsInStorage') {
+		const placeholder = request.data
+		updateInputFieldConfigsInStorage(placeholder)
+	} else if (request.action === 'deleteInputFieldConfig') {
+		const placeholder = request.data
+		deleteInputFieldConfig(placeholder)
+	} else if (request.action === 'getInputFieldConfig') {
+		getInputFieldConfig(sendResponse)
+		return true
+	} else if (request.action === 'updateRadioButtonValueByPlaceholder') {
+		updateRadioButtonValue(request.placeholderIncludes, request.newValue)
+	} else if (request.action === 'deleteRadioButtonConfig') {
+		deleteRadioButtonConfig(request.data)
+	} else if (request.action === 'updateDropdownConfig') {
+		const { placeholderIncludes, value } = request.data
+		updateDropdownConfig(placeholderIncludes, value)
+	} else if (request.action === 'deleteDropdownConfig') {
+		deleteDropdownValueConfig(request.data)
+	} else if (request.action === 'openDefaultInputPage') {
+		chrome.tabs.create({ url: 'components/defaultInput/defaultInput.js' })
+	}
+	
 	return true
 })
+
 
 async function updateOrAddInputFieldValue(placeholder, value) {
 	const inputFieldConfigs = await getStorageData('inputFieldConfigs', [])
