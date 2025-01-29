@@ -1,6 +1,5 @@
 // noinspection JSCheckFunctionSignatures
 
-
 let defaultFields = {
 	YearsOfExperience: '',
 	City: '',
@@ -32,7 +31,6 @@ async function performInputFieldCityCheck() {
 	}
 }
 
-
 async function jobPanelScrollLittle() {
 	const jobsPanel = document.querySelector('.jobs-search-results-list')
 	if (jobsPanel) {
@@ -46,7 +44,6 @@ async function jobPanelScrollLittle() {
 		await addDelay()
 	}
 }
-
 
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 	
@@ -75,21 +72,15 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 			console.warn('No job details found for filtering bad words.')
 		}
 	}
-
 	
 	await runFindEasyApply(jobTitle, companyName)
 	await jobPanelScrollLittle()
 }
 
 async function performInputFieldChecks() {
-	const result = await new Promise(resolve => {
-		
-		chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, resolve)
-		
-	})
+	const result = await sendMessage('getInputFieldConfig');
 	
 	const questionContainers = document.querySelectorAll('.fb-dash-form-element')
-	
 	
 	for (const container of questionContainers) {
 		
@@ -122,16 +113,14 @@ async function performInputFieldChecks() {
 				inputField.dispatchEvent(new Event('change', { bubbles: true }))
 			}
 			
-			chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText })
+			void chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText })
 		}
 	}
-	
 }
 
 async function performRadioButtonChecks() {
 	
 	const storedRadioButtons = await getStorageData('radioButtons', [])
-	
 	const radioFieldsets = document.querySelectorAll('fieldset[data-test-form-builder-radio-button-form-component="true"]')
 	
 	for (const fieldset of radioFieldsets) {
@@ -175,7 +164,6 @@ async function performRadioButtonChecks() {
 	await setStorageData('radioButtons', storedRadioButtons);
 }
 
-
 async function performDropdownChecks() {
 	const dropdowns = document.querySelectorAll('.fb-dash-form-element select')
 	
@@ -191,9 +179,7 @@ async function performDropdownChecks() {
 	})
 }
 
-
 async function performCheckBoxFieldCityCheck() {
-	
 	const checkboxFieldsets = document.querySelectorAll('fieldset[data-test-checkbox-form-component="true"]')
 	checkboxFieldsets.forEach(fieldset => {
 		
@@ -441,6 +427,10 @@ async function checkAndPromptFields() {
 	}
 }
 
+async function stopScript() {
+	await sendMessage('stopAutoApply')
+	await setStorageData('autoApplyRunning', false)
+}
 
 async function runScript() {
 	try {
@@ -533,20 +523,12 @@ async function runScript() {
 			await goToNextPage()
 		}
 	} catch (error) {
-		chrome.storage.local.set({ autoApplyRunning: false }, () => {
-			chrome.runtime.sendMessage({
-				action: 'stopAutoApply'
-			})
-		})
+		void stopScript()
 	}
 }
 
 // when refresh auto apply return to off state
-chrome.runtime.sendMessage({
-	action: 'stopAutoApply'
-})
-chrome.storage.local.set({ autoApplyRunning: false }, () => {
-})
+void stopScript()
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.action === 'showNotOnJobSearchAlert') {
