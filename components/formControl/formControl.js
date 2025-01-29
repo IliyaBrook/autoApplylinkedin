@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
     fetchRadioButtonConfigs(displayRadioButtonConfigs);
     fetchDropdownConfigs(displayDropdownConfigs);
 
-    chrome.storage.onChanged.addListener(function (changes, namespace) {
+    chrome.storage.onChanged.addListener(function (changes) {
         if ('inputFieldConfigs' in changes) {
             const newConfigurations = changes.inputFieldConfigs.newValue || [];
             displayAndUpdateInputFieldConfig(newConfigurations);

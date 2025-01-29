@@ -99,8 +99,7 @@ async function handleSaveButtonClick() {
   const inputFields = document.getElementById('input-fields').querySelectorAll('input');
   inputFields.forEach(function(inputField) {
     const fieldName = inputField.getAttribute('name');
-    const fieldValue = inputField.value.trim();
-    fields[fieldName] = fieldValue;
+    fields[fieldName] = inputField.value.trim();
   });
 
   await new Promise((resolve) => {

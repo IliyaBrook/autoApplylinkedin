@@ -66,7 +66,6 @@ async function createCustomElement({
 async function initElements() {
 	try {
 		if (!document.body) {
-			console.warn("[initElements] document.body is not ready yet. Retrying...");
 			setTimeout(initElements, 100);
 			return;
 		}

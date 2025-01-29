@@ -58,18 +58,16 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 	jobNameLink.click()
 	await addDelay()
 	if (badWordsEnabled) {
-		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
+		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]');
 		if (jobDetailsElement) {
-			const jobContentText = jobDetailsElement.textContent.toLowerCase().trim()
-			const badWords = await getStorageData('badWords', (result) => resolve(result.badWords || []))
+			const jobContentText = jobDetailsElement.textContent.toLowerCase().trim();
+			const badWords = await getStorageData('badWords', []);
 			if (badWords.length > 0) {
-				const matchedBadWord = badWords.find(word => jobContentText.includes(word.toLowerCase().trim()))
+				const matchedBadWord = badWords.find(word => jobContentText.includes(word.toLowerCase().trim()));
 				if (matchedBadWord) {
-					return
+					return;
 				}
 			}
-		} else {
-			console.warn('No job details found for filtering bad words.')
 		}
 	}
 	
@@ -78,7 +76,7 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 }
 
 async function performInputFieldChecks() {
-	const result = await sendMessage('getInputFieldConfig');
+	const result = await sendMessage('getInputFieldConfig')
 	
 	const questionContainers = document.querySelectorAll('.fb-dash-form-element')
 	
@@ -157,11 +155,11 @@ async function performRadioButtonChecks() {
 				}
 				
 				storedRadioButtons.push(newRadioButtonInfo)
-				await setStorageData('radioButtons', storedRadioButtons);
+				await setStorageData('radioButtons', storedRadioButtons)
 			}
 		}
 	}
-	await setStorageData('radioButtons', storedRadioButtons);
+	await setStorageData('radioButtons', storedRadioButtons)
 }
 
 async function performDropdownChecks() {
@@ -319,34 +317,26 @@ async function runApplyModel() {
 }
 
 async function runFindEasyApply(jobTitle, companyName) {
-	await addDelay(1000);
-	const currentPageLink = window.location.href;
-	
-	console.log(`[runFindEasyApply] started for ${jobTitle} at ${companyName}`);
-	
-	const externalApplyElements = getElementsByXPath({ xpath: not_easy_apply_button });
+	await addDelay(1000)
+	const currentPageLink = window.location.href
+	const externalApplyElements = getElementsByXPath({ xpath: not_easy_apply_button })
 	if (externalApplyElements.length > 0) {
-		const response = await chrome.runtime.sendMessage({ action: 'externalApplyAction', data: { jobTitle, currentPageLink, companyName } });
-		
-		if (!response?.success) {
-			console.error(`[runFindEasyApply] Error externalApplyAction:`, response?.message || response?.error);
-		} else {
-			console.log(`[runFindEasyApply] externalApplyAction success for ${jobTitle} at ${companyName}`);
-		}
+		await chrome.runtime.sendMessage({
+			action: 'externalApplyAction',
+			data: { jobTitle, currentPageLink, companyName }
+		})
 	}
 	
-	const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button });
+	const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button })
 	if (easyApplyElements.length > 0) {
-		console.log(`[runFindEasyApply] founded ${easyApplyElements.length} button easy apply`);
 		const buttonPromises = Array.from(easyApplyElements).map((button) => {
 			return new Promise((resolve) => {
-				button.click();
-				resolve(runApplyModel());
-			});
-		});
-		await Promise.race(buttonPromises);
+				button.click()
+				resolve(runApplyModel())
+			})
+		})
+		await Promise.race(buttonPromises)
 	}
-	console.log(`[runFindEasyApply] finished for ${jobTitle} at ${companyName}`);
 }
 
 
@@ -412,28 +402,28 @@ function isChromeStorageAvailable() {
 async function checkAndPromptFields() {
 	try {
 		if (!isChromeStorageAvailable()) {
-			console.warn('Chrome storage is not available, skipping checkAndPromptFields.');
-			return false;
+			console.warn('Chrome storage is not available, skipping checkAndPromptFields.')
+			return false
 		}
 		
-		const storedFields = await getStorageData('defaultFields', {});
+		const storedFields = await getStorageData('defaultFields', {})
 		
 		if (Object.keys(storedFields).length === 0) {
-			await setStorageData('defaultFields', defaultFields);
-			return false;
+			await setStorageData('defaultFields', defaultFields)
+			return false
 		}
 		
-		const fieldsComplete = Object.values(storedFields).every(value => value);
+		const fieldsComplete = Object.values(storedFields).every(value => value)
 		
 		if (!fieldsComplete) {
-			return false;
+			return false
 		}
 		
-		defaultFields = storedFields;
-		return true;
+		defaultFields = storedFields
+		return true
 	} catch (e) {
-		console.error('Error in checkAndPromptFields:', e);
-		return false;
+		console.error('Error in checkAndPromptFields:', e)
+		return false
 	}
 }
 
@@ -450,9 +440,9 @@ async function runScript() {
 			return
 		}
 		
-		const titleSkipEnabled = await getStorageData('titleSkipEnabled', false);
-		const titleFilterEnabled = await getStorageData('titleFilterEnabled', false);
-		const badWordsEnabled = await getStorageData('badWordsEnabled', false);
+		const titleSkipEnabled = await getStorageData('titleSkipEnabled', false)
+		const titleFilterEnabled = await getStorageData('titleFilterEnabled', false)
+		const badWordsEnabled = await getStorageData('badWordsEnabled', false)
 		
 		const limitReached = await checkLimitReached()
 		if (limitReached) {
@@ -467,7 +457,7 @@ async function runScript() {
 		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
 		
 		for (const listItem of listItems) {
-			const autoApplyRunning = await getStorageData('autoApplyRunning', false);
+			const autoApplyRunning = await getStorageData('autoApplyRunning', false)
 			
 			if (!autoApplyRunning) {
 				break
@@ -498,14 +488,14 @@ async function runScript() {
 			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
 			
 			if (titleFilterEnabled || titleSkipEnabled) {
-				const titleFilterWords = await getStorageData('titleFilterWords', []);
-				const titleSkipWords = await getStorageData('titleSkipWords', []);
+				const titleFilterWords = await getStorageData('titleFilterWords', [])
+				const titleSkipWords = await getStorageData('titleSkipWords', [])
 				
-				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.includes(word.toLowerCase()));
-				const matchedSkipWord = titleSkipWords.find(word => jobTitle.includes(word.toLowerCase()));
+				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.includes(word.toLowerCase()))
+				const matchedSkipWord = titleSkipWords.find(word => jobTitle.includes(word.toLowerCase()))
 				
 				if (!jobTitleMustContains || matchedSkipWord) {
-					continue;
+					continue
 				}
 			}
 			
@@ -526,7 +516,7 @@ async function runScript() {
 			}
 		}
 		
-		const autoApplyRunning = await getStorageData('autoApplyRunning', false);
+		const autoApplyRunning = await getStorageData('autoApplyRunning', false)
 		
 		
 		if (autoApplyRunning) {

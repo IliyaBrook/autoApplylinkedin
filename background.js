@@ -6,13 +6,9 @@ let currentInputFieldConfigs = []
 
 chrome.runtime.onConnect.addListener(function(port) {
 	if (port.name === 'popup') {
-		chrome.runtime.sendMessage({
-			popup: true
-		})
+			sendMessage({ popup: true })
 		port.onDisconnect.addListener(function() {
-			chrome.runtime.sendMessage({
-				popup: false
-			})
+			sendMessage({ action: 'stopAutoApply' })
 		})
 	}
 })
@@ -50,8 +46,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				sendResponse({ success: true })
 			}
 			if (request.action === 'initStorage') {
-				const result = await chrome.storage.local.get(['inputFieldConfigs'])
-				if (!result.inputFieldConfigs) {
+				// const result = await chrome.storage.local.get(['inputFieldConfigs'])
+				const result = await getStorageData('inputFieldConfigs', {} )
+				if (!result?.inputFieldConfigs) {
 					await setStorageData('inputFieldConfigs', inputFieldConfigs)
 					currentInputFieldConfigs = inputFieldConfigs
 					sendResponse({ success: true })
@@ -61,35 +58,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				sendResponse({ success: true })
 			}
 			if (request.action === 'startAutoApply') {
-				const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
-				if (chrome.runtime.lastError) {
-					sendResponse({ success: false, message: chrome.runtime.lastError.message });
-					return;
-				}
-				
-				if (!tabs?.[0]) {
-					sendResponse({ success: false, message: 'No active tab found.' });
-					return;
-				}
-				
-				const currentTabId = tabs[0].id
-				const currentUrl = tabs[0].url || ''
-				if (currentUrl.includes('linkedin.com/jobs')) {
-					chrome.scripting.executeScript({
-						target: { tabId: currentTabId },
-						func: runScriptInContent
-					}, () => {
-						if (chrome.runtime.lastError) {
-							sendResponse({ success: false, message: chrome.runtime.lastError.message })
-						} else {
+				try {
+					const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+					
+					if (!tabs?.[0]) {
+						sendResponse({ success: false, message: 'No active tab found.' })
+						return
+					}
+					
+					const currentTabId = tabs[0].id
+					const currentUrl = tabs[0].url || ''
+					
+					if (currentUrl.includes('linkedin.com/jobs')) {
+						try {
+							await chrome.scripting.executeScript({
+								target: { tabId: currentTabId }, func: runScriptInContent
+							})
 							sendResponse({ success: true })
+						} catch (err) {
+							sendResponse({ success: false, message: err.message })
 						}
-					})
-				} else {
-					await chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
-					sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
+					} else {
+						await chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
+						sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
+					}
+				} catch (err) {
+					sendResponse({ success: false, message: err.message })
 				}
-				return true;
 			}
 			if (request.action === 'stopAutoApply') {
 				await setStorageData('autoApplyRunning', false)
@@ -147,18 +142,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function updateOrAddInputFieldValue(placeholder, value) {
 	const inputFieldConfigs = await getStorageData('inputFieldConfigs', [])
 	const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder)
-	
 	if (foundConfig) {
 		foundConfig.defaultValue = value
-		chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
-			currentInputFieldConfigs = inputFieldConfigs
-		})
+		await setStorageData('inputFieldConfigs', inputFieldConfigs)
+		currentInputFieldConfigs = inputFieldConfigs
 	} else {
 		const newConfig = { placeholderIncludes: placeholder, defaultValue: value, count: 1 }
 		inputFieldConfigs.push(newConfig)
-		chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
-			currentInputFieldConfigs = inputFieldConfigs
-		})
+		await setStorageData('inputFieldConfigs', inputFieldConfigs)
+		currentInputFieldConfigs = inputFieldConfigs
 	}
 }
 
@@ -172,9 +164,7 @@ async function updateInputFieldConfigsInStorage(placeholder) {
 	} else {
 		const defaultFields = await getStorageData('defaultFields', {})
 		const newConfig = {
-			placeholderIncludes: placeholder,
-			defaultValue: defaultFields.YearsOfExperience || '',
-			count: 1
+			placeholderIncludes: placeholder, defaultValue: defaultFields.YearsOfExperience || '', count: 1
 		}
 		inputFieldConfigs.push(newConfig)
 	}
