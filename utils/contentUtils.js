@@ -1,4 +1,4 @@
-export async function addDelay(delay = 1000) {
+async function addDelay(delay = 1000) {
     return new Promise(resolve => {
         setTimeout(() => {
             resolve();
@@ -6,7 +6,7 @@ export async function addDelay(delay = 1000) {
     });
 }
 
-export function getTime() {
+function getTime() {
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -23,7 +23,7 @@ export function getTime() {
  * @param {Document | HTMLElement} [context=document] - The context node to search within.
  * @returns {HTMLElement[]} - An array of found elements.
  */
-export function getElementsByXPath({ xpath, context = document }) {
+function getElementsByXPath({ xpath, context = document }) {
     const result = document.evaluate(
       xpath,
       context,
@@ -44,30 +44,10 @@ export function getElementsByXPath({ xpath, context = document }) {
     return elements
 }
 
-export async function getStorageData(key, defaultValue = null) {
+async function getStorageData(key, defaultValue = null) {
     return new Promise(resolve => {
         chrome.storage.local.get(key, (result) => {
             resolve(result[key] ?? defaultValue);
         });
-    });
-}
-
-export async function setStorageData(key, value) {
-    return new Promise(resolve => {
-        chrome.storage.local.set({ [key]: value }, () => {
-            resolve();
-        });
-    });
-}
-
-export async function updateStorageArray(key, updateFn) {
-    const data = await getStorageData(key, []);
-    const updatedData = updateFn(data);
-    await setStorageData(key, updatedData);
-}
-
-export function sendMessage(action, data = {}) {
-    return new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action, data }, resolve);
     });
 }

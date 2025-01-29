@@ -1,7 +1,5 @@
 // noinspection JSCheckFunctionSignatures
 
-import { addDelay, getElementsByXPath, getStorageData, setStorageData } from './utils'
-
 
 let defaultFields = {
 	YearsOfExperience: '',
