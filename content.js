@@ -1,6 +1,6 @@
 // noinspection JSCheckFunctionSignatures
 
-import {addDelay, getElementsByXPath, getStorageData} from './utils'
+import { addDelay, getElementsByXPath, getStorageData, setStorageData } from './utils'
 
 
 let defaultFields = {
@@ -131,11 +131,8 @@ async function performInputFieldChecks() {
 }
 
 async function performRadioButtonChecks() {
-	const storedRadioButtons = await new Promise((resolve) => {
-		chrome.storage.local.get('radioButtons', (result) => {
-			resolve(result.radioButtons || [])
-		})
-	})
+	
+	const storedRadioButtons = await getStorageData('radioButtons', [])
 	
 	const radioFieldsets = document.querySelectorAll('fieldset[data-test-form-builder-radio-button-form-component="true"]')
 	
@@ -431,38 +428,28 @@ function isChromeStorageAvailable() {
 async function checkAndPromptFields() {
 	try {
 		if (!isChromeStorageAvailable()) {
-			console.warn('Chrome storage is not available, skipping checkAndPromptFields.')
-			return false // or throw
+			console.warn('Chrome storage is not available, skipping checkAndPromptFields.');
+			return false;
 		}
-		return new Promise(resolve => {
-			if (!isChromeStorageAvailable()) {
-				return resolve(false)
-			}
-			chrome.storage.local.get('defaultFields', function(result) {
-				let fieldsComplete = true
-				
-				if (Object.keys(result).length === 0 && result.constructor === Object) {
-					chrome.storage.local.set({ 'defaultFields': defaultFields }, function() {
-						resolve(false)
-					})
-				} else {
-					for (const key in result.defaultFields) {
-						if (!result.defaultFields[key]) {
-							fieldsComplete = false
-							break
-						}
-					}
-					if (!fieldsComplete) {
-						resolve(false)
-					} else {
-						defaultFields = result.defaultFields
-						resolve(true)
-					}
-				}
-			})
-		})
+		
+		const storedFields = await getStorageData('defaultFields', {});
+		
+		if (Object.keys(storedFields).length === 0) {
+			await setStorageData('defaultFields', defaultFields);
+			return false;
+		}
+		
+		const fieldsComplete = Object.values(storedFields).every(value => value);
+		
+		if (!fieldsComplete) {
+			return false;
+		}
+		
+		defaultFields = storedFields;
+		return true;
 	} catch (e) {
-		console.error('error in checkAndPromptFields: ', e)
+		console.error('Error in checkAndPromptFields:', e);
+		return false;
 	}
 }
 
@@ -475,16 +462,9 @@ async function runScript() {
 			return
 		}
 		
-		const titleSkipEnabled = await new Promise((resolve) => {
-			chrome.storage.local.get('titleSkipEnabled', (result) => resolve(result.titleSkipEnabled ?? false))
-		})
-		
-		const titleFilterEnabled = await new Promise((resolve) => {
-			chrome.storage.local.get('titleFilterEnabled', (result) => resolve(result.titleFilterEnabled ?? false))
-		})
-		const badWordsEnabled = await new Promise((resolve) => {
-			chrome.storage.local.get('badWordsEnabled', (result) => resolve(result.badWordsEnabled ?? false))
-		})
+		const titleSkipEnabled = await getStorageData('titleSkipEnabled', false);
+		const titleFilterEnabled = await getStorageData('titleFilterEnabled', false);
+		const badWordsEnabled = await getStorageData('badWordsEnabled', false);
 		
 		const limitReached = await checkLimitReached()
 		if (limitReached) {
@@ -499,9 +479,7 @@ async function runScript() {
 		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
 		
 		for (const listItem of listItems) {
-			const { autoApplyRunning } = await new Promise(resolve => {
-				chrome.storage.local.get('autoApplyRunning', resolve)
-			})
+			const autoApplyRunning = await getStorageData('autoApplyRunning', false);
 			
 			if (!autoApplyRunning) {
 				break
@@ -523,12 +501,8 @@ async function runScript() {
 			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
 			
 			if (titleFilterEnabled || titleSkipEnabled) {
-				const titleFilterWords = await new Promise(resolve =>
-					chrome.storage.local.get('titleFilterWords', (result) => resolve(result.titleFilterWords || []))
-				);
-				const titleSkipWords = await new Promise(resolve =>
-					chrome.storage.local.get('titleSkipWords', (result) => resolve(result.titleSkipWords || []))
-				);
+				const titleFilterWords = await getStorageData('titleFilterWords', []);
+				const titleSkipWords = await getStorageData('titleSkipWords', []);
 				
 				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.includes(word.toLowerCase()));
 				const matchedSkipWord = titleSkipWords.find(word => jobTitle.includes(word.toLowerCase()));
@@ -555,9 +529,8 @@ async function runScript() {
 			}
 		}
 		
-		const { autoApplyRunning } = await new Promise(resolve => {
-			chrome.storage.local.get('autoApplyRunning', resolve)
-		})
+		const autoApplyRunning = await getStorageData('autoApplyRunning', false);
+		
 		
 		if (autoApplyRunning) {
 			await goToNextPage()
