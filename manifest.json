@@ -25,7 +25,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["utils/contentUtils.js", "forGlobalWinElements.js", "content.js", "xpaths.js"],
+      "js": ["utils.js", "forGlobalWinElements.js", "content.js", "xpaths.js"],
       "type": "module"
     }
   ],

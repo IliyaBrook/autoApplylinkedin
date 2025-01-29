@@ -292,7 +292,6 @@ async function runValidations() {
 }
 
 
-// location.hostname.includes('shein.com') && r('s');
 async function runApplyModel() {
 	
 	await addDelay(2000)
