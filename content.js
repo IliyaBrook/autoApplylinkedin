@@ -542,16 +542,12 @@ void stopScript()
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.action === 'showNotOnJobSearchAlert') {
-		console.log(`[content.js ] showNotOnJobSearchAlert started`);
 		const modalWrapper = document.getElementById('overlay-modal-wrapper')
 		if (modalWrapper) {
 			modalWrapper.style.display = 'flex'
-			console.log(`[content.js ] showNotOnJobSearchAlert finished`);
 			sendResponse({ success: true })
 		} else {
-			console.log(`[content.js ] showNotOnJobSearchAlert finished overlay-modal-wrapper not found`);
 			sendResponse({ success: false, error: 'overlay-modal-wrapper not found' })
 		}
 	}
-	return true
 })

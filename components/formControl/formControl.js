@@ -201,11 +201,8 @@ async function addUpdateDropDownGroupEventListener(placeholderIncludes) {
 }
 
 function deleteDropdownConfig(placeholderIncludes) {
-    // Add logic to delete the configuration
     chrome.runtime.sendMessage({ action: 'deleteDropdownConfig', data: placeholderIncludes });
-
-
-    // Remove the entire UI container immediately
+    
     const configContainer = document.getElementById(`dropdown-config-${placeholderIncludes}-container`);
     if (configContainer) {
         configContainer.remove();
@@ -260,17 +257,11 @@ function displayAndUpdateInputFieldConfig(configurations) {
 function updateConfig(placeholder) {
     const inputField = document.getElementById(`config-${placeholder}`);
     const newValue = inputField.value.trim();
-
-    // Add logic to validate and update the configuration
-        chrome.runtime.sendMessage({ action: 'updateInputFieldValue', data: { placeholder, value: newValue } });
-
+    chrome.runtime.sendMessage({ action: 'updateInputFieldValue', data: { placeholder, value: newValue } });
 }
 
 function deleteConfig(placeholder) {
-    // Add logic to delete the configuration
     chrome.runtime.sendMessage({ action: 'deleteInputFieldConfig', data: placeholder });
-
-    // Remove the entire UI container immediately
     const configContainer = document.getElementById(`config-${placeholder}-container`);
     if (configContainer) {
         configContainer.remove();
