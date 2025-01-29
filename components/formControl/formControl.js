@@ -105,7 +105,6 @@ function addUpdateRadioButtonGroupEventListener(placeholder) {
     const configurationsDiv = document.getElementById('radio');
     configurationsDiv.addEventListener('change', function(event) {
         if (event.target.matches(`[name="config-${placeholder}-radio"]`)) {
-
             chrome.runtime.sendMessage({
                 action: 'updateRadioButtonValueByPlaceholder',
                 placeholderIncludes: placeholder,
@@ -117,7 +116,7 @@ function addUpdateRadioButtonGroupEventListener(placeholder) {
 }
 
 async function deleteRadioButtonConfig(placeholder) {
-	  await sendMessage('deleteRadioButtonConfig', placeholder);
+    await chrome.runtime.sendMessage({ action: 'deleteRadioButtonConfig', data: placeholder });
 }
 
 function displayDropdownConfigs(dropdowns) {
@@ -192,7 +191,7 @@ async function addUpdateDropDownGroupEventListener(placeholderIncludes) {
     
         if (newValue !== '') {
             try {
-                await sendMessage('updateDropdownConfig', { placeholderIncludes, value: newValue });
+                await chrome.runtime.sendMessage({ action: 'updateDropdownConfig', data: { placeholderIncludes, value: newValue } });
             }catch (error) {
 	              console.error('Error updating dropdown:', error);
             }

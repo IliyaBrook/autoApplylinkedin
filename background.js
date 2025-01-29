@@ -1,14 +1,20 @@
-import { getStorageData, sendMessage, setStorageData } from './utils/bgUtils.js'
+import { getStorageData, setStorageData } from './utils/bgUtils.js'
 
 
 const inputFieldConfigs = []
 let currentInputFieldConfigs = []
 
+
 chrome.runtime.onConnect.addListener(function(port) {
 	if (port.name === 'popup') {
-			sendMessage({ popup: true })
+		chrome.runtime.sendMessage({
+			popup: true
+		})
+		
 		port.onDisconnect.addListener(function() {
-			sendMessage({ action: 'stopAutoApply' })
+			chrome.runtime.sendMessage({
+				popup: false
+			})
 		})
 	}
 })

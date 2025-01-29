@@ -1,9 +1,3 @@
-export function sendMessage(action, data = {}) {
-	return new Promise((resolve) => {
-		chrome.runtime.sendMessage({ action, data }, resolve);
-	});
-}
-
 export function setStorageData(key, value) {
 	return new Promise(resolve => {
 		chrome.storage.local.set({ [key]: value }, () => {
