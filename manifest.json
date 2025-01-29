@@ -1,9 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Easy Apply LinkedIn",
-  "version": "1.2",
+  "version": "1.3",
   "description": "Applying for Jobs Made Effortless!",
-  
   "icons": {
     "16": "assets/images/256256.png",
     "48": "assets/images/256256.png",
