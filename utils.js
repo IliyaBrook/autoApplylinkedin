@@ -51,3 +51,23 @@ export async function getStorageData(key, defaultValue = null) {
         });
     });
 }
+
+export async function setStorageData(key, value) {
+    return new Promise(resolve => {
+        chrome.storage.local.set({ [key]: value }, () => {
+            resolve();
+        });
+    });
+}
+
+export async function updateStorageArray(key, updateFn) {
+    const data = await getStorageData(key, []);
+    const updatedData = updateFn(data);
+    await setStorageData(key, updatedData);
+}
+
+export function sendMessage(action, data = {}) {
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action, data }, resolve);
+    });
+}
