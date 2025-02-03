@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function () {
     fetchRadioButtonConfigs(displayRadioButtonConfigs);
     fetchDropdownConfigs(displayDropdownConfigs);
 
-    chrome.storage.onChanged.addListener(function (changes) {
+    chrome.storage.onChanged.addListener(changes => {
         if ('inputFieldConfigs' in changes) {
             const newConfigurations = changes.inputFieldConfigs.newValue || [];
             displayAndUpdateInputFieldConfig(newConfigurations);
@@ -208,6 +208,13 @@ function deleteDropdownConfig(placeholderIncludes) {
     }
 }
 
+function updateConfigFC(placeholder) {
+    console.log("log updateConfig placeholder:", placeholder )
+    const inputField = document.getElementById(`config-${placeholder}`);
+    const newValue = inputField.value.trim();
+    chrome.runtime.sendMessage({ action: 'updateInputFieldValue', data: { placeholder, value: newValue } });
+}
+
 function displayAndUpdateInputFieldConfig(configurations) {
     const configurationsDiv = document.getElementById('configurations');
     configurationsDiv.innerHTML = '';
@@ -241,7 +248,7 @@ function displayAndUpdateInputFieldConfig(configurations) {
         inputField.className = 'config-input';
 
         updateButton.textContent = 'Update';
-        updateButton.addEventListener('click', () => updateConfig(config.placeholderIncludes));
+        updateButton.addEventListener('click', () => updateConfigFC(config.placeholderIncludes));
 
         deleteButton.textContent = 'Delete';
         deleteButton.addEventListener('click', () => deleteConfig(config.placeholderIncludes));
@@ -251,12 +258,6 @@ function displayAndUpdateInputFieldConfig(configurations) {
         buttonsWrapper.appendChild(deleteButton);
         configurationsDiv.appendChild(configContainer);
     });
-}
-
-function updateConfig(placeholder) {
-    const inputField = document.getElementById(`config-${placeholder}`);
-    const newValue = inputField.value.trim();
-    chrome.runtime.sendMessage({ action: 'updateInputFieldValue', data: { placeholder, value: newValue } });
 }
 
 function deleteConfig(placeholder) {

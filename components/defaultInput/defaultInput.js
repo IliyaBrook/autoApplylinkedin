@@ -93,6 +93,14 @@ function renderInputFields(defaultFields) {
   }
 }
 
+function updateConfigDI(placeholder, newValue) {
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ action: 'updateInputFieldValue', data: { placeholder, value: newValue } }, () => {
+      resolve();
+    });
+  });
+}
+
 async function handleSaveButtonClick() {
   const fields = {};
 
@@ -109,22 +117,13 @@ async function handleSaveButtonClick() {
     });
   });
 
-  await updateConfig("First name", fields.FirstName);
+  await updateConfigDI("First name", fields.FirstName);
   
-  await updateConfig("Last name", fields.LastName);
+  await updateConfigDI("Last name", fields.LastName);
   
-  await updateConfig("Mobile phone number", fields.PhoneNumber);
+  await updateConfigDI("Mobile phone number", fields.PhoneNumber);
 
   loadDefaultFields();
-}
-
-
-function updateConfig(placeholder, newValue) {
-  return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ action: 'updateInputFieldValue', data: { placeholder, value: newValue } }, () => {
-      resolve();
-    });
-  });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
