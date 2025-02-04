@@ -52,16 +52,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				sendResponse({ success: true })
 			}
 			if (request.action === 'initStorage') {
-				// const result = await chrome.storage.local.get(['inputFieldConfigs'])
-				const result = await getStorageData('inputFieldConfigs', {} )
-				if (!result?.inputFieldConfigs) {
-					await setStorageData('inputFieldConfigs', inputFieldConfigs)
-					currentInputFieldConfigs = inputFieldConfigs
-					sendResponse({ success: true })
-				} else {
-					currentInputFieldConfigs = result.inputFieldConfigs
-				}
-				sendResponse({ success: true })
+				const result = await getStorageData('inputFieldConfigs', []);
+				currentInputFieldConfigs = (Array.isArray(result) && result.length > 0) ? result : [];
+				sendResponse({ success: true });
 			}
 			if (request.action === 'startAutoApply') {
 				try {

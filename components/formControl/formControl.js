@@ -209,7 +209,6 @@ function deleteDropdownConfig(placeholderIncludes) {
 }
 
 function updateConfigFC(placeholder) {
-    console.log("log updateConfig placeholder:", placeholder )
     const inputField = document.getElementById(`config-${placeholder}`);
     const newValue = inputField.value.trim();
     chrome.runtime.sendMessage({ action: 'updateInputFieldValue', data: { placeholder, value: newValue } });
