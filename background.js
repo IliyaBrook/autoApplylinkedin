@@ -1,7 +1,6 @@
 import { getStorageData, setStorageData } from './utils/bgUtils.js'
 
 
-const inputFieldConfigs = []
 let currentInputFieldConfigs = []
 
 
