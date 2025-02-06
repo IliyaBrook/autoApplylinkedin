@@ -279,8 +279,6 @@ const defaultNullFieldInput = {
 
 function loadDefaultFields() {
     chrome.storage.local.get('defaultFields', function(result) {
-        console.log('defaultFields:', result)
-        
         const defaultFields = result.defaultFields || {}
         if (Object.keys(defaultFields).length === 0 && defaultFields.constructor === Object) {
             chrome.storage.local.set({ 'defaultFields': defaultNullFieldInput }, function() {
@@ -311,7 +309,7 @@ function updateStatusMessage() {
         messageElement.textContent = 'You are ready to use auto apply!'
         messageElement.style.color = '#007700'
     } else {
-        messageElement.textContent = 'To use Auto Apply, fill out the missing values:'
+        messageElement.textContent = 'Please fill out the missing values:'
         messageElement.style.color = '#b50000'
     }
 }
@@ -371,30 +369,6 @@ function updateConfigDI(placeholder, newValue) {
     })
 }
 
-async function handleSaveButtonClick() {
-    const fields = {}
-    
-    const inputFields = document.getElementById('default-input-fields').querySelectorAll('input')
-    inputFields.forEach(function(inputField) {
-        const fieldName = inputField.getAttribute('name')
-        fields[fieldName] = inputField.value.trim()
-    })
-    
-    await new Promise((resolve) => {
-        chrome.storage.local.set({ 'defaultFields': fields }, function() {
-            resolve()
-        })
-    })
-    
-    await updateConfigDI('First name', fields.FirstName)
-    
-    await updateConfigDI('Last name', fields.LastName)
-    
-    await updateConfigDI('Mobile phone number', fields.PhoneNumber)
-    
-    loadDefaultFields()
-}
-
 const defaultInputSection = document.getElementById('default-input-fields');
 
 const observer = new MutationObserver((mutationsList) => {
@@ -432,6 +406,7 @@ const observer = new MutationObserver((mutationsList) => {
                                 if (fieldName === 'PhoneNumber') {
                                     await updateConfigDI('Mobile phone number', fieldValue);
                                 }
+                                updateStatusMessage();
                             });
                             
                             input.dataset.listenerAdded = 'true';

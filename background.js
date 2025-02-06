@@ -157,6 +157,8 @@ async function updateInputFieldConfigsInStorage(placeholder) {
 		foundConfig.count++
 	} else {
 		const defaultFields = await getStorageData('defaultFields', {})
+		console.log("defaultFields", defaultFields)
+		
 		const newConfig = {
 			placeholderIncludes: placeholder, defaultValue: defaultFields.YearsOfExperience || '', count: 1
 		}
