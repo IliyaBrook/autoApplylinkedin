@@ -20,7 +20,7 @@ h1, h2 {
 
 .container {
 	display: grid;
-	grid-template-columns: repeat(3, calc(33.33% - 10px));
+	grid-template-columns: repeat(4, calc(25.10% - 10px));
 	grid-column-gap: 20px;
 	max-width: 100%;
 }

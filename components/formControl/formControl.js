@@ -109,7 +109,6 @@ function addUpdateRadioButtonGroupEventListener(placeholder) {
                 placeholderIncludes: placeholder,
                 newValue: event.target.value
             });
-
         }
     });
 }
@@ -297,7 +296,7 @@ function loadDefaultFields() {
 }
 
 function updateStatusMessage() {
-    const inputFields = document.getElementById('input-fields').querySelectorAll('input')
+    const inputFields = document.getElementById('default-input-fields').querySelectorAll('input')
     let allFieldsFilled = true
     
     for (const inputField of inputFields) {
@@ -356,7 +355,7 @@ function getInputLabelText(fieldName) {
 }
 
 function renderInputFields(defaultFields) {
-    const inputFieldsContainer = document.getElementById('input-fields')
+    const inputFieldsContainer = document.getElementById('default-input-fields')
     inputFieldsContainer.innerHTML = ''
     for (const fieldName in defaultFields) {
         const fieldContainer = createInputField(fieldName, defaultFields[fieldName])
@@ -375,7 +374,7 @@ function updateConfigDI(placeholder, newValue) {
 async function handleSaveButtonClick() {
     const fields = {}
     
-    const inputFields = document.getElementById('input-fields').querySelectorAll('input')
+    const inputFields = document.getElementById('default-input-fields').querySelectorAll('input')
     inputFields.forEach(function(inputField) {
         const fieldName = inputField.getAttribute('name')
         fields[fieldName] = inputField.value.trim()
@@ -383,7 +382,6 @@ async function handleSaveButtonClick() {
     
     await new Promise((resolve) => {
         chrome.storage.local.set({ 'defaultFields': fields }, function() {
-            
             resolve()
         })
     })
@@ -397,14 +395,62 @@ async function handleSaveButtonClick() {
     loadDefaultFields()
 }
 
-// document.addEventListener('DOMContentLoaded', function() {
-//     loadDefaultFields()
-//     const saveButton = document.getElementById('save-button')
-//     saveButton.addEventListener('click', handleSaveButtonClick)
-// })
+const defaultInputSection = document.getElementById('default-input-fields');
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadDefaultFields()
-    // const saveButton = document.getElementById('save-button')
-    // saveButton.addEventListener('click', handleSaveButtonClick)
-})
+const observer = new MutationObserver((mutationsList) => {
+    for (const mutation of mutationsList) {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            const defaultInputContainers = defaultInputSection.querySelectorAll('.field-container');
+            
+            if (defaultInputContainers.length > 0) {
+                defaultInputContainers.forEach((fieldContainer) => {
+                    const inputs = fieldContainer.querySelectorAll('input');
+                    
+                    inputs.forEach((input) => {
+                        if (!input.dataset.listenerAdded) {
+                            input.addEventListener('change', async (event) => {
+                                const fieldName = event.target.getAttribute('name');
+                                const fieldValue = event.target.value.trim();
+                                
+                                await new Promise((resolve) => {
+                                    chrome.storage.local.get('defaultFields', (result) => {
+                                        const defaultFields = result.defaultFields || {};
+                                        defaultFields[fieldName] = fieldValue;
+                                        
+                                        chrome.storage.local.set({ 'defaultFields': defaultFields }, () => {
+                                            resolve();
+                                        });
+                                    });
+                                });
+                                
+                                if (fieldName === 'FirstName') {
+                                    await updateConfigDI('First name', fieldValue);
+                                }
+                                if (fieldName === 'LastName') {
+                                    await updateConfigDI('Last name', fieldValue);
+                                }
+                                if (fieldName === 'PhoneNumber') {
+                                    await updateConfigDI('Mobile phone number', fieldValue);
+                                }
+                            });
+                            
+                            input.dataset.listenerAdded = 'true';
+                        }
+                    });
+                });
+            }
+        }
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+    loadDefaultFields();
+    
+    if (defaultInputSection) {
+        observer.observe(defaultInputSection, { childList: true, subtree: true });
+    }
+});
+
+window.addEventListener('beforeunload', function () {
+    observer.disconnect();
+});
