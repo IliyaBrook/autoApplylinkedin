@@ -1,13 +1,13 @@
 // Not on job search modal hide
 function notOnJobSearchModalShow() {
-	const modal = document.getElementById('overlay-modal-wrapper');
+	const modal = document.getElementById('notOnJobSearchOverlay');
 	if (modal) {
 		modal.style.display = 'flex';
 	}
 }
 
 function notOnJobSearchModalHide() {
-	const modal = document.getElementById('overlay-modal-wrapper');
+	const modal = document.getElementById('notOnJobSearchOverlay');
 	if (modal) {
 		modal.style.display = 'none';
 	}
@@ -28,14 +28,14 @@ if (closeModalButton) {
 
 // Form control modal
 function showFormControlModal() {
-	const modal = document.getElementById('overlay-modal-wrapper');
+	const modal = document.getElementById('notOnJobSearchOverlay');
 	if (modal) {
 		modal.style.display = 'flex';
 	}
 }
 
 function hideFormControlModal() {
-	const modal = document.getElementById('overlay-modal-wrapper');
+	const modal = document.getElementById('notOnJobSearchOverlay');
 	if (modal) {
 		modal.style.display = 'none';
 	}

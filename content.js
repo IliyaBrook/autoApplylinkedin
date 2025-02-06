@@ -534,20 +534,20 @@ void stopScript()
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.action === 'showNotOnJobSearchAlert') {
-		const modalWrapper = document.getElementById('overlay-modal-wrapper')
+		const modalWrapper = document.getElementById('notOnJobSearchOverlay')
 		if (modalWrapper) {
 			modalWrapper.style.display = 'flex'
 			sendResponse({ success: true })
 		} else {
-			sendResponse({ success: false, error: 'overlay-modal-wrapper not found' })
+			sendResponse({ success: false, error: 'onotOnJobSearchOverlay not found' })
 		}
 	}else if (message.action === 'showFormControlModal') {
-		const modalWrapper = document.getElementById('overlay-modal-wrapper')
+		const modalWrapper = document.getElementById('formControlOverlay')
 		if (modalWrapper) {
 			modalWrapper.style.display = 'flex'
 			sendResponse({ success: true })
 		} else {
-			sendResponse({ success: false, error: 'overlay-modal-wrapper not found' })
+			sendResponse({ success: false, error: 'formControlOverlay not found' })
 		}
 	}
 })

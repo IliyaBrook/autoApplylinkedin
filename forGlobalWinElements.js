@@ -69,24 +69,16 @@ async function initElements() {
 			setTimeout(initElements, 100);
 			return;
 		}
-		const overlayWrapper = await createCustomElement({
-			htmlPath: 'components/overlayModalWrapper/overlayModalWrapper.html',
-			cssPath: 'components/overlayModalWrapper/overlayModalWrapper.css',
-			elementId: 'overlay-modal-wrapper',
-		})
-		if (overlayWrapper) {
-			document.body.appendChild(overlayWrapper);
-		}
 		const notOnJobSearchAlert = await createCustomElement({
 			htmlPath: 'components/modals/notOnJobSearchModal.html',
 			cssPath: 'components/modals/modals.css',
 			additionalScripts: [
 				'components/modals/modals.js'
 			],
-			elementId: 'customAlertOverlay',
+			elementId: 'notOnJobSearchOverlay',
 		});
 		if (notOnJobSearchAlert) {
-			overlayWrapper.appendChild(notOnJobSearchAlert)
+			document.body.appendChild(notOnJobSearchAlert)
 		}
 	} catch (err) {
 		console.error('❌ Error creating elements:', err);

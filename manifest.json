@@ -46,9 +46,7 @@
         "components/filterSettings/filterSettings.html",
         "components/modals/notOnJobSearchModal.html",
         "components/modals/modals.js",
-        "components/modals/modals.css",
-        "components/overlayModalWrapper/overlayModalWrapper.html",
-        "components/overlayModalWrapper/overlayModalWrapper.css"
+        "components/modals/modals.css"
       ],
       "matches": ["https://*.linkedin.com/*"]
     }
