@@ -521,7 +521,6 @@ async function runScript() {
 		
 		const autoApplyRunning = await getStorageData('autoApplyRunning', false)
 		
-		
 		if (autoApplyRunning) {
 			await goToNextPage()
 		}

@@ -172,7 +172,8 @@ async function updateInputFieldConfigsInStorage(placeholder) {
 }
 
 async function deleteInputFieldConfig(placeholder) {
-	const inputFieldConfigs = getStorageData('inputFieldConfigs', [])
+	const inputFieldConfigs = await getStorageData('inputFieldConfigs', [])
+	
 	const configIndex = inputFieldConfigs.findIndex(config => config.placeholderIncludes === placeholder)
 	
 	if (configIndex !== -1) {

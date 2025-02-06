@@ -52,8 +52,8 @@ async function setStorageData(key, value) {
     });
 }
 
-function getStorageData(key, defaultValue = null) {
-    return new Promise(resolve => {
+async function getStorageData(key, defaultValue = null) {
+    return await new Promise(resolve => {
         if (Array.isArray(key)) {
             chrome.storage.local.get(key, (result) => {
                 resolve(result ?? defaultValue);
