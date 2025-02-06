@@ -1,4 +1,4 @@
-function showModal() {
+function notOnJobSearchModalShow() {
 	const modal = document.getElementById('overlay-modal-wrapper');
 	if (modal) {
 		modal.style.display = 'flex';

@@ -77,8 +77,8 @@ function ApplyButton(isRunning) {
 		const currentUrl = res?.currentUrl || '';
 		const autoApplyRunning = res?.autoApplyRunning || false;
 		if (currentUrl && !currentUrl.includes('linkedin.com/jobs/search')) {
-			if (typeof showModal === 'function') {
-				showModal();
+			if (typeof notOnJobSearchModalShow === 'function') {
+				notOnJobSearchModalShow();
 			}
 			chrome.storage.local.set({ autoApplyRunning: false });
 		} else {
