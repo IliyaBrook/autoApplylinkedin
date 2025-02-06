@@ -532,7 +532,20 @@ async function runScript() {
 // when refresh auto apply return to off state
 void stopScript()
 
+function hideAllModals() {
+	const notOnJobSearchOverlay = document.getElementById('notOnJobSearchOverlay');
+	const formControlOverlay = document.getElementById('formControlOverlay');
+	
+	if (notOnJobSearchOverlay) {
+		notOnJobSearchOverlay.style.display = 'none';
+	}
+	if (formControlOverlay) {
+		formControlOverlay.style.display = 'none';
+	}
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+	hideAllModals();
 	if (message.action === 'showNotOnJobSearchAlert') {
 		const modalWrapper = document.getElementById('notOnJobSearchOverlay')
 		if (modalWrapper) {
@@ -541,7 +554,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		} else {
 			sendResponse({ success: false, error: 'onotOnJobSearchOverlay not found' })
 		}
-	}else if (message.action === 'showFormControlModal') {
+	}else if (message.action === 'showFormControlAlert') {
 		const modalWrapper = document.getElementById('formControlOverlay')
 		if (modalWrapper) {
 			modalWrapper.style.display = 'flex'

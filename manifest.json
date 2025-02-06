@@ -45,6 +45,7 @@
         "assets/images/256256.png",
         "components/filterSettings/filterSettings.html",
         "components/modals/notOnJobSearchModal.html",
+        "components/modals/formControlModal.html",
         "components/modals/modals.js",
         "components/modals/modals.css"
       ],

@@ -73,7 +73,7 @@ document.getElementById('import-file').addEventListener('change', function(event
 })
 
 function ApplyButton(isRunning) {
-	chrome.storage.local.get(['currentUrl', 'autoApplyRunning'], (res) => {
+	chrome.storage.local.get(['currentUrl', 'autoApplyRunning', 'defaultFields'], (res) => {
 		const currentUrl = res?.currentUrl || '';
 		const autoApplyRunning = res?.autoApplyRunning || false;
 		if (currentUrl && !currentUrl.includes('linkedin.com/jobs/search')) {
@@ -83,6 +83,13 @@ function ApplyButton(isRunning) {
 			chrome.storage.local.set({ autoApplyRunning: false });
 		} else {
 			changeAutoApplyButton(isRunning || autoApplyRunning)
+		}
+		const defaultFields = res?.defaultFields
+		if (showFormControlModal === 'function') {
+			const isDefaultFieldsEmpty = Object.values(defaultFields.defaultFields).some(value => value === '')
+			if (isDefaultFieldsEmpty) {
+				showFormControlModal();
+			}
 		}
 	});
 }

@@ -66,8 +66,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 					
 					const currentTabId = tabs[0].id
 					const currentUrl = tabs[0].url || ''
+					const result = await getStorageData('defaultFields', null);
+					console.log("results:",result)
 					
-					if (currentUrl.includes('linkedin.com/jobs')) {
+					const isDefaultFieldsEmpty = Object.values(result).some(value => value === '')
+					
+					if (!currentUrl.includes('linkedin.com/jobs')) {
+						await chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
+						sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
+					}
+					if (isDefaultFieldsEmpty) {
+						await chrome.tabs.sendMessage(currentTabId, { action: 'showFormControlAlert' })
+						sendResponse({ success: false, message: 'Form control fields are empty. Please set them in the extension options.' })
+					}
+					if (currentUrl.includes('linkedin.com/jobs') && !isDefaultFieldsEmpty) {
 						try {
 							await chrome.scripting.executeScript({
 								target: { tabId: currentTabId }, func: runScriptInContent
@@ -76,9 +88,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 						} catch (err) {
 							sendResponse({ success: false, message: err.message })
 						}
-					} else {
-						await chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
-						sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
 					}
 				} catch (err) {
 					sendResponse({ success: false, message: err.message })

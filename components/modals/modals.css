@@ -21,8 +21,7 @@
 	border-radius: 10px;
 	text-align: center;
 	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-	max-width: 400px;
-	width: 90%;
+	width: 550px;
 }
 
 .modal-title {
@@ -31,10 +30,16 @@
 	color: #333;
 }
 
-.button-container {
+.button-container, .button-container-form-control {
 	margin-top: 20px;
 	display: flex;
+
+}
+.button-container{
 	justify-content: space-between;
+}
+.button-container-form-control {
+	justify-content: center;
 }
 
 .modal-button {

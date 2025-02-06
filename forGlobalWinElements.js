@@ -80,6 +80,17 @@ async function initElements() {
 		if (notOnJobSearchAlert) {
 			document.body.appendChild(notOnJobSearchAlert)
 		}
+		const formControlAlert = await createCustomElement({
+			htmlPath: 'components/modals/formControlModal.html',
+			cssPath: 'components/modals/modals.css',
+			additionalScripts: [
+				'components/modals/modals.js'
+			],
+			elementId: 'formControlOverlay',
+		});
+		if (formControlAlert) {
+			document.body.appendChild(formControlAlert)
+		}
 	} catch (err) {
 		console.error('❌ Error creating elements:', err);
 	}

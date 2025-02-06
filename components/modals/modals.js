@@ -1,58 +1,46 @@
-// Not on job search modal hide
+// selectors
+const goToJobSearchButton = document.getElementById('goToJobSearchButton')
+const closeModalButton = document.getElementById('closeModalButton')
+const notOnJobSearchOverlay = document.getElementById('notOnJobSearchOverlay')
+
+const closeModalBtnFormControl = document.getElementById('closeModalFormControl')
+const formControlOverlay = document.getElementById('formControlOverlay')
+
+// Not on job search modal
 function notOnJobSearchModalShow() {
-	const modal = document.getElementById('notOnJobSearchOverlay');
-	if (modal) {
-		modal.style.display = 'flex';
+	if (notOnJobSearchOverlay) {
+		hideAllModals()
+		notOnJobSearchOverlay.style.display = 'flex'
 	}
 }
 
-function notOnJobSearchModalHide() {
-	const modal = document.getElementById('notOnJobSearchOverlay');
-	if (modal) {
-		modal.style.display = 'none';
+function hideAllModals() {
+	if (notOnJobSearchOverlay) {
+		notOnJobSearchOverlay.style.display = 'none'
+	}
+	if (formControlOverlay) {
+		formControlOverlay.style.display = 'none'
 	}
 }
 
-const goToJobSearchButton = document.getElementById('goToJobSearchButton');
-const closeModalButton = document.getElementById('closeModalButton');
 if (goToJobSearchButton) {
 	goToJobSearchButton.addEventListener('click', () => {
-		notOnJobSearchModalHide()
-		window.location.href = 'https://www.linkedin.com/jobs/search';
-	});
+		hideAllModals()
+		window.location.href = 'https://www.linkedin.com/jobs/search'
+	})
 }
 
 if (closeModalButton) {
-	closeModalButton.addEventListener('click', notOnJobSearchModalHide);
+	closeModalButton.addEventListener('click', hideAllModals)
 }
 
-// Form control modal
+if (closeModalBtnFormControl) {
+	closeModalBtnFormControl.addEventListener('click', hideAllModals)
+}
+
 function showFormControlModal() {
-	const modal = document.getElementById('notOnJobSearchOverlay');
-	if (modal) {
-		modal.style.display = 'flex';
+	hideAllModals()
+	if (formControlOverlay) {
+		formControlOverlay.style.display = 'flex'
 	}
 }
-
-function hideFormControlModal() {
-	const modal = document.getElementById('notOnJobSearchOverlay');
-	if (modal) {
-		modal.style.display = 'none';
-	}
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-	const goToFormControlButton = document.getElementById('goToFormControlButton');
-	const closeModalButton = document.getElementById('closeModalButton');
-	
-	if (goToFormControlButton) {
-		goToFormControlButton.addEventListener('click', () => {
-			hideFormControlModal();
-			chrome.tabs.create({ url: chrome.runtime.getURL('/components/formControl/formControl.html') });
-		});
-	}
-	
-	if (closeModalButton) {
-		closeModalButton.addEventListener('click', hideFormControlModal);
-	}
-});
