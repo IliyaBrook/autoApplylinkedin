@@ -541,5 +541,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		} else {
 			sendResponse({ success: false, error: 'overlay-modal-wrapper not found' })
 		}
+	}else if (message.action === 'showFormControlModal') {
+		const modalWrapper = document.getElementById('overlay-modal-wrapper')
+		if (modalWrapper) {
+			modalWrapper.style.display = 'flex'
+			sendResponse({ success: true })
+		} else {
+			sendResponse({ success: false, error: 'overlay-modal-wrapper not found' })
+		}
 	}
 })
