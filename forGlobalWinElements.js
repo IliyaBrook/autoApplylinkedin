@@ -81,7 +81,7 @@ async function initElements() {
 			htmlPath: 'components/modals/notOnJobSearchModal.html',
 			cssPath: 'components/modals/modals.css',
 			additionalScripts: [
-				'components/modals/notOnJobSearchModal.js'
+				'components/modals/modals.js'
 			],
 			elementId: 'customAlertOverlay',
 		});
