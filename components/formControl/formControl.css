@@ -1,196 +1,211 @@
 body {
-    font-family: 'Arial', sans-serif;
-    background-color: #FFFFFF;
-    margin: 0;
-    padding: 20px;
-    text-align: center;
+	font-family: 'Arial', sans-serif;
+	background-color: #FFFFFF;
+	margin: 0;
+	padding: 20px;
+	text-align: center;
 }
 
 h1, h2 {
-    color: #0077B5;
-    margin-bottom: 20px;
-    text-align: center;
+	color: #0077B5;
+	margin-bottom: 20px;
+	text-align: center;
 }
 
 #subtitle {
-    color: #b53c00;
-    margin-bottom: 30px;
-    text-align: center;
+	color: #b53c00;
+	margin-bottom: 30px;
+	text-align: center;
 }
 
 .container {
-    display: grid;
-    grid-template-columns: repeat(3, calc(33.33% - 10px));
-    grid-column-gap: 20px;
-    max-width: 100%;
+	display: grid;
+	grid-template-columns: repeat(3, calc(33.33% - 10px));
+	grid-column-gap: 20px;
+	max-width: 100%;
 }
 
 .column {
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
+	padding: 10px;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
 }
 
-.buttons-wrapper{
-    display: flex;
-    height: 30%;
+.buttons-wrapper {
+	display: flex;
+	height: 30%;
 }
 
-#dropdown{
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+#dropdown {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 }
 
-.config-container {
-    display: flex;
-    flex-direction: column;
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    margin: 10px;
-    padding: 15px;
-    
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    text-align: left;
-    gap: 10px;
+.config-container, .field-container {
+	display: flex;
+	flex-direction: column;
+	background-color: #fff;
+	border: 1px solid #ddd;
+	border-radius: 5px;
+	margin: 10px;
+	padding: 15px;
+	
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+	text-align: left;
+	gap: 10px;
 }
+
 /* radio container  */
 .radio-container {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-family: Arial, sans-serif;
-    font-size: 16px;
-    color: #333;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-family: Arial, sans-serif;
+	font-size: 16px;
+	color: #333;
 }
 
 .radio-container input[type="radio"] {
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    border: 2px solid #0077b5;
-    border-radius: 50%;
-    outline: none;
-    transition: background-color 0.3s, border-color 0.3s;
-    cursor: pointer;
-    margin: 0 10px 0 0;
+	appearance: none;
+	width: 20px;
+	height: 20px;
+	border: 2px solid #0077b5;
+	border-radius: 50%;
+	outline: none;
+	transition: background-color 0.3s, border-color 0.3s;
+	cursor: pointer;
+	margin: 0 10px 0 0;
 }
 
 .radio-container input[type="radio"]:checked {
-    background-color: #0077b5;
-    border-color: #005582;
+	background-color: #0077b5;
+	border-color: #005582;
 }
 
 .radio-container input[type="radio"]:focus {
-    box-shadow: 0 0 5px rgba(0, 119, 181, 0.5);
-
+	box-shadow: 0 0 5px rgba(0, 119, 181, 0.5);
+	
 }
 
 .radio-container label {
-    cursor: pointer;
-    margin: 0;
-    font-weight: bold;
+	cursor: pointer;
+	margin: 0;
+	font-weight: bold;
 }
+
 /* radio container end  */
 .config-container-dropdown {
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    margin: 10px;
-    padding: 15px;
-    width: 100%;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    text-align: left;
+	background-color: #fff;
+	border: 1px solid #ddd;
+	border-radius: 5px;
+	margin: 10px;
+	padding: 15px;
+	width: 100%;
+	box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+	text-align: left;
 }
 
 strong {
-    color: #333;
+	color: #333;
 }
 
 input {
-    width: 100%;
-    margin-top: 5px;
-    padding: 8px;
-    box-sizing: border-box;
+	width: 100%;
+	margin-top: 5px;
+	padding: 8px;
+	box-sizing: border-box;
 }
 
 #form-control-button {
-    background-color: #0077B5;
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 16px;
-    margin-bottom: 20px;
+	background-color: #0077B5;
+	color: #fff;
+	border: none;
+	padding: 10px 20px;
+	border-radius: 5px;
+	cursor: pointer;
+	font-size: 16px;
+	margin-bottom: 20px;
 }
 
 a {
-    color: #0077B5;
-    text-decoration: none;
-    margin-top: 20px;
-    text-align: center;
-    display: block;
+	color: #0077B5;
+	text-decoration: none;
+	margin-top: 20px;
+	text-align: center;
+	display: block;
 }
 
 button {
-    background-color: #4CAF50;
-    color: #fff;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    margin-top: 10px;
+	background-color: #4CAF50;
+	color: #fff;
+	border: none;
+	padding: 8px 16px;
+	border-radius: 4px;
+	cursor: pointer;
+	margin-top: 10px;
 }
 
 button:hover {
-    background-color: #45a049;
+	background-color: #45a049;
 }
 
 .delete-button {
-    background-color: #ff0000;
-    display: block;
-    margin: auto;
+	background-color: #ff0000;
+	display: block;
+	margin: auto;
 }
 
-.update-button { 
-    display: block;
-    margin: auto;
+.update-button {
+	display: block;
+	margin: auto;
 }
 
 .delete-button:hover {
-    background-color: #ff6666;
+	background-color: #ff6666;
 }
 
 .button {
-    display: inline-block;
-    padding: 10px 20px;
-    background-color: #e58a0a; /* Color of the button */
-    color: #fff; /* Text color */
-    border: none;
-    border-radius: 5px;
-    text-decoration: none;
-    font-size: 16px;
-    cursor: pointer;
-    transition: background-color 0.3s; /* Smooth transition effect */
-    
+	display: inline-block;
+	padding: 10px 20px;
+	background-color: #e58a0a; /* Color of the button */
+	color: #fff; /* Text color */
+	border: none;
+	border-radius: 5px;
+	text-decoration: none;
+	font-size: 16px;
+	cursor: pointer;
+	transition: background-color 0.3s; /* Smooth transition effect */
+	
 }
 
 .button:hover {
-    background-color: #005580; /* Darker color on hover */
+	background-color: #005580; /* Darker color on hover */
 }
 
 
 .select-container {
-    width: 100%;
-    position: relative;
-    overflow: hidden;
-    border-radius: 5px;
-    padding: 5px;
+	width: 100%;
+	position: relative;
+	overflow: hidden;
+	border-radius: 5px;
+	padding: 5px;
 }
 
 #currentVlaue {
-color: #005580;;
+	color: #005580;;
+}
+
+/*default inputs*/
+.default-input-header {
+	margin: 0 5px 10px 5px;
+}
+
+.default-input-sub-header {
+	margin: 0 0 5px 0;
+}
+.field-container label{
+	font-weight: bold;
+	font-size: 1.17em;
 }

@@ -39,7 +39,6 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "components/defaultInput/defaultInput.html",
         "components/popup/popup.html",
         "components/formControl/formControl.html",
         "assets/images/on_search_robot.png",

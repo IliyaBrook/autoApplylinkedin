@@ -125,10 +125,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				await deleteDropdownValueConfig(request.data)
 				sendResponse({ success: true })
 			}
-			if (request.action === 'openDefaultInputPage') {
-				await chrome.tabs.create({ url: 'components/defaultInput/defaultInput.js' })
-				sendResponse({ success: true })
-			}
 		})()
 	} catch (e) {
 		console.error('[onMessage] error:', e)

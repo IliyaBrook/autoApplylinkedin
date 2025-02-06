@@ -12,10 +12,6 @@ filterSettingsButton.addEventListener('click', function() {
 	chrome.tabs.create({ url: '/components/filterSettings/filterSettings.html' })
 })
 
-const defaultButton = document.getElementById('default-button')
-defaultButton.addEventListener('click', function() {
-	chrome.tabs.create({ url: '/components/defaultInput/defaultInput.html' })
-})
 // export settings button
 document.getElementById('export-button').addEventListener('click', function() {
 	chrome.storage.local.get(null, function(data) {
