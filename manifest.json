@@ -44,9 +44,9 @@
         "assets/images/on_search_robot.png",
         "assets/images/256256.png",
         "components/filterSettings/filterSettings.html",
-        "components/notOnJobSearchModal/notOnJobSearchModal.html",
-        "components/notOnJobSearchModal/notOnJobSearchModal.js",
-        "components/notOnJobSearchModal/notOnJobSearchModal.css",
+        "components/modals/notOnJobSearchModal.html",
+        "components/modals/notOnJobSearchModal.js",
+        "components/modals/notOnJobSearchModal.css",
         "components/overlayModalWrapper/overlayModalWrapper.html",
         "components/overlayModalWrapper/overlayModalWrapper.css"
       ],

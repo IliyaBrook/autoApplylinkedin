@@ -78,10 +78,10 @@ async function initElements() {
 			document.body.appendChild(overlayWrapper);
 		}
 		const notOnJobSearchAlert = await createCustomElement({
-			htmlPath: 'components/notOnJobSearchModal/notOnJobSearchModal.html',
-			cssPath: 'components/notOnJobSearchModal/notOnJobSearchModal.css',
+			htmlPath: 'components/modals/notOnJobSearchModal.html',
+			cssPath: 'components/modals/notOnJobSearchModal.css',
 			additionalScripts: [
-				'components/notOnJobSearchModal/notOnJobSearchModal.js'
+				'components/modals/notOnJobSearchModal.js'
 			],
 			elementId: 'customAlertOverlay',
 		});
