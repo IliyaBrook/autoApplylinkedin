@@ -79,7 +79,7 @@ async function initElements() {
 		}
 		const notOnJobSearchAlert = await createCustomElement({
 			htmlPath: 'components/modals/notOnJobSearchModal.html',
-			cssPath: 'components/modals/notOnJobSearchModal.css',
+			cssPath: 'components/modals/modals.css',
 			additionalScripts: [
 				'components/modals/notOnJobSearchModal.js'
 			],

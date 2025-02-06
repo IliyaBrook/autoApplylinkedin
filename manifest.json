@@ -46,7 +46,7 @@
         "components/filterSettings/filterSettings.html",
         "components/modals/notOnJobSearchModal.html",
         "components/modals/notOnJobSearchModal.js",
-        "components/modals/notOnJobSearchModal.css",
+        "components/modals/modals.css",
         "components/overlayModalWrapper/overlayModalWrapper.html",
         "components/overlayModalWrapper/overlayModalWrapper.css"
       ],
