@@ -294,7 +294,6 @@ function loadDefaultFields() {
             updateStatusMessage()
         }
     })
-    
 }
 
 function updateStatusMessage() {
@@ -398,8 +397,14 @@ async function handleSaveButtonClick() {
     loadDefaultFields()
 }
 
+// document.addEventListener('DOMContentLoaded', function() {
+//     loadDefaultFields()
+//     const saveButton = document.getElementById('save-button')
+//     saveButton.addEventListener('click', handleSaveButtonClick)
+// })
+
 document.addEventListener('DOMContentLoaded', function() {
     loadDefaultFields()
-    const saveButton = document.getElementById('save-button')
-    saveButton.addEventListener('click', handleSaveButtonClick)
+    // const saveButton = document.getElementById('save-button')
+    // saveButton.addEventListener('click', handleSaveButtonClick)
 })
