@@ -490,12 +490,15 @@ async function runScript() {
 			if (titleFilterEnabled || titleSkipEnabled) {
 				const titleFilterWords = await getStorageData('titleFilterWords', [])
 				const titleSkipWords = await getStorageData('titleSkipWords', [])
-				
 				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.includes(word.toLowerCase()))
 				const matchedSkipWord = titleSkipWords.find(word => jobTitle.includes(word.toLowerCase()))
-				
 				if (!jobTitleMustContains || matchedSkipWord) {
-					continue
+					jobNameLink.scrollIntoView({ block: 'center' })
+					await addDelay()
+					const autoApplyRunning = await getStorageData('autoApplyRunning', false)
+					if (autoApplyRunning) {
+						await goToNextPage()
+					}
 				}
 			}
 			
