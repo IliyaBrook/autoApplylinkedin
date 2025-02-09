@@ -49,14 +49,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		if (request.action === 'externalApplyAction') {
 			const { jobTitle, currentPageLink, companyName } = request.data
 			saveLinkedInJobData(jobTitle, currentPageLink, companyName)
-			// sendResponse({ success: true })
 		}
 		if (request.action === 'initStorage') {
 			getStorageData('inputFieldConfigs', [], result => {
 				console.log("result:", result)
 				
 				// currentInputFieldConfigs = (Array.isArray(result) && result.length > 0) ? result : []
-				// sendResponse({ success: true })
 			})
 		}
 		if (request.action === 'startAutoApply') {
@@ -64,7 +62,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			try {
 				chrome.tabs.query({ active: true, currentWindow: true })
 					.then(tabs => {
-						
 						if (!tabs?.[0]) {
 							sendResponse({ success: false, message: 'No active tab found.' })
 							return
@@ -80,7 +77,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 								sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
 							}
 							if (isDefaultFieldsEmpty) {
-								void chrome.tabs.sendMessage(currentTabId, { action: 'showFormControlAlert' })
+								chrome.tabs.sendMessage(currentTabId, { action: 'showFormControlAlert' })
 								sendResponse({
 									success: false,
 									message: 'Form control fields are empty. Please set them in the extension options.'
@@ -89,9 +86,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 							if (currentUrl.includes('linkedin.com/jobs') && !isDefaultFieldsEmpty) {
 								chrome.scripting.executeScript({
 									target: { tabId: currentTabId }, func: runScriptInContent
-								}).then(() => {
-									sendResponse({ success: true })
 								}).catch(err => {
+									console.error('[startAutoApply] in bg error:', err)
 									sendResponse({ success: false, message: err.message })
 								})
 							}
@@ -104,44 +100,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		}
 		if (request.action === 'stopAutoApply') {
 			setStorageData('autoApplyRunning', false)
-			sendResponse({ success: true })
 		}
 		if (request.action === 'updateInputFieldValue') {
 			const placeholder = request.data.placeholder
 			const value = request.data.value
 			updateOrAddInputFieldValue(placeholder, value)
-			sendResponse({ success: true })
 		}
 		if (request.action === 'updateInputFieldConfigsInStorage') {
 			const placeholder = request.data
 			updateInputFieldConfigsInStorage(placeholder)
-			sendResponse({ success: true })
 		}
 		if (request.action === 'deleteInputFieldConfig') {
 			const placeholder = request.data
 			deleteInputFieldConfig(placeholder)
-			sendResponse({ success: true })
 		}
 		if (request.action === 'getInputFieldConfig') {
 			getInputFieldConfig(sendResponse)
-			// sendResponse({ success: true })
 		}
 		if (request.action === 'updateRadioButtonValueByPlaceholder') {
 			updateRadioButtonValue(request.placeholderIncludes, request.newValue)
-			sendResponse({ success: true })
 		}
 		if (request.action === 'deleteRadioButtonConfig') {
 			deleteRadioButtonConfig(request.data)
-			sendResponse({ success: true })
 		}
 		if (request.action === 'updateDropdownConfig') {
 			const { placeholderIncludes, value } = request.data
 			updateDropdownConfig(placeholderIncludes, value)
-			sendResponse({ success: true })
 		}
 		if (request.action === 'deleteDropdownConfig') {
 			deleteDropdownValueConfig(request.data)
-			sendResponse({ success: true })
 		}
 		
 	} catch (e) {

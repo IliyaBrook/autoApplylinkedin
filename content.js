@@ -631,7 +631,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		const modalWrapper = document.getElementById('formControlOverlay')
 		if (modalWrapper) {
 			modalWrapper.style.display = 'flex'
-			sendResponse({ success: true })
+			// sendResponse({ success: true })
 		} else {
 			sendResponse({ success: false, error: 'formControlOverlay not found' })
 		}
