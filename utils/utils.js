@@ -44,31 +44,33 @@ function getElementsByXPath({ xpath, context = document }) {
     return elements
 }
 
-async function setStorageData(key, value) {
-    return new Promise(resolve => {
-        chrome.storage.local.set({ [key]: value }, () => {
-            resolve();
-        });
+function setStorageData(key, value, callback = null) {
+    return chrome.storage.local.set({ [key]: value }, () => {
+        if (callback) callback();
     });
 }
 
-async function getStorageData(key, defaultValue = null) {
-    return await new Promise(resolve => {
-        if (Array.isArray(key)) {
-            chrome.storage.local.get(key, (result) => {
-                resolve(result ?? defaultValue);
-            });
-        }else {
-            chrome.storage.local.get(key, (result) => {
-                resolve(result[key] ?? defaultValue)
-            });
-        }
-    });
+function getStorageData(key, defaultValue = null, callback = null) {
+    if (Array.isArray(key)) {
+        return chrome.storage.local.get(key, result => {
+            if (callback) {
+                callback(result ?? defaultValue)
+            }else {
+                return result ?? defaultValue;
+            }
+        });
+    }else {
+        return  chrome.storage.local.get(key, result => {
+            if (callback) {
+                callback(result[key] ?? defaultValue)
+            }else {
+                return result[key] ?? defaultValue
+            }
+        });
+    }
 }
 
 function sendMessage(action, data = {}) {
-    return new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action, data }, resolve);
-    });
+    return chrome.runtime.sendMessage({ action, data });
 }
 

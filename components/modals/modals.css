@@ -1,6 +1,5 @@
 #notOnJobSearchOverlay, #formControlOverlay{
-	/*display: none;*/
-	display: block!important;
+	display: none;
 }
 
 .modal-overlay {

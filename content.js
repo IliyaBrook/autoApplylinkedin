@@ -58,21 +58,21 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 	jobNameLink.click()
 	await addDelay()
 	if (badWordsEnabled) {
-		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]');
+		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
 		if (jobDetailsElement) {
-			const jobContentText = jobDetailsElement.textContent.toLowerCase().trim();
-			const badWords = await getStorageData('badWords', []);
-			if (badWords.length > 0) {
-				const matchedBadWord = badWords.find(word => jobContentText.includes(word.toLowerCase().trim()));
-				if (matchedBadWord) {
-					return;
+			const jobContentText = jobDetailsElement.textContent.toLowerCase().trim()
+			getStorageData('badWords', [], badWords => {
+				if (badWords.length > 0) {
+					const matchedBadWord = badWords.find(word => jobContentText.includes(word.toLowerCase().trim()))
+					if (matchedBadWord) {
+						return
+					}
+					runFindEasyApply(jobTitle, companyName)
+					jobPanelScrollLittle()
 				}
-			}
+			})
 		}
 	}
-	
-	await runFindEasyApply(jobTitle, companyName)
-	await jobPanelScrollLittle()
 }
 
 async function performInputFieldChecks() {
@@ -117,56 +117,52 @@ async function performInputFieldChecks() {
 }
 
 async function performRadioButtonChecks() {
-	
-	const storedRadioButtons = await getStorageData('radioButtons', [])
-	const radioFieldsets = document.querySelectorAll('fieldset[data-test-form-builder-radio-button-form-component="true"]')
-	
-	for (const fieldset of radioFieldsets) {
-		const legendElement = fieldset.querySelector('legend')
-		const questionTextElement = legendElement.querySelector('span[aria-hidden="true"]')
-		const placeholderText = questionTextElement.textContent.trim()
-		
-		const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderText)
-		
-		if (storedRadioButtonInfo) {
-			const radioButtonWithValue = fieldset.querySelector(`input[type="radio"][value="${storedRadioButtonInfo.defaultValue}"]`)
-			
-			if (radioButtonWithValue) {
-				radioButtonWithValue.checked = true
-				radioButtonWithValue.dispatchEvent(new Event('change', { bubbles: true }))
-			}
-			storedRadioButtonInfo.count++
-		} else {
-			const firstRadioButton = fieldset.querySelector('input[type="radio"]')
-			if (firstRadioButton) {
-				firstRadioButton.checked = true
-				firstRadioButton.dispatchEvent(new Event('change', { bubbles: true }))
-				
-				const options = Array.from(fieldset.querySelectorAll('input[type="radio"]')).map(radioButton => ({
-					value: radioButton.value,
-					selected: radioButton.checked
-				}))
-				
-				const newRadioButtonInfo = {
-					placeholderIncludes: placeholderText,
-					defaultValue: firstRadioButton.value,
-					count: 1,
-					options: options
+	getStorageData('radioButtons', [], storedRadioButtons => {
+		const radioFieldsets = document.querySelectorAll('fieldset[data-test-form-builder-radio-button-form-component="true"]')
+		for (const fieldset of radioFieldsets) {
+			const legendElement = fieldset.querySelector('legend')
+			const questionTextElement = legendElement.querySelector('span[aria-hidden="true"]')
+			const placeholderText = questionTextElement.textContent.trim()
+			const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderText)
+			if (storedRadioButtonInfo) {
+				const radioButtonWithValue = fieldset.querySelector(`input[type="radio"][value="${storedRadioButtonInfo.defaultValue}"]`)
+				if (radioButtonWithValue) {
+					radioButtonWithValue.checked = true
+					radioButtonWithValue.dispatchEvent(new Event('change', { bubbles: true }))
 				}
-				
-				storedRadioButtons.push(newRadioButtonInfo)
-				await setStorageData('radioButtons', storedRadioButtons)
+				storedRadioButtonInfo.count++
+			} else {
+				const firstRadioButton = fieldset.querySelector('input[type="radio"]')
+				if (firstRadioButton) {
+					firstRadioButton.checked = true
+					firstRadioButton.dispatchEvent(new Event('change', { bubbles: true }))
+					
+					const options = Array.from(fieldset.querySelectorAll('input[type="radio"]')).map(radioButton => ({
+						value: radioButton.value,
+						selected: radioButton.checked
+					}))
+					
+					const newRadioButtonInfo = {
+						placeholderIncludes: placeholderText,
+						defaultValue: firstRadioButton.value,
+						count: 1,
+						options: options
+					}
+					
+					storedRadioButtons.push(newRadioButtonInfo)
+					setStorageData('radioButtons', storedRadioButtons)
+				}
 			}
 		}
-	}
-	await setStorageData('radioButtons', storedRadioButtons)
+		setStorageData('radioButtons', storedRadioButtons)
+	})
 }
 
 async function performDropdownChecks() {
 	const dropdowns = document.querySelectorAll('.fb-dash-form-element select')
 	
 	dropdowns.forEach(dropdown => {
-		const parentElement = dropdown.closest('.fb-dash-form-element') // Adjusted parent class
+		const parentElement = dropdown.closest('.fb-dash-form-element')
 		if (parentElement) {
 			const secondOption = dropdown.options[1]
 			if (secondOption) {
@@ -405,27 +401,29 @@ async function checkAndPromptFields() {
 			console.warn('Chrome storage is not available, skipping checkAndPromptFields.')
 			return false
 		}
-		
-		const storedFields = await getStorageData('defaultFields', {})
-		
-		if (Object.keys(storedFields).length === 0) {
-			await setStorageData('defaultFields', defaultFields)
-			return false
-		}
-		
-		const fieldsComplete = Object.values(storedFields).every(value => value)
-		
-		if (!fieldsComplete) {
-			return false
-		}
-		
-		defaultFields = storedFields
-		return true
+		return await new Promise((resolve) => {
+			getStorageData('defaultFields', {}, storedFields => {
+				if (Object.keys(storedFields).length === 0) {
+					setStorageData('defaultFields', defaultFields)
+					resolve(false)
+				}
+				
+				const fieldsComplete = Object.values(storedFields).every(value => value)
+				
+				if (!fieldsComplete) {
+					resolve(false)
+				}
+				
+				defaultFields = storedFields
+				resolve(true)
+			})
+		})
 	} catch (e) {
 		console.error('Error in checkAndPromptFields:', e)
 		return false
 	}
 }
+
 // test modals
 // const formControlModalHTML = `
 // <div id="formControlOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background-color:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;">
@@ -474,23 +472,6 @@ async function checkAndPromptFields() {
 // `;
 
 
-//
-if (window) {
-	try {
-		const formControlModalHTML = await loadHTML('components/modals/formControlModal.html');
-		// **Вставка HTML модального окна в DOM страницы LinkedIn**
-		document.body.insertAdjacentHTML('beforeend', formControlModalHTML);
-		
-		// **Загрузка CSS из файла components/modals/modals.css**
-		const modalsCSS = await loadCSS('components/modals/modals.css');
-		// **Создание элемента <style> и добавление CSS в <head> страницы LinkedIn**
-		const styleElement = document.createElement('style');
-		styleElement.textContent = modalsCSS;
-		document.head.appendChild(styleElement);
-	}catch (errr){
-		console.log('modals inject error: ', errr)
-	}
-}
 
 
 async function stopScript() {
@@ -499,44 +480,78 @@ async function stopScript() {
 }
 
 async function loadHTML(url) {
-	const response = await fetch(chrome.runtime.getURL(url));
-	return await response.text();
+	const response = await fetch(chrome.runtime.getURL(url))
+	return await response.text()
 }
 
 async function loadCSS(url) {
-	const response = await fetch(chrome.runtime.getURL(url));
-	return await response.text();
+	const response = await fetch(chrome.runtime.getURL(url))
+	return await response.text()
 }
+
 if (window) {
 	try {
-		// **Загрузка HTML из файла components/modals/formControlModal.html**
-		const formControlModalHTML = await loadHTML('components/modals/formControlModal.html');
-		// **Вставка HTML модального окна в DOM страницы LinkedIn**
-		document.body.insertAdjacentHTML('afterbegin', formControlModalHTML);
-		
-		// **Загрузка CSS из файла components/modals/modals.css**
-		const modalsCSS = await loadCSS('components/modals/modals.css');
-		// **Создание элемента <style> и добавление CSS в <head> страницы LinkedIn**
-		const styleElement = document.createElement('style');
-		styleElement.textContent = modalsCSS;
-		document.head.appendChild(styleElement);
-	}catch (err) {
-		console.log("error:", err)
-		
+		const formControlModalHTMLP = new Promise(resolve => {
+			loadHTML('components/modals/formControlModal.html')
+				.then(html => resolve(html))
+				.catch(err => {
+					console.error('loadHTML error formControlModal: ', err)
+					resolve(err)
+				})
+		})
+		const notOnJobSearchModalHtmlP = new Promise(resolve => {
+			loadHTML('components/modals/notOnJobSearchModal.html')
+				.then(html => resolve(html))
+				.catch(err => {
+					console.error('loadHTML error notOnJobSearchModal: ', err)
+					resolve(null)
+				})
+		})
+		Promise.all([formControlModalHTMLP, notOnJobSearchModalHtmlP]).then((htmls) => {
+			htmls.forEach((html) => {
+				document.body.insertAdjacentHTML('afterbegin', html)
+			})
+		})
+		new Promise((resolve, reject) => {
+			loadCSS('components/modals/modals.css')
+				.then(css => resolve(css))
+				.catch(err => {
+					console.error('loadCSS error modals: ', err);
+					reject(err);
+				})
+		}).then((css) => {
+			const styleElement = document.createElement('style');
+			styleElement.textContent = css;
+			document.head.appendChild(styleElement);
+		}).catch(error => {
+			console.error("Error during loading css modals:", error);
+		});
+	} catch (err) {
+		console.log('error:', err)
 	}
 }
 
 async function runScript() {
+	
 	try {
 		const fieldsComplete = await checkAndPromptFields()
 		if (!fieldsComplete) {
 			void chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
 			return
 		}
-		
-		const titleSkipEnabled = await getStorageData('titleSkipEnabled', false)
-		const titleFilterEnabled = await getStorageData('titleFilterEnabled', false)
-		const badWordsEnabled = await getStorageData('badWordsEnabled', false)
+		const {
+			titleSkipEnabled,
+			titleFilterEnabled,
+			badWordsEnabled,
+			titleFilterWords,
+			titleSkipWords
+		} = await chrome.storage.local.get([
+			'titleSkipEnabled',
+			'titleFilterEnabled',
+			'badWordsEnabled',
+			'titleFilterWords',
+			'titleSkipWords'
+		])
 		
 		const limitReached = await checkLimitReached()
 		if (limitReached) {
@@ -551,7 +566,11 @@ async function runScript() {
 		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
 		
 		for (const listItem of listItems) {
-			const autoApplyRunning = await getStorageData('autoApplyRunning', false)
+			const autoApplyRunning = await new Promise(resolve => {
+				getStorageData('autoApplyRunning', false, autoApplyRunning => {
+					resolve(autoApplyRunning)
+				})
+			})
 			
 			if (!autoApplyRunning) {
 				break
@@ -582,18 +601,18 @@ async function runScript() {
 			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
 			
 			if (titleFilterEnabled || titleSkipEnabled) {
-				const titleFilterWords = await getStorageData('titleFilterWords', [])
-				const titleSkipWords = await getStorageData('titleSkipWords', [])
 				const jobTitleMustContains = titleFilterWords.toLowerCase().some(word => jobTitle.includes(word.toLowerCase()))
 				
 				const matchedSkipWord = titleSkipWords.toLowerCase().find(word => jobTitle.includes(word.toLowerCase()))
 				if (!jobTitleMustContains || matchedSkipWord) {
 					jobNameLink.scrollIntoView({ block: 'center' })
 					await addDelay()
-					const autoApplyRunning = await getStorageData('autoApplyRunning', false)
+					const autoApplyRunning = await new Promise(resolve => {
+						getStorageData('autoApplyRunning', false, autoApplyRunning => resolve(autoApplyRunning))
+					})
 					if (autoApplyRunning) {
 						await goToNextPage()
-					}else {
+					} else {
 						void stopScript()
 					}
 				}
@@ -616,7 +635,11 @@ async function runScript() {
 			}
 		}
 		
-		const autoApplyRunning = await getStorageData('autoApplyRunning', false)
+		const autoApplyRunning = new Promise(resolve => {
+			getStorageData('autoApplyRunning', false, autoApplyRunning => {
+				resolve(autoApplyRunning)
+			})
+		})
 		
 		if (autoApplyRunning) {
 			await goToNextPage()
@@ -629,37 +652,37 @@ async function runScript() {
 // when refresh auto apply return to off state
 void stopScript()
 
-// function hideAllModals() {
-// 	const notOnJobSearchOverlay = document.getElementById('notOnJobSearchOverlay');
-// 	const formControlOverlay = document.getElementById('formControlOverlay');
-//
-// 	if (notOnJobSearchOverlay) {
-// 		notOnJobSearchOverlay.style.display = 'none';
-// 	}
-// 	if (formControlOverlay) {
-// 		formControlOverlay.style.display = 'none';
-// 	}
-// }
+function hideAllModals() {
+	const notOnJobSearchOverlay = document.getElementById('notOnJobSearchOverlay')
+	const formControlOverlay = document.getElementById('formControlOverlay')
+	
+	if (notOnJobSearchOverlay) {
+		notOnJobSearchOverlay.style.display = 'none'
+	}
+	if (formControlOverlay) {
+		formControlOverlay.style.display = 'none'
+	}
+}
 
-// chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-// 	// hideAllModals();
-// 	if (message.action === 'showNotOnJobSearchAlert') {
-// 		const modalWrapper = document.getElementById('notOnJobSearchOverlay')
-// 		if (modalWrapper) {
-// 			modalWrapper.style.display = 'flex'
-// 			sendResponse({ success: true })
-// 		} else {
-// 			sendResponse({ success: false, error: 'onotOnJobSearchOverlay not found' })
-// 		}
-// 	}else if (message.action === 'showFormControlAlert') {
-// 		console.log("content.js showFormControlAlert event start")
-//
-// 		const modalWrapper = document.getElementById('formControlOverlay')
-// 		if (modalWrapper) {
-// 			modalWrapper.style.display = 'flex'
-// 			sendResponse({ success: true })
-// 		} else {
-// 			sendResponse({ success: false, error: 'formControlOverlay not found' })
-// 		}
-// 	}
-// })
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+	// hideAllModals();
+	if (message.action === 'showNotOnJobSearchAlert') {
+		const modalWrapper = document.getElementById('notOnJobSearchOverlay')
+		if (modalWrapper) {
+			modalWrapper.style.display = 'flex'
+			sendResponse({ success: true })
+		} else {
+			sendResponse({ success: false, error: 'onotOnJobSearchOverlay not found' })
+		}
+	} else if (message.action === 'showFormControlAlert') {
+		console.log('content.js showFormControlAlert event start')
+		
+		const modalWrapper = document.getElementById('formControlOverlay')
+		if (modalWrapper) {
+			modalWrapper.style.display = 'flex'
+			sendResponse({ success: true })
+		} else {
+			sendResponse({ success: false, error: 'formControlOverlay not found' })
+		}
+	}
+})

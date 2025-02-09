@@ -1,21 +1,25 @@
-export function setStorageData(key, value) {
-	return new Promise(resolve => {
-		chrome.storage.local.set({ [key]: value }, () => {
-			resolve();
-		});
+export function setStorageData(key, value, callback = null) {
+	return chrome.storage.local.set({ [key]: value }, () => {
+		if (callback) callback();
 	});
+}
+export function getStorageData(key, defaultValue = null, callback = null) {
+	if (Array.isArray(key)) {
+		return chrome.storage.local.get(key, result => {
+			if (callback) {
+				callback(result ?? defaultValue)
+			}else {
+				return result ?? defaultValue;
+			}
+		});
+	}else {
+		return  chrome.storage.local.get(key, result => {
+			if (callback) {
+				callback(result[key] ?? defaultValue)
+			}else {
+				return result[key] ?? defaultValue
+			}
+		});
+	}
 }
 
-export async function getStorageData(key, defaultValue = null) {
-	return await new Promise(resolve => {
-		if (Array.isArray(key)) {
-			chrome.storage.local.get(key, (result) => {
-				resolve(result ?? defaultValue);
-			});
-		}else {
-			chrome.storage.local.get(key, (result) => {
-				resolve(result[key] ?? defaultValue)
-			});
-		}
-	});
-}

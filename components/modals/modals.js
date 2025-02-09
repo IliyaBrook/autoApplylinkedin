@@ -16,10 +16,10 @@ function notOnJobSearchModalShow() {
 
 function hideAllModals() {
 	if (notOnJobSearchOverlay) {
-		// notOnJobSearchOverlay.style.display = 'none'
+		notOnJobSearchOverlay.style.display = 'none'
 	}
 	if (formControlOverlay) {
-		// formControlOverlay.style.display = 'none'
+		formControlOverlay.style.display = 'none'
 	}
 }
 

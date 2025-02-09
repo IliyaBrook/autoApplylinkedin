@@ -77,19 +77,14 @@ function ApplyButton(isRunning) {
 		const currentUrl = res?.currentUrl || '';
 		const autoApplyRunning = res?.autoApplyRunning || false;
 		if (currentUrl && !currentUrl.includes('linkedin.com/jobs/search')) {
+			console.log("is notOnJobSearchModalShow:", notOnJobSearchModalShow)
+			
 			if (typeof notOnJobSearchModalShow === 'function') {
 				notOnJobSearchModalShow();
 			}
 			chrome.storage.local.set({ autoApplyRunning: false });
 		} else {
 			changeAutoApplyButton(isRunning || autoApplyRunning)
-		}
-		const defaultFields = res?.defaultFields
-		if (showFormControlModal === 'function') {
-			const isDefaultFieldsEmpty = Object.values(defaultFields.defaultFields).some(value => value === '')
-			if (isDefaultFieldsEmpty) {
-				showFormControlModal();
-			}
 		}
 	});
 }
@@ -100,18 +95,10 @@ autoApplyButton.addEventListener('click', () => {
 		chrome?.storage.local) {
 		chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
 			const newState = !autoApplyRunning;
+			console.log("auto apply state:", newState)
+			
 			chrome.runtime.sendMessage({
 				action: newState ? 'startAutoApply' : 'stopAutoApply'
-			}, (response) => {
-				if (response?.success) {
-					chrome.storage.local.set({ autoApplyRunning: newState }, () => {
-						ApplyButton(newState);
-					});
-				} else {
-					chrome.storage.local.set({ autoApplyRunning: false }, () => {
-						ApplyButton(false);
-					});
-				}
 			});
 		});
 	}
