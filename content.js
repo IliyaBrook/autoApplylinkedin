@@ -562,9 +562,9 @@ async function runScript() {
 			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
 			
 			if (titleFilterEnabled || titleSkipEnabled) {
-				const jobTitleMustContains = titleFilterWords.toLowerCase().some(word => jobTitle.includes(word.toLowerCase()))
+				const jobTitleMustContains = titleFilterWords.toLowerCase().some(word => jobTitle.includes((word.toLowerCase()).toLowerCase()))
 				
-				const matchedSkipWord = titleSkipWords.toLowerCase().find(word => jobTitle.includes(word.toLowerCase()))
+				const matchedSkipWord = titleSkipWords.toLowerCase().find(word => jobTitle.includes((word.toLowerCase()).toLowerCase()))
 				if (!jobTitleMustContains || matchedSkipWord) {
 					jobNameLink.scrollIntoView({ block: 'center' })
 					await addDelay()
@@ -574,7 +574,7 @@ async function runScript() {
 					if (autoApplyRunning) {
 						await goToNextPage()
 					} else {
-						void stopScript()
+						await stopScript()
 					}
 				}
 			}
