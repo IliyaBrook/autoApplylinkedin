@@ -1,7 +1,7 @@
 import { getStorageData, setStorageData } from './utils/bgUtils.js'
 
 
-let currentInputFieldConfigs = []
+// let currentInputFieldConfigs = []
 
 
 chrome.runtime.onConnect.addListener(function(port) {
@@ -49,12 +49,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		if (request.action === 'externalApplyAction') {
 			const { jobTitle, currentPageLink, companyName } = request.data
 			saveLinkedInJobData(jobTitle, currentPageLink, companyName)
-			sendResponse({ success: true })
+			// sendResponse({ success: true })
 		}
 		if (request.action === 'initStorage') {
 			getStorageData('inputFieldConfigs', [], result => {
-				currentInputFieldConfigs = (Array.isArray(result) && result.length > 0) ? result : []
-				sendResponse({ success: true })
+				console.log("result:", result)
+				
+				// currentInputFieldConfigs = (Array.isArray(result) && result.length > 0) ? result : []
+				// sendResponse({ success: true })
 			})
 		}
 		if (request.action === 'startAutoApply') {
@@ -122,7 +124,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		}
 		if (request.action === 'getInputFieldConfig') {
 			getInputFieldConfig(sendResponse)
-			sendResponse({ success: true })
+			// sendResponse({ success: true })
 		}
 		if (request.action === 'updateRadioButtonValueByPlaceholder') {
 			updateRadioButtonValue(request.placeholderIncludes, request.newValue)
@@ -155,12 +157,15 @@ function updateOrAddInputFieldValue(placeholder, value) {
 		if (foundConfig) {
 			foundConfig.defaultValue = value
 			setStorageData('inputFieldConfigs', inputFieldConfigs)
-			currentInputFieldConfigs = inputFieldConfigs
+			// currentInputFieldConfigs = inputFieldConfigs
+			console.log("inputFieldConfigs: 1", inputFieldConfigs)
+			
 		} else {
 			const newConfig = { placeholderIncludes: placeholder, defaultValue: value, count: 1 }
 			inputFieldConfigs.push(newConfig)
 			setStorageData('inputFieldConfigs', inputFieldConfigs)
-			currentInputFieldConfigs = inputFieldConfigs
+			// currentInputFieldConfigs = inputFieldConfigs
+			console.log("inputFieldConfigs: 2", inputFieldConfigs)
 		}
 	})
 
@@ -184,7 +189,7 @@ function updateInputFieldConfigsInStorage(placeholder) {
 		}
 		
 		setStorageData('inputFieldConfigs', inputFieldConfigs)
-		currentInputFieldConfigs = inputFieldConfigs
+		// currentInputFieldConfigs = inputFieldConfigs
 	})
 }
 
@@ -200,7 +205,7 @@ function deleteInputFieldConfig(placeholder) {
 		}
 		
 		setStorageData('inputFieldConfigs', inputFieldConfigs)
-		currentInputFieldConfigs = inputFieldConfigs
+		// currentInputFieldConfigs = inputFieldConfigs
 	})
 }
 
@@ -252,7 +257,7 @@ function updateDropdownConfig(placeholderIncludes, newValue) {
 	})
 }
 
-async function deleteDropdownValueConfig(placeholder) {
+function deleteDropdownValueConfig(placeholder) {
 	getStorageData('dropdowns', [], dropdowns => {
 		const indexToDelete = dropdowns.findIndex(config => config.placeholderIncludes === placeholder)
 		if (indexToDelete !== -1) {
@@ -260,7 +265,6 @@ async function deleteDropdownValueConfig(placeholder) {
 			setStorageData('dropdowns', dropdowns)
 		}
 	})
-	
 }
 
 // start stop auto apply

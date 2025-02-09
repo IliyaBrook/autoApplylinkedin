@@ -424,55 +424,6 @@ async function checkAndPromptFields() {
 	}
 }
 
-// test modals
-// const formControlModalHTML = `
-// <div id="formControlOverlay" style="position:fixed;top:0;left:0;width:100%;height:100%;background-color:rgba(0,0,0,0.5);z-index:1000;justify-content:center;align-items:center;">
-//     <div style="background-color:white;padding:20px;border-radius:5px;">
-//         <h2>Необходимо заполнить обязательные поля формы</h2>
-//         <p>Пожалуйста, заполните обязательные поля формы в настройках расширения.</p>
-//         <button id="closeModalFormControl" style="padding:10px 20px; background-color:#f0f0f0; border:none; border-radius:5px; cursor:pointer;">Закрыть</button>
-//     </div>
-// </div>
-// `;
-//
-// const modalsCSS = `
-// /* components/modals/modals.css  (Содержимое вашего modals.css) */
-// #notOnJobSearchOverlay, #formControlOverlay {
-//     position: fixed;
-//     top: 0;
-//     left: 0;
-//     width: 100%;
-//     height: 100%;
-//     background-color: rgba(255, 0, 0, 0.5); /* Ярко-красный полупрозрачный фон для теста */
-//     z-index: 9999; /* Очень высокий z-index для теста */
-//     display: flex; /* Или попробуйте display: block; для теста */
-//     pointer-events: none;
-// }
-//
-// #notOnJobSearchOverlay > div, #formControlOverlay > div {
-//     background-color: white;
-//     padding: 20px;
-//     border-radius: 5px;
-// }
-//
-// #goToJobSearchButton, #closeModalButton, #closeModalFormControl {
-//     padding: 10px 20px;
-//     background-color: #0a66c2; /* LinkedIn blue */
-//     color: white;
-//     border: none;
-//     border-radius: 5px;
-//     cursor: pointer;
-//     margin-right: 10px;
-// }
-//
-// #closeModalButton, #closeModalFormControl {
-//     background-color: #f0f0f0; /* Light grey for close button */
-//     color: black; /* Or any suitable text color */
-// }
-// `;
-
-
-
 
 async function stopScript() {
 	await sendMessage('stopAutoApply')

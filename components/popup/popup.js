@@ -95,10 +95,18 @@ autoApplyButton.addEventListener('click', () => {
 		chrome?.storage.local) {
 		chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
 			const newState = !autoApplyRunning;
-			console.log("auto apply state:", newState)
-			
 			chrome.runtime.sendMessage({
 				action: newState ? 'startAutoApply' : 'stopAutoApply'
+			}, response => {
+				if (response?.success) {
+					chrome.storage.local.set({ autoApplyRunning: newState }, () => {
+						ApplyButton(newState);
+					});
+				} else {
+					chrome.storage.local.set({ autoApplyRunning: false }, () => {
+						ApplyButton(false);
+					});
+				}
 			});
 		});
 	}
