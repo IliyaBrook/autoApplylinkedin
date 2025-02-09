@@ -71,6 +71,6 @@ function getStorageData(key, defaultValue = null, callback = null) {
 }
 
 function sendMessage(action, data = {}) {
-    return chrome.runtime.sendMessage({ action, data });
+    chrome.runtime.sendMessage({ action, data });
 }
 

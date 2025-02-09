@@ -23,7 +23,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*.linkedin.com/*"],
+      "matches": ["*://*.linkedin.com/jobs/search*", "*://linkedin.com/jobs/search*"],
       "js": ["utils/utils.js", "forGlobalWinElements.js", "content.js", "xpaths.js"]
     }
   ],
@@ -34,7 +34,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://*.linkedin.com/*",
+    "https://linkedin.com/*"
   ],
   "web_accessible_resources": [
     {
@@ -49,7 +50,7 @@
         "components/modals/modals.js",
         "components/modals/modals.css"
       ],
-      "matches": ["https://*.linkedin.com/*"]
+      "matches": ["*://www.linkedin.com/*"]
     }
   ]
 }

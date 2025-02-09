@@ -425,9 +425,9 @@ async function checkAndPromptFields() {
 }
 
 
-async function stopScript() {
-	await sendMessage('stopAutoApply')
-	await setStorageData('autoApplyRunning', false)
+function stopScript() {
+	chrome.runtime.sendMessage({ action: 'stopAutoApply' })
+	chrome.storage.local.set({ autoApplyRunning: false })
 }
 
 async function loadHTML(url) {
@@ -483,9 +483,12 @@ if (window) {
 }
 
 async function runScript() {
-	
+	console.log("Content script runScript function Complete started!");
 	try {
+		console.log("fieldsComplete: before checkAndPromptFields called")
 		const fieldsComplete = await checkAndPromptFields()
+		console.log("fieldsComplete:", fieldsComplete)
+		
 		if (!fieldsComplete) {
 			void chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
 			return
@@ -503,6 +506,11 @@ async function runScript() {
 			'titleFilterWords',
 			'titleSkipWords'
 		])
+		console.log("titleSkipEnabled", titleSkipEnabled)
+		console.log("titleFilterEnabled", titleFilterEnabled)
+		console.log("badWordsEnabled", badWordsEnabled)
+		console.log("titleFilterWords", titleFilterWords)
+		console.log("titleSkipWords", titleSkipWords)
 		
 		const limitReached = await checkLimitReached()
 		if (limitReached) {
@@ -522,6 +530,8 @@ async function runScript() {
 					resolve(autoApplyRunning)
 				})
 			})
+			console.log("check auto apply running:", autoApplyRunning)
+			
 			
 			if (!autoApplyRunning) {
 				break

@@ -58,7 +58,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			})
 		}
 		if (request.action === 'startAutoApply') {
-			
 			try {
 				chrome.tabs.query({ active: true, currentWindow: true })
 					.then(tabs => {
@@ -67,8 +66,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 							return
 						}
 						
-						const currentTabId = tabs[0].id
-						const currentUrl = tabs[0].url || ''
+						const currentTabId = tabs?.[0]?.id
+						const currentUrl = tabs?.[0]?.url || ''
 						getStorageData('defaultFields', null, result => {
 							const isDefaultFieldsEmpty = Object.values(result).some(value => value === '')
 							
@@ -84,10 +83,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 								})
 							}
 							if (currentUrl.includes('linkedin.com/jobs') && !isDefaultFieldsEmpty) {
+								console.log("background.js: ПЕРЕД вызовом chrome.scripting.executeScript для tabId:", currentTabId); // <---- ЛОГ ПЕРЕД ВЫЗОВОМ
 								chrome.scripting.executeScript({
 									target: { tabId: currentTabId }, func: runScriptInContent
+								}).then(() => {
+									sendResponse({ success: true })
 								}).catch(err => {
-									console.error('[startAutoApply] in bg error:', err)
+									console.error('[startAutoApply] в bg error (executeScript): ОШИБКА:', err);
 									sendResponse({ success: false, message: err.message })
 								})
 							}

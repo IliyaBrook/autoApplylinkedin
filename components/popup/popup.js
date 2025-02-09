@@ -73,38 +73,45 @@ document.getElementById('import-file').addEventListener('change', function(event
 })
 
 function ApplyButton(isRunning) {
-	chrome.storage.local.get(['currentUrl', 'autoApplyRunning', 'defaultFields'], (res) => {
-		const currentUrl = res?.currentUrl || '';
-		const autoApplyRunning = res?.autoApplyRunning || false;
-		if (currentUrl && !currentUrl.includes('linkedin.com/jobs/search')) {
-			console.log("is notOnJobSearchModalShow:", notOnJobSearchModalShow)
-			
-			if (typeof notOnJobSearchModalShow === 'function') {
-				notOnJobSearchModalShow();
-			}
-			chrome.storage.local.set({ autoApplyRunning: false });
-		} else {
-			changeAutoApplyButton(isRunning || autoApplyRunning)
-		}
-	});
+	changeAutoApplyButton(isRunning);
 }
 
+// function ApplyButton(isRunning) {
+// 	chrome.storage.local.get(['currentUrl', 'autoApplyRunning', 'defaultFields'], (res) => {
+// 		const currentUrl = res?.currentUrl || '';
+// 		const autoApplyRunning = res?.autoApplyRunning || false;
+// 		if (currentUrl && !currentUrl.includes('linkedin.com/jobs/search')) {
+// 			console.log("is notOnJobSearchModalShow:", notOnJobSearchModalShow)
+//
+// 			if (typeof notOnJobSearchModalShow === 'function') {
+// 				notOnJobSearchModalShow();
+// 			}
+// 			chrome.storage.local.set({ autoApplyRunning: false });
+// 		} else {
+// 			changeAutoApplyButton(isRunning)
+// 		}
+// 	});
+// }
+
 autoApplyButton.addEventListener('click', () => {
-	if (typeof chrome !== 'undefined' &&
-		chrome?.storage &&
-		chrome?.storage.local) {
+	if (typeof chrome !== 'undefined' && chrome?.storage && chrome?.storage.local) {
 		chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
 			const newState = !autoApplyRunning;
+			
+			ApplyButton(newState);
+			
 			chrome.runtime.sendMessage({
 				action: newState ? 'startAutoApply' : 'stopAutoApply'
 			}, response => {
 				if (response?.success) {
 					chrome.storage.local.set({ autoApplyRunning: newState }, () => {
-						ApplyButton(newState);
+						// No need to call ApplyButton again here - UI is already updated before sendMessage
+						console.log("Auto apply state updated in storage and UI (success response). New state:", newState); // Optional log
 					});
 				} else {
 					chrome.storage.local.set({ autoApplyRunning: false }, () => {
-						ApplyButton(false);
+						ApplyButton(false); // Revert UI to "Start" state in case of error
+						console.error("Error starting/stopping auto apply. Reverting UI to 'Start'. Error:", response?.message); // Optional error log
 					});
 				}
 			});
@@ -115,6 +122,6 @@ autoApplyButton.addEventListener('click', () => {
 
 document.addEventListener('DOMContentLoaded', () => {
 	chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
-		changeAutoApplyButton(autoApplyRunning)
-	})
-})
+		changeAutoApplyButton(autoApplyRunning); // Initial button state on popup load
+	});
+});
