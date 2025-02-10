@@ -45,55 +45,10 @@ async function jobPanelScrollLittle() {
 }
 
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
-	// return new Promise(async (resolve) => {
-	// 	const jobNameLink = listItem.querySelector(
-	// 		'.artdeco-entity-lockup__title .job-card-container__link'
-	// 	)
-	// 	if (!jobNameLink) {
-	// 		resolve()
-	// 		return
-	// 	}
-	// 	jobNameLink.click()
-	// 	await addDelay()
-	// 	if (badWordsEnabled) {
-	// 		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
-	// 		if (jobDetailsElement) {
-	// 			const jobContentText = jobDetailsElement.textContent.toLowerCase().trim()
-	// 			const response = await chrome.storage.local.get(['badWords'])
-	// 			const badWords = response?.badWords
-	// 			if (badWords?.length > 0) {
-	// 				let matchedBadWord = null;
-	// 				for (const badWord of badWords) {
-	// 					const regex = new RegExp('\\b' + badWord.trim() + '\\b', 'i');
-	// 					if (regex.test(jobContentText)) {
-	// 						matchedBadWord = badWord;
-	// 						break;
-	// 					}
-	// 				}
-	// 				if (matchedBadWord) {
-	// 					console.log("matchedBadWord:", matchedBadWord)
-	// 					resolve()
-	// 				}
-	// 			} else {
-	// 				return await runFindEasyApply(jobTitle, companyName).then(() => {
-	// 					jobPanelScrollLittle().then(() => resolve())
-	// 				})
-	// 			}
-	// 		}
-	// 	} else {
-	// 		return await runFindEasyApply(jobTitle, companyName).then(() => {
-	// 			jobPanelScrollLittle().then(() => resolve())
-	// 		})
-	// 	}
-	// })
-	
 	const apply = async () => {
-		await runFindEasyApply(jobTitle, companyName).then(() => {
-			jobPanelScrollLittle().then(() => resolve())
-		})
+		await runFindEasyApply(jobTitle, companyName)
+		await jobPanelScrollLittle()
 	}
-	
-	
 	const jobNameLink = listItem.querySelector(
 		'.artdeco-entity-lockup__title .job-card-container__link'
 	)
@@ -111,26 +66,20 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 			if (badWords?.length > 0) {
 				let matchedBadWord = null;
 				for (const badWord of badWords) {
-					const regex = new RegExp('\\b' + badWord.trim() + '\\b', 'i');
+					const regex = new RegExp('\\b' + badWord.trim().replace(/\+/g, '\\+') + '\\b', 'i');
 					if (regex.test(jobContentText)) {
 						matchedBadWord = badWord;
 						break;
 					}
 				}
 				if (matchedBadWord) {
-					await apply()
+					return
 				}
-			} else {
-				return await runFindEasyApply(jobTitle, companyName).then(() => {
-					await apply()
-				})
 			}
+			await apply()
 		}
-	} else {
-		return await runFindEasyApply(jobTitle, companyName).then(() => {
-			jobPanelScrollLittle().then(() => resolve())
-		})
 	}
+	await apply()
 }
 
 async function performInputFieldChecks() {
@@ -564,23 +513,22 @@ async function runScript() {
 			const companyName = companyNamesArray?.[0] ?? ''
 			const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
 			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
-			let isRightJob = true
 			
-			// if (titleSkipEnabled) {
-			// 	const matchedSkipWord = !!titleSkipWords.find(word => jobTitle.toLowerCase().includes((word.toLowerCase())))
-			// 	if (matchedSkipWord) {
-			// 		jobNameLink.scrollIntoView({ block: 'center' })
-			// 		isRightJob = false
-			// 	}
-			// }
-			//
-			// if (titleFilterEnabled) {
-			// 	const jobTitleMustContains = titleFilterWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))
-			// 	if (!jobTitleMustContains) {
-			// 		jobNameLink.scrollIntoView({ block: 'center' })
-			// 		canClickToJob = false
-			// 	}
-			// }
+			if (titleSkipEnabled) {
+				const matchedSkipWord = titleSkipWords.find(word => jobTitle.toLowerCase().includes((word.toLowerCase())))
+				if (matchedSkipWord) {
+					jobNameLink.scrollIntoView({ block: 'center' })
+					canClickToJob = false
+				}
+			}
+
+			if (titleFilterEnabled) {
+				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))
+				if (!jobTitleMustContains) {
+					jobNameLink.scrollIntoView({ block: 'center' })
+					canClickToJob = false
+				}
+			}
 			
 			jobNameLink.scrollIntoView({ block: 'center' })
 			await addDelay()
@@ -593,8 +541,6 @@ async function runScript() {
 			}
 			try {
 				if (canClickToJob) {
-					console.log("click job")
-					
 					await clickJob(
 						listItem,
 						companyName,

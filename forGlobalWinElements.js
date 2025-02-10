@@ -1,10 +1,5 @@
 if (window.location.hostname === "www.linkedin.com" || window.location.hostname === "linkedin.com") {
 	void initElements()
-	initStorage()
-}
-
-function initStorage() {
-	chrome.runtime.sendMessage({ action: 'initStorage' })
 }
 
 async function createCustomElement({

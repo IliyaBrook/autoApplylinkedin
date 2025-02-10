@@ -4,22 +4,26 @@ export function setStorageData(key, value, callback = null) {
 	});
 }
 export function getStorageData(key, defaultValue = null, callback = null) {
-	if (Array.isArray(key)) {
-		return chrome.storage.local.get(key, result => {
-			if (callback) {
-				callback(result ?? defaultValue)
-			}else {
-				return result ?? defaultValue;
-			}
-		});
-	}else {
-		return  chrome.storage.local.get(key, result => {
-			if (callback) {
-				callback(result[key] ?? defaultValue)
-			}else {
-				return result[key] ?? defaultValue
-			}
-		});
+	try {
+		if (Array.isArray(key)) {
+			return chrome.storage.local.get(key, result => {
+				if (callback) {
+					callback(result ?? defaultValue)
+				}else {
+					return result ?? defaultValue;
+				}
+			});
+		}else {
+			return  chrome.storage.local.get(key, result => {
+				if (callback) {
+					callback(result[key] ?? defaultValue)
+				}else {
+					return result[key] ?? defaultValue
+				}
+			});
+		}
+	}catch {
+		return defaultValue
 	}
 }
 

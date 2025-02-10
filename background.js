@@ -1,9 +1,5 @@
 import { getStorageData, setStorageData } from './utils/bgUtils.js'
 
-
-// let currentInputFieldConfigs = []
-
-
 chrome.runtime.onConnect.addListener(function(port) {
 	if (port.name === 'popup') {
 		chrome.runtime.sendMessage({
@@ -61,7 +57,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 						
 						const currentTabId = tabs?.[0]?.id
 						const currentUrl = tabs?.[0]?.url || ''
-						getStorageData('defaultFields', null, result => {
+						getStorageData('defaultFields', [], result => {
 							const isDefaultFieldsEmpty = Object.values(result).some(value => value === '')
 							
 							if (!currentUrl.includes('linkedin.com/jobs')) {
@@ -81,7 +77,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 								}).then(() => {
 									sendResponse({ success: true })
 								}).catch(err => {
-									console.error('[startAutoApply] в bg error (executeScript): ОШИБКА:', err);
+									console.error('[startAutoApply] in bg error (executeScript): Error:', err);
 									sendResponse({ success: false, message: err.message })
 								})
 							}
