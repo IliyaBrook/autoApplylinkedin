@@ -32,51 +32,74 @@ async function performInputFieldCityCheck() {
 }
 
 async function jobPanelScrollLittle() {
-	const jobsPanel = document.querySelector('.jobs-search-results-list')
-	if (jobsPanel) {
-		
-		const scrollPercentage = 0.03
-		
-		const scrollDistance = jobsPanel.scrollHeight * scrollPercentage
-		
-		jobsPanel.scrollTop += scrollDistance
-		
-		await addDelay()
-	}
+	return await new Promise(async resolve => {
+		const jobsPanel = document.querySelector('.jobs-search-results-list')
+		if (jobsPanel) {
+			const scrollPercentage = 0.03
+			const scrollDistance = jobsPanel.scrollHeight * scrollPercentage
+			jobsPanel.scrollTop += scrollDistance
+			await addDelay()
+		}
+		resolve()
+	})
 }
 
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
+	console.log("company name:", companyName)
 	
-	const jobNameLink = listItem.querySelector(
-		'.artdeco-entity-lockup__title .job-card-container__link'
-	)
-	
-	if (!jobNameLink) {
-		return
-	}
-	
-	jobNameLink.click()
-	await addDelay()
-	if (badWordsEnabled) {
-		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
-		if (jobDetailsElement) {
-			const jobContentText = jobDetailsElement.textContent.toLowerCase().trim()
-			getStorageData('badWords', [], badWords => {
-				if (badWords.length > 0) {
-					const matchedBadWord = badWords.find(word => jobContentText.includes(word.toLowerCase().trim()))
-					if (matchedBadWord) {
-						return
+	return new Promise(async (resolve) => {
+		const jobNameLink = listItem.querySelector(
+			'.artdeco-entity-lockup__title .job-card-container__link'
+		)
+		
+		if (!jobNameLink) {
+			console.log("no job name existed")
+			resolve()
+			return
+		}
+		jobNameLink.click()
+		await addDelay()
+		if (badWordsEnabled) {
+			const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
+			if (jobDetailsElement) {
+				const jobContentText = jobDetailsElement.textContent.toLowerCase().trim()
+				const response = await chrome.storage.local.get(['badWords'])
+				const badWords = response?.badWords
+				if (badWords?.length > 0) {
+					let matchedBadWord = null;
+					for (const badWord of badWords) {
+						const regex = new RegExp('\\b' + badWord.trim() + '\\b', 'i');
+						if (regex.test(jobContentText)) {
+							matchedBadWord = badWord;
+							break;
+						}
 					}
-					runFindEasyApply(jobTitle, companyName)
-					jobPanelScrollLittle()
+					if (matchedBadWord) {
+						console.log("Вакансия пропущена из-за bad word:", matchedBadWord);
+						return resolve()
+					}
+					console.log("before runFindEasyApply 1")
+					return runFindEasyApply(jobTitle, companyName).then(() => {
+						jobPanelScrollLittle().then(() => resolve())
+					})
+				} else {
+					console.log("before runFindEasyApply 2")
+					return runFindEasyApply(jobTitle, companyName).then(() => {
+						jobPanelScrollLittle().then(() => resolve())
+					})
 				}
+			}
+		} else {
+			console.log("before runFindEasyApply 3")
+			return runFindEasyApply(jobTitle, companyName).then(() => {
+				jobPanelScrollLittle().then(() => resolve())
 			})
 		}
-	}
+	})
 }
 
 async function performInputFieldChecks() {
-	const result = await sendMessage('getInputFieldConfig')
+	const result = await chrome.runtime.sendMessage({ action: 'getInputFieldConfig' })
 	
 	const questionContainers = document.querySelectorAll('.fb-dash-form-element')
 	
@@ -313,40 +336,61 @@ async function runApplyModel() {
 }
 
 async function runFindEasyApply(jobTitle, companyName) {
-	await addDelay(1000)
-	const currentPageLink = window.location.href
-	const externalApplyElements = getElementsByXPath({ xpath: not_easy_apply_button })
-	if (externalApplyElements.length > 0) {
-		await chrome.runtime.sendMessage({
-			action: 'externalApplyAction',
-			data: { jobTitle, currentPageLink, companyName }
-		})
-	}
-	
-	const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button })
-	if (easyApplyElements.length > 0) {
-		const buttonPromises = Array.from(easyApplyElements).map((button) => {
-			return new Promise((resolve) => {
-				button.click()
-				resolve(runApplyModel())
+	console.log("[runFindEasyApply]  >>> Entering runFindEasyApply function", jobTitle, companyName);
+	return new Promise(async resolve => {
+		await addDelay(1000)
+		const currentPageLink = window.location.href
+		const externalApplyElements = getElementsByXPath({ xpath: not_easy_apply_button })
+		if (externalApplyElements.length > 0) {
+			console.log("[runFindEasyApply] externalApplyElements:", externalApplyElements)
+			console.log("[runFindEasyApply] jobTitle:", jobTitle)
+			console.log("[runFindEasyApply] companyName:", companyName)
+			await chrome.runtime.sendMessage({
+				action: 'externalApplyAction',
+				data: { jobTitle, currentPageLink, companyName }
 			})
-		})
-		await Promise.race(buttonPromises)
-	}
-}
+			console.log("[runFindEasyApply] after externalApplyAction send")
+		}
 
+		
+		
+		const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button })
+		console.log("[runFindEasyApply] easyApplyElements:", easyApplyElements)
+		
+		if (easyApplyElements.length > 0) {
+			const buttonPromises = Array.from(easyApplyElements).map((button) => {
+				return new Promise((resolve) => {
+					button.click()
+					resolve(runApplyModel())
+				})
+			})
+			console.log("[runFindEasyApply] runFindEasyApply:", buttonPromises)
+			
+			const buttonsPromisesResolved = await Promise.race(buttonPromises)
+			console.log("[runFindEasyApply] buttonsPromisesResolved:", buttonsPromisesResolved)
+		}
+		console.log("[runFindEasyApply] before solve")
+		
+		resolve()
+	})
+}
 
 async function goToNextPage() {
 	const nextButton = document.querySelector('.artdeco-pagination__pages .artdeco-pagination__indicator--number.active + li button')
-	
-	if (nextButton) {
-		return new Promise(resolve => {
+	return new Promise(resolve => {
+		if (nextButton) {
 			setTimeout(() => {
 				nextButton.click()
 				resolve()
 			}, 2000)
-		}).then(runScript)
-	}
+		}else {
+			console.log("goToNextPage next button not found")
+			resolve()
+		}
+	}).then(runScript)
+		.catch(err => {
+			console.error('goToNextPage error:', err)
+		})
 }
 
 
@@ -467,28 +511,24 @@ if (window) {
 			loadCSS('components/modals/modals.css')
 				.then(css => resolve(css))
 				.catch(err => {
-					console.error('loadCSS error modals: ', err);
-					reject(err);
+					console.error('loadCSS error modals: ', err)
+					reject(err)
 				})
 		}).then((css) => {
-			const styleElement = document.createElement('style');
-			styleElement.textContent = css;
-			document.head.appendChild(styleElement);
+			const styleElement = document.createElement('style')
+			styleElement.textContent = css
+			document.head.appendChild(styleElement)
 		}).catch(error => {
-			console.error("Error during loading css modals:", error);
-		});
+			console.error('Error during loading css modals:', error)
+		})
 	} catch (err) {
 		console.log('error:', err)
 	}
 }
 
 async function runScript() {
-	console.log("Content script runScript function Complete started!");
 	try {
-		console.log("fieldsComplete: before checkAndPromptFields called")
 		const fieldsComplete = await checkAndPromptFields()
-		console.log("fieldsComplete:", fieldsComplete)
-		
 		if (!fieldsComplete) {
 			void chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
 			return
@@ -506,11 +546,6 @@ async function runScript() {
 			'titleFilterWords',
 			'titleSkipWords'
 		])
-		console.log("titleSkipEnabled", titleSkipEnabled)
-		console.log("titleFilterEnabled", titleFilterEnabled)
-		console.log("badWordsEnabled", badWordsEnabled)
-		console.log("titleFilterWords", titleFilterWords)
-		console.log("titleSkipWords", titleSkipWords)
 		
 		const limitReached = await checkLimitReached()
 		if (limitReached) {
@@ -524,13 +559,16 @@ async function runScript() {
 		
 		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
 		
-		for (const listItem of listItems) {
+		for (let index = 0; index < listItems.length; index++) {
+			let canClickToJob = true
+			const listItem = listItems[index]
+			const lastItemIndex = listItems.length - 1
 			const autoApplyRunning = await new Promise(resolve => {
 				getStorageData('autoApplyRunning', false, autoApplyRunning => {
 					resolve(autoApplyRunning)
 				})
 			})
-			console.log("check auto apply running:", autoApplyRunning)
+			console.log('check auto apply running:', autoApplyRunning)
 			
 			
 			if (!autoApplyRunning) {
@@ -539,7 +577,8 @@ async function runScript() {
 			
 			const jobNameLink = listItem.querySelector('.job-card-container__link')
 			if (!jobNameLink) {
-				continue
+				// continue
+				canClickToJob = false
 			}
 			
 			// check if job is already applied
@@ -547,7 +586,8 @@ async function runScript() {
 			if (jobFooter) {
 				const isApplied = jobFooter.textContent.trim() === 'Applied'
 				if (isApplied) {
-					continue
+					// continue
+					canClickToJob = false
 				}
 			}
 			
@@ -560,64 +600,65 @@ async function runScript() {
 			const companyName = companyNamesArray?.[0] ?? ''
 			const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
 			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
-			
+			let isRightJob = true
 			if (titleSkipEnabled) {
 				const matchedSkipWord = !!titleSkipWords.find(word => jobTitle.toLowerCase().includes((word.toLowerCase())))
 				if (matchedSkipWord) {
-					continue
+					console.log('titleSkipWords:', titleSkipWords)
+					console.log('matchedSkipWord on title:', jobTitle)
+					console.log('matchedSkipWord: list items length:', listItems.length)
+					console.log('matchedSkipWord: last item index:', lastItemIndex)
+					console.log('matchedSkipWord: current index:', index)
+					jobNameLink.scrollIntoView({ block: 'center' })
+					isRightJob = false
 				}
 			}
 			
 			if (titleFilterEnabled) {
 				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))
 				if (!jobTitleMustContains) {
-					continue
+					console.log('titleFilterWords:', titleFilterWords)
+					console.log('jobTitleMustContains on title:', jobTitle)
+					console.log('jobTitleMustContains: list items length:', listItems.length)
+					console.log('jobTitleMustContains: last item index:', lastItemIndex)
+					jobNameLink.scrollIntoView({ block: 'center' })
+					// continue
+					canClickToJob = false
 				}
 			}
-			
-			
-			// if (titleFilterEnabled || titleSkipEnabled) {
-			// 	const jobTitleMustContains = titleFilterWords.some(word => jobTitle.includes((word.toLowerCase()).toLowerCase()))
-			//
-			// 	const matchedSkipWord = titleSkipWords.find(word => jobTitle.includes((word.toLowerCase()).toLowerCase()))
-			// 	if (!jobTitleMustContains || matchedSkipWord) {
-			// 		jobNameLink.scrollIntoView({ block: 'center' })
-			// 		await addDelay()
-			// 		const autoApplyRunning = await new Promise(resolve => {
-			// 			getStorageData('autoApplyRunning', false, autoApplyRunning => resolve(autoApplyRunning))
-			// 		})
-			// 		if (autoApplyRunning) {
-			// 			await goToNextPage()
-			// 		} else {
-			// 			await stopScript()
-			// 		}
-			// 	}
-			// }
+			console.log("after filters code")
 			
 			jobNameLink.scrollIntoView({ block: 'center' })
-			await addDelay()
+			await addDelay(2000)
 			jobNameLink.click()
-			await addDelay()
+			console.log("after jobNameLink.click code")
+			await addDelay(2000)
 			
 			const mainContentElement = document.querySelector('.jobs-details__main-content')
 			if (!mainContentElement) {
-				continue
+				console.log("jobs-details__main-content not exist")
+				// continue
+				canClickToJob = false
 			}
-			
+			console.log('jobTitleMustContains: current index:', index)
 			try {
-				await clickJob(listItem, companyName, jobTitle, badWordsEnabled)
+				console.log("before clickJob")
+				if (canClickToJob) {
+					await clickJob(listItem, companyName, jobTitle, badWordsEnabled)
+				}
 			} catch (error) {
 				console.error('Error in clickJob:', error)
 			}
 		}
 		
-		const autoApplyRunning = new Promise(resolve => {
+		const autoApplyRunning = await new Promise(resolve => {
 			getStorageData('autoApplyRunning', false, autoApplyRunning => {
 				resolve(autoApplyRunning)
 			})
 		})
 		
 		if (autoApplyRunning) {
+			console.log("before goToNextPage")
 			await goToNextPage()
 		}
 	} catch (error) {

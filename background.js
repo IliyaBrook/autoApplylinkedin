@@ -49,6 +49,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		if (request.action === 'externalApplyAction') {
 			const { jobTitle, currentPageLink, companyName } = request.data
 			saveLinkedInJobData(jobTitle, currentPageLink, companyName)
+			sendResponse({ success: false })
 		}
 		if (request.action === 'initStorage') {
 			getStorageData('inputFieldConfigs', [], result => {
