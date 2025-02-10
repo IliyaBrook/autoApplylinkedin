@@ -561,23 +561,38 @@ async function runScript() {
 			const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
 			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
 			
-			if (titleFilterEnabled || titleSkipEnabled) {
-				const jobTitleMustContains = titleFilterWords.toLowerCase().some(word => jobTitle.includes((word.toLowerCase()).toLowerCase()))
-				
-				const matchedSkipWord = titleSkipWords.toLowerCase().find(word => jobTitle.includes((word.toLowerCase()).toLowerCase()))
-				if (!jobTitleMustContains || matchedSkipWord) {
-					jobNameLink.scrollIntoView({ block: 'center' })
-					await addDelay()
-					const autoApplyRunning = await new Promise(resolve => {
-						getStorageData('autoApplyRunning', false, autoApplyRunning => resolve(autoApplyRunning))
-					})
-					if (autoApplyRunning) {
-						await goToNextPage()
-					} else {
-						await stopScript()
-					}
+			if (titleSkipEnabled) {
+				const matchedSkipWord = !!titleSkipWords.find(word => jobTitle.toLowerCase().includes((word.toLowerCase())))
+				if (matchedSkipWord) {
+					continue
 				}
 			}
+			
+			if (titleFilterEnabled) {
+				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))
+				if (!jobTitleMustContains) {
+					continue
+				}
+			}
+			
+			
+			// if (titleFilterEnabled || titleSkipEnabled) {
+			// 	const jobTitleMustContains = titleFilterWords.some(word => jobTitle.includes((word.toLowerCase()).toLowerCase()))
+			//
+			// 	const matchedSkipWord = titleSkipWords.find(word => jobTitle.includes((word.toLowerCase()).toLowerCase()))
+			// 	if (!jobTitleMustContains || matchedSkipWord) {
+			// 		jobNameLink.scrollIntoView({ block: 'center' })
+			// 		await addDelay()
+			// 		const autoApplyRunning = await new Promise(resolve => {
+			// 			getStorageData('autoApplyRunning', false, autoApplyRunning => resolve(autoApplyRunning))
+			// 		})
+			// 		if (autoApplyRunning) {
+			// 			await goToNextPage()
+			// 		} else {
+			// 			await stopScript()
+			// 		}
+			// 	}
+			// }
 			
 			jobNameLink.scrollIntoView({ block: 'center' })
 			await addDelay()

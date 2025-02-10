@@ -23,7 +23,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.linkedin.com/jobs/search*", "*://linkedin.com/jobs/search*"],
+      "matches": ["https://*.linkedin.com/*"],
       "js": ["utils/utils.js", "forGlobalWinElements.js", "content.js", "xpaths.js"]
     }
   ],
