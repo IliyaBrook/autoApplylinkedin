@@ -45,18 +45,10 @@ function saveLinkedInJobData(jobTitle, jobLink, companyName) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	try {
-		
 		if (request.action === 'externalApplyAction') {
 			const { jobTitle, currentPageLink, companyName } = request.data
 			saveLinkedInJobData(jobTitle, currentPageLink, companyName)
 			sendResponse({ success: false })
-		}
-		if (request.action === 'initStorage') {
-			getStorageData('inputFieldConfigs', [], result => {
-				console.log("result:", result)
-				
-				// currentInputFieldConfigs = (Array.isArray(result) && result.length > 0) ? result : []
-			})
 		}
 		if (request.action === 'startAutoApply') {
 			try {
@@ -84,7 +76,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 								})
 							}
 							if (currentUrl.includes('linkedin.com/jobs') && !isDefaultFieldsEmpty) {
-								console.log("background.js: ПЕРЕД вызовом chrome.scripting.executeScript для tabId:", currentTabId); // <---- ЛОГ ПЕРЕД ВЫЗОВОМ
 								chrome.scripting.executeScript({
 									target: { tabId: currentTabId }, func: runScriptInContent
 								}).then(() => {
@@ -147,39 +138,28 @@ function updateOrAddInputFieldValue(placeholder, value) {
 		if (foundConfig) {
 			foundConfig.defaultValue = value
 			setStorageData('inputFieldConfigs', inputFieldConfigs)
-			// currentInputFieldConfigs = inputFieldConfigs
-			console.log("inputFieldConfigs: 1", inputFieldConfigs)
-			
 		} else {
 			const newConfig = { placeholderIncludes: placeholder, defaultValue: value, count: 1 }
 			inputFieldConfigs.push(newConfig)
 			setStorageData('inputFieldConfigs', inputFieldConfigs)
-			// currentInputFieldConfigs = inputFieldConfigs
-			console.log("inputFieldConfigs: 2", inputFieldConfigs)
 		}
 	})
-
 }
 
 function updateInputFieldConfigsInStorage(placeholder) {
 	getStorageData('inputFieldConfigs', [], inputFieldConfigs => {
 		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder)
-		
 		if (foundConfig) {
 			foundConfig.count++
 		} else {
 			getStorageData('defaultFields', {}, defaultFields => {
-				console.log('defaultFields', defaultFields)
-				
 				const newConfig = {
 					placeholderIncludes: placeholder, defaultValue: defaultFields.YearsOfExperience || '', count: 1
 				}
 				inputFieldConfigs.push(newConfig)
 			})
 		}
-		
 		setStorageData('inputFieldConfigs', inputFieldConfigs)
-		// currentInputFieldConfigs = inputFieldConfigs
 	})
 }
 

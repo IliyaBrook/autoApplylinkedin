@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', function () {
     fetchDropdownConfigs(displayDropdownConfigs);
     
     chrome.storage.onChanged.addListener(changes => {
-        console.log("Changes:", changes)
         if ('inputFieldConfigs' in changes) {
             const newConfigurations = changes.inputFieldConfigs.newValue || [];
             displayAndUpdateInputFieldConfig(newConfigurations);
@@ -38,29 +37,22 @@ function fetchDropdownConfigs(callback) {
 
 function fetchInputFieldConfigs(callback) {
     chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, result => {
-        console.log("fetchInputFieldConfigs:", result)
-        
         const inputFieldConfigs = result || [];
         callback(inputFieldConfigs);
     });
 }
 
 function displayRadioButtonConfigs(radioButtons) {
-    console.log("displayRadioButtonConfigs 1:", radioButtons)
-    
     const configurationsDiv = document.getElementById('radio');
     configurationsDiv.innerHTML = '';
     const sortedRadioButtons = radioButtons.sort((a, b) => b.count - a.count);
-    
     sortedRadioButtons.forEach(config => {
         const configContainer = document.createElement('div');
         configContainer.className = 'config-container';
         configContainer.id = `radio-config-${config.placeholderIncludes}-container`;
-        
         const questionTitle = document.createElement('h3');
         questionTitle.textContent = `${config.placeholderIncludes}`;
         configContainer.appendChild(questionTitle);
-        
         const configDetails = document.createElement('div');
         configDetails.className = 'config-details';
         configDetails.innerHTML = `
@@ -69,26 +61,20 @@ function displayRadioButtonConfigs(radioButtons) {
             </div>
         `;
         configContainer.appendChild(configDetails);
-        
         config.options.forEach(option => {
             const radioContainer = document.createElement('div');
             radioContainer.className = 'radio-container';
-            
             const radioButton = document.createElement('input');
             radioButton.type = 'radio';
             radioButton.name = `config-${config.placeholderIncludes}-radio`;
             radioButton.value = option.value;
             radioButton.checked = option.selected;
-            
             const label = document.createElement('label');
             label.textContent = option.value;
-            
             radioContainer.appendChild(radioButton);
             radioContainer.appendChild(label);
-            
             configContainer.appendChild(radioContainer);
         });
-        
         
         const deleteButton = document.createElement('button');
         deleteButton.className = 'delete-button';
@@ -96,11 +82,8 @@ function displayRadioButtonConfigs(radioButtons) {
         deleteButton.style.display = 'block';
         deleteButton.addEventListener('click', () => deleteRadioButtonConfig(config.placeholderIncludes));
         configContainer.appendChild(deleteButton);
-        
         addUpdateRadioButtonGroupEventListener(config.placeholderIncludes);
-        
         configurationsDiv.appendChild(configContainer);
-        
     });
 }
 
@@ -124,7 +107,7 @@ async function deleteRadioButtonConfig(placeholder) {
 
 function displayDropdownConfigs(dropdowns) {
     const configurationsDiv = document.getElementById('dropdown');
-    configurationsDiv.innerHTML = ''; // Clear previous content
+    configurationsDiv.innerHTML = '';
     
     const sortedDropdowns = dropdowns.sort((a, b) => b.count - a.count);
     sortedDropdowns.forEach(config => {
@@ -145,10 +128,8 @@ function displayDropdownConfigs(dropdowns) {
             </div>
         `;
         
-        // Create a div to wrap the select element
         const selectContainer = document.createElement('div');
         selectContainer.className = 'select-container';
-        
         const select = document.createElement('select');
         
         config.options.forEach(option => {
@@ -161,21 +142,18 @@ function displayDropdownConfigs(dropdowns) {
             select.appendChild(optionElement);
         });
         
-        // Enable the dropdown to allow user interaction
         select.disabled = false;
-        selectContainer.appendChild(select); // Append select to select container
+        selectContainer.appendChild(select);
         
         const deleteButton = document.createElement('button');
         deleteButton.className = 'delete-button';
         deleteButton.textContent = 'Delete';
         deleteButton.addEventListener('click', () => deleteDropdownConfig(config.placeholderIncludes));
         
-        configDetails.appendChild(selectContainer); // Append select container to config details
+        configDetails.appendChild(selectContainer);
         configContainer.appendChild(configDetails);
         configContainer.appendChild(document.createElement("br"));
-        
         configContainer.appendChild(deleteButton);
-        
         configurationsDiv.appendChild(configContainer);
         configurationsDiv.appendChild(document.createElement("br"));
         configurationsDiv.appendChild(document.createElement("br"));
@@ -190,8 +168,6 @@ async function addUpdateDropDownGroupEventListener(placeholderIncludes) {
     select.addEventListener('change', async () => {
         const select = document.getElementById(`dropdown-config-${placeholderIncludes}-container`).querySelector('select');
         const newValue = select.value;
-        
-        
         if (newValue !== '') {
             try {
                 await chrome.runtime.sendMessage({ action: 'updateDropdownConfig', data: { placeholderIncludes, value: newValue } });
@@ -204,7 +180,6 @@ async function addUpdateDropDownGroupEventListener(placeholderIncludes) {
 
 function deleteDropdownConfig(placeholderIncludes) {
     chrome.runtime.sendMessage({ action: 'deleteDropdownConfig', data: placeholderIncludes });
-    
     const configContainer = document.getElementById(`dropdown-config-${placeholderIncludes}-container`);
     if (configContainer) {
         configContainer.remove();
@@ -218,8 +193,6 @@ function updateConfigFC(placeholder) {
 }
 
 function displayAndUpdateInputFieldConfig(configurations) {
-    console.log("Configurations:", configurations)
-    
     const configurationsDiv = document.getElementById('configurations');
     configurationsDiv.innerHTML = '';
     if (configurations && configurations.length > 0) {
@@ -251,7 +224,6 @@ function displayAndUpdateInputFieldConfig(configurations) {
             inputField.value = config.defaultValue;
             updateButton.textContent = 'Update';
             updateButton.addEventListener('click', () => updateConfigFC(config.placeholderIncludes));
-            
             deleteButton.textContent = 'Delete';
             deleteButton.addEventListener('click', () => deleteConfig(config.placeholderIncludes));
             configContainer.appendChild(inputField);
@@ -261,8 +233,6 @@ function displayAndUpdateInputFieldConfig(configurations) {
             configurationsDiv.appendChild(configContainer);
         });
     }
-    
-    
 }
 
 function deleteConfig(placeholder) {
@@ -273,8 +243,6 @@ function deleteConfig(placeholder) {
     }
 }
 
-// default inputs fields
-
 const defaultNullFieldInput = {
     YearsOfExperience: '',
     FirstName: '',
@@ -283,7 +251,6 @@ const defaultNullFieldInput = {
     City: '',
     Email: ''
 }
-
 
 function loadDefaultFields() {
     chrome.storage.local.get('defaultFields', function(result) {
@@ -326,7 +293,6 @@ function createInputField(fieldName, fieldValue) {
     const fieldContainer = document.createElement('div')
     const inputLabel = document.createElement('label')
     const inputField = document.createElement('input')
-    
     inputLabel.textContent = getInputLabelText(fieldName)
     inputField.setAttribute('name', fieldName)
     inputField.value = fieldValue || ''
@@ -371,8 +337,6 @@ function renderInputFields(defaultFields) {
 
 function updateConfigDI(placeholder, newValue) {
     return new Promise((resolve) => {
-        console.log("updateConfigDI: input fields",newValue )
-        
         chrome.runtime.sendMessage({ action: 'updateInputFieldValue', data: { placeholder, value: newValue } }, () => {
             resolve()
         })
@@ -389,19 +353,15 @@ const observer = new MutationObserver((mutationsList) => {
             if (defaultInputContainers.length > 0) {
                 defaultInputContainers.forEach((fieldContainer) => {
                     const inputs = fieldContainer.querySelectorAll('input');
-                    
                     inputs.forEach((input) => {
                         if (!input.dataset.listenerAdded) {
                             input.addEventListener('change', async (event) => {
                                 const fieldName = event.target.getAttribute('name');
                                 const fieldValue = event.target.value.trim();
-                                
                                 await new Promise((resolve) => {
                                     chrome.storage.local.get('defaultFields', (result) => {
                                         const defaultFields = result.defaultFields || {};
                                         defaultFields[fieldName] = fieldValue;
-                                        console.log("default fields:", defaultFields)
-                                        
                                         chrome.storage.local.set({ 'defaultFields': defaultFields }, () => {
                                             resolve();
                                         });
@@ -431,7 +391,6 @@ const observer = new MutationObserver((mutationsList) => {
 
 document.addEventListener('DOMContentLoaded', function () {
     loadDefaultFields();
-    
     if (defaultInputSection) {
         observer.observe(defaultInputSection, { childList: true, subtree: true });
     }

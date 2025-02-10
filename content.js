@@ -45,57 +45,92 @@ async function jobPanelScrollLittle() {
 }
 
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
-	console.log("company name:", companyName)
+	// return new Promise(async (resolve) => {
+	// 	const jobNameLink = listItem.querySelector(
+	// 		'.artdeco-entity-lockup__title .job-card-container__link'
+	// 	)
+	// 	if (!jobNameLink) {
+	// 		resolve()
+	// 		return
+	// 	}
+	// 	jobNameLink.click()
+	// 	await addDelay()
+	// 	if (badWordsEnabled) {
+	// 		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
+	// 		if (jobDetailsElement) {
+	// 			const jobContentText = jobDetailsElement.textContent.toLowerCase().trim()
+	// 			const response = await chrome.storage.local.get(['badWords'])
+	// 			const badWords = response?.badWords
+	// 			if (badWords?.length > 0) {
+	// 				let matchedBadWord = null;
+	// 				for (const badWord of badWords) {
+	// 					const regex = new RegExp('\\b' + badWord.trim() + '\\b', 'i');
+	// 					if (regex.test(jobContentText)) {
+	// 						matchedBadWord = badWord;
+	// 						break;
+	// 					}
+	// 				}
+	// 				if (matchedBadWord) {
+	// 					console.log("matchedBadWord:", matchedBadWord)
+	// 					resolve()
+	// 				}
+	// 			} else {
+	// 				return await runFindEasyApply(jobTitle, companyName).then(() => {
+	// 					jobPanelScrollLittle().then(() => resolve())
+	// 				})
+	// 			}
+	// 		}
+	// 	} else {
+	// 		return await runFindEasyApply(jobTitle, companyName).then(() => {
+	// 			jobPanelScrollLittle().then(() => resolve())
+	// 		})
+	// 	}
+	// })
 	
-	return new Promise(async (resolve) => {
-		const jobNameLink = listItem.querySelector(
-			'.artdeco-entity-lockup__title .job-card-container__link'
-		)
-		
-		if (!jobNameLink) {
-			console.log("no job name existed")
-			resolve()
-			return
-		}
-		jobNameLink.click()
-		await addDelay()
-		if (badWordsEnabled) {
-			const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
-			if (jobDetailsElement) {
-				const jobContentText = jobDetailsElement.textContent.toLowerCase().trim()
-				const response = await chrome.storage.local.get(['badWords'])
-				const badWords = response?.badWords
-				if (badWords?.length > 0) {
-					let matchedBadWord = null;
-					for (const badWord of badWords) {
-						const regex = new RegExp('\\b' + badWord.trim() + '\\b', 'i');
-						if (regex.test(jobContentText)) {
-							matchedBadWord = badWord;
-							break;
-						}
+	const apply = async () => {
+		await runFindEasyApply(jobTitle, companyName).then(() => {
+			jobPanelScrollLittle().then(() => resolve())
+		})
+	}
+	
+	
+	const jobNameLink = listItem.querySelector(
+		'.artdeco-entity-lockup__title .job-card-container__link'
+	)
+	if (!jobNameLink) {
+		return
+	}
+	jobNameLink.click()
+	await addDelay()
+	if (badWordsEnabled) {
+		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
+		if (jobDetailsElement) {
+			const jobContentText = jobDetailsElement.textContent.toLowerCase().trim()
+			const response = await chrome.storage.local.get(['badWords'])
+			const badWords = response?.badWords
+			if (badWords?.length > 0) {
+				let matchedBadWord = null;
+				for (const badWord of badWords) {
+					const regex = new RegExp('\\b' + badWord.trim() + '\\b', 'i');
+					if (regex.test(jobContentText)) {
+						matchedBadWord = badWord;
+						break;
 					}
-					if (matchedBadWord) {
-						console.log("Вакансия пропущена из-за bad word:", matchedBadWord);
-						return resolve()
-					}
-					console.log("before runFindEasyApply 1")
-					return runFindEasyApply(jobTitle, companyName).then(() => {
-						jobPanelScrollLittle().then(() => resolve())
-					})
-				} else {
-					console.log("before runFindEasyApply 2")
-					return runFindEasyApply(jobTitle, companyName).then(() => {
-						jobPanelScrollLittle().then(() => resolve())
-					})
 				}
+				if (matchedBadWord) {
+					await apply()
+				}
+			} else {
+				return await runFindEasyApply(jobTitle, companyName).then(() => {
+					await apply()
+				})
 			}
-		} else {
-			console.log("before runFindEasyApply 3")
-			return runFindEasyApply(jobTitle, companyName).then(() => {
-				jobPanelScrollLittle().then(() => resolve())
-			})
 		}
-	})
+	} else {
+		return await runFindEasyApply(jobTitle, companyName).then(() => {
+			jobPanelScrollLittle().then(() => resolve())
+		})
+	}
 }
 
 async function performInputFieldChecks() {
@@ -336,26 +371,17 @@ async function runApplyModel() {
 }
 
 async function runFindEasyApply(jobTitle, companyName) {
-	console.log("[runFindEasyApply]  >>> Entering runFindEasyApply function", jobTitle, companyName);
 	return new Promise(async resolve => {
 		await addDelay(1000)
 		const currentPageLink = window.location.href
 		const externalApplyElements = getElementsByXPath({ xpath: not_easy_apply_button })
 		if (externalApplyElements.length > 0) {
-			console.log("[runFindEasyApply] externalApplyElements:", externalApplyElements)
-			console.log("[runFindEasyApply] jobTitle:", jobTitle)
-			console.log("[runFindEasyApply] companyName:", companyName)
 			await chrome.runtime.sendMessage({
 				action: 'externalApplyAction',
 				data: { jobTitle, currentPageLink, companyName }
 			})
-			console.log("[runFindEasyApply] after externalApplyAction send")
 		}
-
-		
-		
 		const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button })
-		console.log("[runFindEasyApply] easyApplyElements:", easyApplyElements)
 		
 		if (easyApplyElements.length > 0) {
 			const buttonPromises = Array.from(easyApplyElements).map((button) => {
@@ -364,27 +390,25 @@ async function runFindEasyApply(jobTitle, companyName) {
 					resolve(runApplyModel())
 				})
 			})
-			console.log("[runFindEasyApply] runFindEasyApply:", buttonPromises)
-			
-			const buttonsPromisesResolved = await Promise.race(buttonPromises)
-			console.log("[runFindEasyApply] buttonsPromisesResolved:", buttonsPromisesResolved)
+			await Promise.race(buttonPromises)
 		}
-		console.log("[runFindEasyApply] before solve")
-		
-		resolve()
+		resolve(null)
 	})
 }
 
 async function goToNextPage() {
-	const nextButton = document.querySelector('.artdeco-pagination__pages .artdeco-pagination__indicator--number.active + li button')
+	const result = getElementsByXPath({ xpath: '//button[.//text()[contains(., \'Next\')]]' })
+	if (result.length === 0) {
+		return
+	}
+	const nextButton = result[0]
 	return new Promise(resolve => {
 		if (nextButton) {
 			setTimeout(() => {
 				nextButton.click()
 				resolve()
 			}, 2000)
-		}else {
-			console.log("goToNextPage next button not found")
+		} else {
 			resolve()
 		}
 	}).then(runScript)
@@ -468,62 +492,9 @@ async function checkAndPromptFields() {
 	}
 }
 
-
 function stopScript() {
 	chrome.runtime.sendMessage({ action: 'stopAutoApply' })
 	chrome.storage.local.set({ autoApplyRunning: false })
-}
-
-async function loadHTML(url) {
-	const response = await fetch(chrome.runtime.getURL(url))
-	return await response.text()
-}
-
-async function loadCSS(url) {
-	const response = await fetch(chrome.runtime.getURL(url))
-	return await response.text()
-}
-
-if (window) {
-	try {
-		const formControlModalHTMLP = new Promise(resolve => {
-			loadHTML('components/modals/formControlModal.html')
-				.then(html => resolve(html))
-				.catch(err => {
-					console.error('loadHTML error formControlModal: ', err)
-					resolve(err)
-				})
-		})
-		const notOnJobSearchModalHtmlP = new Promise(resolve => {
-			loadHTML('components/modals/notOnJobSearchModal.html')
-				.then(html => resolve(html))
-				.catch(err => {
-					console.error('loadHTML error notOnJobSearchModal: ', err)
-					resolve(null)
-				})
-		})
-		Promise.all([formControlModalHTMLP, notOnJobSearchModalHtmlP]).then((htmls) => {
-			htmls.forEach((html) => {
-				document.body.insertAdjacentHTML('afterbegin', html)
-			})
-		})
-		new Promise((resolve, reject) => {
-			loadCSS('components/modals/modals.css')
-				.then(css => resolve(css))
-				.catch(err => {
-					console.error('loadCSS error modals: ', err)
-					reject(err)
-				})
-		}).then((css) => {
-			const styleElement = document.createElement('style')
-			styleElement.textContent = css
-			document.head.appendChild(styleElement)
-		}).catch(error => {
-			console.error('Error during loading css modals:', error)
-		})
-	} catch (err) {
-		console.log('error:', err)
-	}
 }
 
 async function runScript() {
@@ -559,17 +530,13 @@ async function runScript() {
 		
 		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
 		
-		for (let index = 0; index < listItems.length; index++) {
+		for (const listItem of listItems) {
 			let canClickToJob = true
-			const listItem = listItems[index]
-			const lastItemIndex = listItems.length - 1
 			const autoApplyRunning = await new Promise(resolve => {
 				getStorageData('autoApplyRunning', false, autoApplyRunning => {
 					resolve(autoApplyRunning)
 				})
 			})
-			console.log('check auto apply running:', autoApplyRunning)
-			
 			
 			if (!autoApplyRunning) {
 				break
@@ -577,16 +544,13 @@ async function runScript() {
 			
 			const jobNameLink = listItem.querySelector('.job-card-container__link')
 			if (!jobNameLink) {
-				// continue
 				canClickToJob = false
 			}
 			
-			// check if job is already applied
 			const jobFooter = listItem.querySelector('[class*="footer"]')
 			if (jobFooter) {
 				const isApplied = jobFooter.textContent.trim() === 'Applied'
 				if (isApplied) {
-					// continue
 					canClickToJob = false
 				}
 			}
@@ -601,50 +565,42 @@ async function runScript() {
 			const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
 			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
 			let isRightJob = true
-			if (titleSkipEnabled) {
-				const matchedSkipWord = !!titleSkipWords.find(word => jobTitle.toLowerCase().includes((word.toLowerCase())))
-				if (matchedSkipWord) {
-					console.log('titleSkipWords:', titleSkipWords)
-					console.log('matchedSkipWord on title:', jobTitle)
-					console.log('matchedSkipWord: list items length:', listItems.length)
-					console.log('matchedSkipWord: last item index:', lastItemIndex)
-					console.log('matchedSkipWord: current index:', index)
-					jobNameLink.scrollIntoView({ block: 'center' })
-					isRightJob = false
-				}
-			}
 			
-			if (titleFilterEnabled) {
-				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))
-				if (!jobTitleMustContains) {
-					console.log('titleFilterWords:', titleFilterWords)
-					console.log('jobTitleMustContains on title:', jobTitle)
-					console.log('jobTitleMustContains: list items length:', listItems.length)
-					console.log('jobTitleMustContains: last item index:', lastItemIndex)
-					jobNameLink.scrollIntoView({ block: 'center' })
-					// continue
-					canClickToJob = false
-				}
-			}
-			console.log("after filters code")
+			// if (titleSkipEnabled) {
+			// 	const matchedSkipWord = !!titleSkipWords.find(word => jobTitle.toLowerCase().includes((word.toLowerCase())))
+			// 	if (matchedSkipWord) {
+			// 		jobNameLink.scrollIntoView({ block: 'center' })
+			// 		isRightJob = false
+			// 	}
+			// }
+			//
+			// if (titleFilterEnabled) {
+			// 	const jobTitleMustContains = titleFilterWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))
+			// 	if (!jobTitleMustContains) {
+			// 		jobNameLink.scrollIntoView({ block: 'center' })
+			// 		canClickToJob = false
+			// 	}
+			// }
 			
 			jobNameLink.scrollIntoView({ block: 'center' })
-			await addDelay(2000)
+			await addDelay()
 			jobNameLink.click()
-			console.log("after jobNameLink.click code")
-			await addDelay(2000)
+			await addDelay()
 			
 			const mainContentElement = document.querySelector('.jobs-details__main-content')
 			if (!mainContentElement) {
-				console.log("jobs-details__main-content not exist")
-				// continue
 				canClickToJob = false
 			}
-			console.log('jobTitleMustContains: current index:', index)
 			try {
-				console.log("before clickJob")
 				if (canClickToJob) {
-					await clickJob(listItem, companyName, jobTitle, badWordsEnabled)
+					console.log("click job")
+					
+					await clickJob(
+						listItem,
+						companyName,
+						jobTitle,
+						badWordsEnabled
+					)
 				}
 			} catch (error) {
 				console.error('Error in clickJob:', error)
@@ -658,7 +614,6 @@ async function runScript() {
 		})
 		
 		if (autoApplyRunning) {
-			console.log("before goToNextPage")
 			await goToNextPage()
 		}
 	} catch (error) {
@@ -669,20 +624,7 @@ async function runScript() {
 // when refresh auto apply return to off state
 void stopScript()
 
-function hideAllModals() {
-	const notOnJobSearchOverlay = document.getElementById('notOnJobSearchOverlay')
-	const formControlOverlay = document.getElementById('formControlOverlay')
-	
-	if (notOnJobSearchOverlay) {
-		notOnJobSearchOverlay.style.display = 'none'
-	}
-	if (formControlOverlay) {
-		formControlOverlay.style.display = 'none'
-	}
-}
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	// hideAllModals();
 	if (message.action === 'showNotOnJobSearchAlert') {
 		const modalWrapper = document.getElementById('notOnJobSearchOverlay')
 		if (modalWrapper) {
@@ -692,12 +634,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			sendResponse({ success: false, error: 'onotOnJobSearchOverlay not found' })
 		}
 	} else if (message.action === 'showFormControlAlert') {
-		console.log('content.js showFormControlAlert event start')
-		
 		const modalWrapper = document.getElementById('formControlOverlay')
 		if (modalWrapper) {
 			modalWrapper.style.display = 'flex'
-			// sendResponse({ success: true })
 		} else {
 			sendResponse({ success: false, error: 'formControlOverlay not found' })
 		}

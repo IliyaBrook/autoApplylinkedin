@@ -43,7 +43,6 @@ function changeAutoApplyButton(isRunning) {
 	}
 }
 
-
 // import settings
 document.getElementById('import-button').addEventListener('click', function() {
 	document.getElementById('import-file').click()
@@ -113,50 +112,8 @@ autoApplyButton.addEventListener('click', () => {
 	}
 });
 
-// autoApplyButton.addEventListener('click', () => {
-// 	if (typeof chrome!== 'undefined' && chrome?.storage && chrome?.storage.local) {
-// 		chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
-// 			const newState =!autoApplyRunning;
-// 			ApplyButton(newState);
-// 			chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-// 				if (tabs && tabs.length > 0) {
-// 					const currentTabId = tabs.id;
-//
-// 					chrome.runtime.sendMessage({
-// 						action: newState? 'startAutoApply': 'stopAutoApply',
-// 						tabId: currentTabId // Передаем tabId в сообщении
-// 					}, response => {
-// 						if (response?.success) {
-// 							chrome.storage.local.set({ autoApplyRunning: newState }, () => {
-// 								console.log("Auto apply state updated in storage and UI (success response). New state:", newState);
-// 							});
-// 						} else {
-// 							chrome.storage.local.set({ autoApplyRunning: false }, () => {
-// 								ApplyButton(false);
-// 								console.error("Error starting/stopping auto apply. Reverting UI to 'Start'. Error:", response?.message);
-// 								if (response?.message === 'No active tab found.') {
-// 									alert('Please open a LinkedIn job search page to start auto apply.');
-// 								} else if (response?.message === 'You are not on the LinkedIn jobs search page.') {
-// 									alert('Please navigate to a LinkedIn job search page to start auto apply.');
-// 								} else if (response?.message === 'Form control fields are empty. Please set them in the extension options.') {
-// 									alert('Form control fields are empty. Please fill them in the extension options.');
-// 								}
-// 							});
-// 						}
-// 					});
-// 				} else {
-// 					console.error("Error: No active tab found.");
-// 					alert('No active tab found. Please open a LinkedIn job search page.');
-// 				}
-// 			});
-//
-// 		});
-// 	}
-// });
-
-
 document.addEventListener('DOMContentLoaded', () => {
 	chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
-		changeAutoApplyButton(autoApplyRunning); // Initial button state on popup load
+		changeAutoApplyButton(autoApplyRunning);
 	});
 });

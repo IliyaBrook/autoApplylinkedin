@@ -22,6 +22,7 @@
 	text-align: center;
 	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 	width: 550px;
+	margin-right: 20rem;
 }
 
 .modal-title {
@@ -68,7 +69,6 @@
 	background-color: rgba(0, 0, 0, 0.2);
 	color: #fff;
 	padding: 20px;
-	margin-right: 20rem;
 	border-radius: 10px;
 	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
 	z-index: 9999;
