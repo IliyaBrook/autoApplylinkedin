@@ -171,7 +171,6 @@ function deleteInputFieldConfig(placeholder) {
 		}
 		
 		setStorageData('inputFieldConfigs', inputFieldConfigs)
-		// currentInputFieldConfigs = inputFieldConfigs
 	})
 }
 

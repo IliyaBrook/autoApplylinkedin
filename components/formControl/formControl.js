@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function fetchRadioButtonConfigs(callback) {
     chrome.storage.local.get('radioButtons', result => {
-        const radioButtons = result.radioButtons || [];
+        const radioButtons = result?.radioButtons || [];
         callback(radioButtons);
     });
 }

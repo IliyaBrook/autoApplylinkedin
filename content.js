@@ -346,19 +346,12 @@ async function runFindEasyApply(jobTitle, companyName) {
 }
 
 async function goToNextPage() {
-	const result = getElementsByXPath({ xpath: '//button[.//text()[contains(., \'Next\')]]' })
-	if (result.length === 0) {
 		return
-	}
-	const nextButton = result[0]
-	return new Promise(resolve => {
 		if (nextButton) {
 			setTimeout(() => {
 				nextButton.click()
 				resolve()
 			}, 2000)
-		} else {
-			resolve()
 		}
 	}).then(runScript)
 		.catch(err => {
@@ -560,7 +553,10 @@ async function runScript() {
 		})
 		
 		if (autoApplyRunning) {
-			await goToNextPage()
+			await goToNextPage().catch(error => {
+				console.error('Error in goToNextPage:', error)
+				void stopScript()
+			})
 		}
 	} catch (error) {
 		void stopScript()
