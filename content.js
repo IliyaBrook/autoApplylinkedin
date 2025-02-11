@@ -346,7 +346,15 @@ async function runFindEasyApply(jobTitle, companyName) {
 }
 
 async function goToNextPage() {
-		return
+	let buttons = getElementsByXPath({ xpath: '//button[.//text()[contains(., \'Next\')]]' })
+	// if (buttons.length === 0) {
+	// 	buttons = getElementsByXPath({xpath: '//*[text()="Show all"]'})
+	// }
+	const nextButton = buttons[0]
+	return new Promise((resolve, reject) => {
+		if (!nextButton) {
+			reject(new Error('No next and show all button found'))
+		}
 		if (nextButton) {
 			setTimeout(() => {
 				nextButton.click()
