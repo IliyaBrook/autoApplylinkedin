@@ -9,6 +9,11 @@ let defaultFields = {
 	PhoneNumber: ''
 }
 
+async function stopScript() {
+	await chrome.runtime.sendMessage({ action: 'stopAutoApply' })
+	await chrome.storage.local.set({ autoApplyRunning: false })
+}
+
 async function performInputFieldCityCheck() {
 	const cityInput = document.querySelector('.search-vertical-typeahead input')
 	
@@ -124,45 +129,60 @@ async function performInputFieldChecks() {
 }
 
 async function performRadioButtonChecks() {
-	getStorageData('radioButtons', [], storedRadioButtons => {
-		const radioFieldsets = document.querySelectorAll('fieldset[data-test-form-builder-radio-button-form-component="true"]')
-		for (const fieldset of radioFieldsets) {
-			const legendElement = fieldset.querySelector('legend')
-			const questionTextElement = legendElement.querySelector('span[aria-hidden="true"]')
-			const placeholderText = questionTextElement.textContent.trim()
-			const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderText)
-			if (storedRadioButtonInfo) {
-				const radioButtonWithValue = fieldset.querySelector(`input[type="radio"][value="${storedRadioButtonInfo.defaultValue}"]`)
-				if (radioButtonWithValue) {
-					radioButtonWithValue.checked = true
-					radioButtonWithValue.dispatchEvent(new Event('change', { bubbles: true }))
-				}
-				storedRadioButtonInfo.count++
-			} else {
-				const firstRadioButton = fieldset.querySelector('input[type="radio"]')
-				if (firstRadioButton) {
-					firstRadioButton.checked = true
-					firstRadioButton.dispatchEvent(new Event('change', { bubbles: true }))
-					
-					const options = Array.from(fieldset.querySelectorAll('input[type="radio"]')).map(radioButton => ({
+	const storedRadioButtons = await new Promise((resolve) => {
+		chrome.storage.local.get('radioButtons', (result) => {
+			resolve(result.radioButtons || []);
+		});
+	});
+	
+	const radioFieldsets = document.querySelectorAll('fieldset[data-test-form-builder-radio-button-form-component="true"]');
+	
+	for (const fieldset of radioFieldsets) {
+		const legendElement = fieldset.querySelector('legend');
+		const questionTextElement = legendElement.querySelector('span[aria-hidden="true"]');
+		const placeholderText = questionTextElement?.textContent.trim() || legendElement.textContent.trim();
+		
+		const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderText);
+		
+		if (storedRadioButtonInfo) {
+			const radioButtonWithValue = fieldset.querySelector(`input[type="radio"][value="${storedRadioButtonInfo.defaultValue}"]`);
+			
+			if (radioButtonWithValue) {
+				radioButtonWithValue.checked = true;
+				radioButtonWithValue.dispatchEvent(new Event('change', { bubbles: true }));
+			}
+			
+			storedRadioButtonInfo.count++;
+		} else {
+			const firstRadioButton = fieldset.querySelector('input[type="radio"]');
+			if (firstRadioButton) {
+				firstRadioButton.checked = true;
+				firstRadioButton.dispatchEvent(new Event('change', { bubbles: true }));
+				
+				const options = Array.from(fieldset.querySelectorAll('input[type="radio"]')).map(radioButton => {
+					const labelElement = fieldset.querySelector(`label[for="${radioButton.id}"]`);
+					return {
 						value: radioButton.value,
+						text: labelElement?.textContent.trim() || radioButton.value,
 						selected: radioButton.checked
-					}))
-					
-					const newRadioButtonInfo = {
-						placeholderIncludes: placeholderText,
-						defaultValue: firstRadioButton.value,
-						count: 1,
-						options: options
-					}
-					
-					storedRadioButtons.push(newRadioButtonInfo)
-					setStorageData('radioButtons', storedRadioButtons)
-				}
+					};
+				});
+				
+				const newRadioButtonInfo = {
+					placeholderIncludes: placeholderText,
+					defaultValue: firstRadioButton.value,
+					count: 1,
+					options: options
+				};
+				
+				storedRadioButtons.push(newRadioButtonInfo);
+				
+				await chrome.storage.local.set({ 'radioButtons': storedRadioButtons });
 			}
 		}
-		setStorageData('radioButtons', storedRadioButtons)
-	})
+	}
+	
+	await chrome.storage.local.set({ 'radioButtons': storedRadioButtons });
 }
 
 async function performDropdownChecks() {
@@ -419,41 +439,38 @@ async function checkAndPromptFields() {
 			console.warn('Chrome storage is not available, skipping checkAndPromptFields.')
 			return false
 		}
-		return await new Promise((resolve) => {
-			getStorageData('defaultFields', {}, storedFields => {
-				if (Object.keys(storedFields).length === 0) {
-					setStorageData('defaultFields', defaultFields)
-					resolve(false)
-				}
-				
-				const fieldsComplete = Object.values(storedFields).every(value => value)
-				
-				if (!fieldsComplete) {
-					resolve(false)
-				}
-				
-				defaultFields = storedFields
-				resolve(true)
-			})
-		})
+		const response = await chrome.storage.local.get('defaultFields')
+		return response?.defaultFields;
 	} catch (e) {
 		console.error('Error in checkAndPromptFields:', e)
 		return false
 	}
 }
 
-function stopScript() {
-	chrome.runtime.sendMessage({ action: 'stopAutoApply' })
-	chrome.storage.local.set({ autoApplyRunning: false })
+async function closeApplicationSentModal() {
+	const modal = document.querySelector('.artdeco-modal');
+	
+	if (modal?.textContent.includes('Application sent') && modal.textContent.includes('Your application was sent to')) {
+		modal.querySelector('.artdeco-modal__dismiss')?.click();
+	}
 }
 
 async function runScript() {
 	try {
-		const fieldsComplete = await checkAndPromptFields()
+		const fieldsComplete = await checkAndPromptFields();
 		if (!fieldsComplete) {
-			void chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
+			await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' });
+			return;
+		}
+	
+		
+		const limitReached = await checkLimitReached()
+		if (limitReached) {
+			const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
+			toggleBlinkingBorder(feedbackMessageElement)
 			return
 		}
+		
 		const {
 			titleSkipEnabled,
 			titleFilterEnabled,
@@ -468,25 +485,15 @@ async function runScript() {
 			'titleSkipWords'
 		])
 		
-		const limitReached = await checkLimitReached()
-		if (limitReached) {
-			const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
-			toggleBlinkingBorder(feedbackMessageElement)
-			return
-		}
-		
 		await jobPanelScroll()
 		await addDelay()
 		
 		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
 		
 		for (const listItem of listItems) {
+			await closeApplicationSentModal();
 			let canClickToJob = true
-			const autoApplyRunning = await new Promise(resolve => {
-				getStorageData('autoApplyRunning', false, autoApplyRunning => {
-					resolve(autoApplyRunning)
-				})
-			})
+			const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning;
 			
 			if (!autoApplyRunning) {
 				break
@@ -554,20 +561,14 @@ async function runScript() {
 			}
 		}
 		
-		const autoApplyRunning = await new Promise(resolve => {
-			getStorageData('autoApplyRunning', false, autoApplyRunning => {
-				resolve(autoApplyRunning)
-			})
-		})
+		const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning;
 		
 		if (autoApplyRunning) {
-			await goToNextPage().catch(error => {
-				console.error('Error in goToNextPage:', error)
-				void stopScript()
-			})
+			await goToNextPage()
 		}
 	} catch (error) {
-		void stopScript()
+		console.error('Error in runScript:', error)
+		await stopScript()
 	}
 }
 

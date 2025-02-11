@@ -1,4 +1,5 @@
-import { getStorageData, setStorageData } from './utils/bgUtils.js'
+let currentInputFieldConfigs = [];
+const inputFieldConfigs = [];
 
 chrome.runtime.onConnect.addListener(function(port) {
 	if (port.name === 'popup') {
@@ -14,8 +15,39 @@ chrome.runtime.onConnect.addListener(function(port) {
 	}
 })
 
+chrome.runtime.onMessage.addListener((request) => {
+	if (request.action === 'initStorage') {
+		chrome.storage.local.get(['inputFieldConfigs'], result => {
+			if (!result.inputFieldConfigs) {
+				chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
+					currentInputFieldConfigs = inputFieldConfigs;
+				});
+			}
+			else {
+				currentInputFieldConfigs = result.inputFieldConfigs;
+			}
+		});
+	}
+});
+
+function deleteInputFieldConfig(placeholder) {
+	chrome.storage.local.get(['inputFieldConfigs'], result => {
+		const inputFieldConfigs = result?.inputFieldConfigs || [];
+		const configIndex = inputFieldConfigs.findIndex(config => config.placeholderIncludes === placeholder);
+		if (configIndex !== -1) {
+			inputFieldConfigs.splice(configIndex, 1);
+		} else {
+			return;
+		}
+		chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
+			currentInputFieldConfigs = inputFieldConfigs;
+		});
+	});
+}
+
 function saveLinkedInJobData(jobTitle, jobLink, companyName) {
-	getStorageData('externalApplyData', [], storedData => {
+	chrome.storage.local.get('externalApplyData', storageResult => {
+		const storedData = storageResult?.externalApplyData || []
 		storedData.push({ title: jobTitle, link: jobLink, companyName, time: Date.now() })
 		
 		const uniqData = []
@@ -33,8 +65,7 @@ function saveLinkedInJobData(jobTitle, jobLink, companyName) {
 		}
 		
 		const sortedData = uniqData.sort((a, b) => b.time - a.time)
-		
-		setStorageData('externalApplyData', sortedData)
+		chrome.storage.local.set({ 'externalApplyData': sortedData })
 	})
 }
 
@@ -46,40 +77,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			saveLinkedInJobData(jobTitle, currentPageLink, companyName)
 			sendResponse({ success: false })
 		}
+		if (request.action === 'openDefaultInputPage') {
+			chrome.tabs.create({ url: 'components/formControl/formControl.html' });
+		}
 		if (request.action === 'startAutoApply') {
 			try {
 				chrome.tabs.query({ active: true, currentWindow: true })
 					.then(tabs => {
 						if (!tabs?.[0]) {
 							sendResponse({ success: false, message: 'No active tab found.' })
-							return
+							return true;
 						}
-						
 						const currentTabId = tabs?.[0]?.id
 						const currentUrl = tabs?.[0]?.url || ''
-						getStorageData('defaultFields', [], result => {
-							const isDefaultFieldsEmpty = Object.values(result).some(value => value === '')
-							
-							if (!currentUrl.includes('linkedin.com/jobs')) {
-								void chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
-								sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
-							}
-							if (isDefaultFieldsEmpty) {
-								chrome.tabs.sendMessage(currentTabId, { action: 'showFormControlAlert' })
-								sendResponse({
-									success: false,
-									message: 'Form control fields are empty. Please set them in the extension options.'
-								})
-							}
-							if (currentUrl.includes('linkedin.com/jobs') && !isDefaultFieldsEmpty) {
-								chrome.scripting.executeScript({
-									target: { tabId: currentTabId }, func: runScriptInContent
-								}).then(() => {
-									sendResponse({ success: true })
-								}).catch(err => {
-									console.error('[startAutoApply] in bg error (executeScript): Error:', err);
-									sendResponse({ success: false, message: err.message })
-								})
+						chrome.storage.local.get('defaultFields', storageResult => {
+							if (storageResult?.defaultFields) {
+								const result = storageResult.defaultFields;
+								const isDefaultFieldsEmpty = Object.values(result).some(value => value === '')
+								if (!currentUrl.includes('linkedin.com/jobs')) {
+									void chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
+									sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
+								}
+								if (isDefaultFieldsEmpty) {
+									chrome.tabs.sendMessage(currentTabId, { action: 'showFormControlAlert' })
+									sendResponse({
+										success: false,
+										message: 'Form control fields are empty. Please set them in the extension options.'
+									})
+								}
+								if (currentUrl.includes('linkedin.com/jobs') && !isDefaultFieldsEmpty) {
+									chrome.scripting.executeScript({
+										target: { tabId: currentTabId }, func: runScriptInContent
+									}).then(() => {
+										sendResponse({ success: true })
+										return true
+									}).catch(err => {
+										console.error('[startAutoApply] in bg error (executeScript): Error:', err);
+										sendResponse({ success: false, message: err.message })
+									})
+								}
 							}
 						})
 					})
@@ -89,7 +125,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			}
 		}
 		if (request.action === 'stopAutoApply') {
-			setStorageData('autoApplyRunning', false)
+			chrome.storage.local.set({ 'autoApplyRunning': false }, () => {
+				sendResponse({ success: true })
+			})
 		}
 		if (request.action === 'updateInputFieldValue') {
 			const placeholder = request.data.placeholder
@@ -106,6 +144,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		}
 		if (request.action === 'getInputFieldConfig') {
 			getInputFieldConfig(sendResponse)
+			return true;
 		}
 		if (request.action === 'updateRadioButtonValueByPlaceholder') {
 			updateRadioButtonValue(request.placeholderIncludes, request.newValue)
@@ -125,111 +164,132 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		console.error('[onMessage] error:', e)
 		sendResponse({ success: false, message: e.message })
 	}
-	return true
 })
 
 function updateOrAddInputFieldValue(placeholder, value) {
-	getStorageData('inputFieldConfigs', [], inputFieldConfigs => {
-		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder)
+	chrome.storage.local.get(['inputFieldConfigs'], result => {
+		const inputFieldConfigs = result.inputFieldConfigs || [];
+		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder);
 		if (foundConfig) {
-			foundConfig.defaultValue = value
-			setStorageData('inputFieldConfigs', inputFieldConfigs)
+			foundConfig.defaultValue = value;
+			chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
+				currentInputFieldConfigs = inputFieldConfigs;
+			});
 		} else {
-			const newConfig = { placeholderIncludes: placeholder, defaultValue: value, count: 1 }
-			inputFieldConfigs.push(newConfig)
-			setStorageData('inputFieldConfigs', inputFieldConfigs)
+			const newConfig = { placeholderIncludes: placeholder, defaultValue: value, count: 1 };
+			inputFieldConfigs.push(newConfig);
+			chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
+				currentInputFieldConfigs = inputFieldConfigs;
+			});
 		}
-	})
+	});
 }
 
 function updateInputFieldConfigsInStorage(placeholder) {
-	getStorageData('inputFieldConfigs', [], inputFieldConfigs => {
-		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder)
+	chrome.storage.local.get(['inputFieldConfigs'], result => {
+		const inputFieldConfigs = result.inputFieldConfigs || [];
+		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder);
 		if (foundConfig) {
-			foundConfig.count++
+			foundConfig.count++;
+			chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
+				currentInputFieldConfigs = inputFieldConfigs;
+			});
 		} else {
-			getStorageData('defaultFields', {}, defaultFields => {
-				const newConfig = {
-					placeholderIncludes: placeholder, defaultValue: defaultFields.YearsOfExperience || '', count: 1
-				}
-				inputFieldConfigs.push(newConfig)
-			})
+			chrome.storage.local.get('defaultFields', function(result) {
+				const defaultFields = result.defaultFields || {};
+				const newConfig = { placeholderIncludes: placeholder, defaultValue: defaultFields.YearsOfExperience, count: 1 };
+				inputFieldConfigs.push(newConfig);
+				chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
+					currentInputFieldConfigs = inputFieldConfigs;
+				});
+			});
 		}
-		setStorageData('inputFieldConfigs', inputFieldConfigs)
-	})
+	});
 }
 
-function deleteInputFieldConfig(placeholder) {
-	getStorageData('inputFieldConfigs', [], inputFieldConfigs => {
-		const configIndex = inputFieldConfigs.findIndex(config => config.placeholderIncludes === placeholder)
-		
-		if (configIndex !== -1) {
-			inputFieldConfigs.splice(configIndex, 1)
-		} else {
-			console.error(`Configuration for ${placeholder} not found. Unable to delete.`)
-			return
-		}
-		
-		setStorageData('inputFieldConfigs', inputFieldConfigs)
-	})
-}
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+	if (request.action === 'deleteInputFieldConfig') {
+		const placeholder = request.data;
+		deleteInputFieldConfig(placeholder);
+	}
+});
 
 function getInputFieldConfig(callback) {
 	try {
-		getStorageData('inputFieldConfigs', [], fieldResult => {
-			if (fieldResult) {
-				callback(fieldResult)
-			}
-		})
+		chrome.storage.local.get(['inputFieldConfigs'], result => {
+			const fieldConfig = result && result?.inputFieldConfigs ? result?.inputFieldConfigs : null;
+			callback(fieldConfig);
+		});
 	} catch (error) {
-		console.error('Error fetching inputFieldConfigs:', error)
-		callback(null)
+		callback(null);
 	}
 }
 
 function updateRadioButtonValue(placeholderIncludes, newValue) {
-	getStorageData('radioButtons', [], storedRadioButtons => {
-		const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderIncludes)
+	chrome.storage.local.get('radioButtons', (result) => {
+		const storedRadioButtons = result.radioButtons || [];
+		const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderIncludes);
 		if (storedRadioButtonInfo) {
-			storedRadioButtonInfo.defaultValue = newValue
+			storedRadioButtonInfo.defaultValue = newValue;
 			storedRadioButtonInfo.options.forEach(option => {
-				option.selected = (option.value === newValue)
-			})
-			setStorageData('radioButtons', storedRadioButtons)
+				option.selected = option.value === newValue;
+			});
+			chrome.storage.local.set({ 'radioButtons': storedRadioButtons }, () => {
+			});
 		} else {
 			console.error(`Item with placeholderIncludes ${placeholderIncludes} not found`)
 		}
-	})
-
+	});
 }
 
 function deleteRadioButtonConfig(placeholder) {
-	getStorageData('radioButtons', [], radioButtons => {
-		const updatedRadioButtons = radioButtons.filter(config => config.placeholderIncludes !== placeholder)
-		setStorageData('radioButtons', updatedRadioButtons)
-	})
+	chrome.storage.local.get('radioButtons', function(result) {
+		const radioButtons = result.radioButtons || [];
+		const updatedRadioButtons = radioButtons.filter(config => config.placeholderIncludes !== placeholder);
+		chrome.storage.local.set({ 'radioButtons': updatedRadioButtons });
+	});
 }
 
-function updateDropdownConfig(placeholderIncludes, newValue) {
-	getStorageData('dropdowns', [], dropdowns => {
-		const storedDropdownInfo = dropdowns.find(info => info.placeholderIncludes === placeholderIncludes)
-		if (storedDropdownInfo && storedDropdownInfo.options) {
-			storedDropdownInfo.options.forEach(option => {
-				option.selected = (option.value === newValue)
-			})
+function updateDropdownConfig(dropdownData) {
+	if (!dropdownData || !dropdownData.placeholderIncludes || !dropdownData.value || !dropdownData.options) {
+		return;
+	}
+	
+	chrome.storage.local.get('dropdowns', function (result) {
+		let dropdowns = result.dropdowns || [];
+		const storedDropdownInfo = dropdowns.find(info => info.placeholderIncludes === dropdownData.placeholderIncludes);
+		if (storedDropdownInfo) {
+			storedDropdownInfo.value = dropdownData.value;
+			storedDropdownInfo.options = dropdownData.options.map(option => ({
+				value: option.value,
+				text: option.text || '',
+				selected: option.value === dropdownData.value,
+			}));
+		} else {
+			dropdowns.push({
+				placeholderIncludes: dropdownData.placeholderIncludes,
+				value: dropdownData.value,
+				options: dropdownData.options.map(option => ({
+					value: option.value,
+					text: option.text || '',
+					selected: option.value === dropdownData.value,
+				})),
+			});
 		}
-		setStorageData('dropdowns', dropdowns)
-	})
+		chrome.storage.local.set({ dropdowns });
+	});
 }
+
 
 function deleteDropdownValueConfig(placeholder) {
-	getStorageData('dropdowns', [], dropdowns => {
-		const indexToDelete = dropdowns.findIndex(config => config.placeholderIncludes === placeholder)
+	chrome.storage.local.get('dropdowns', function(result) {
+		let dropdowns = result.dropdowns || [];
+		const indexToDelete = dropdowns.findIndex(config => config.placeholderIncludes === placeholder);
 		if (indexToDelete !== -1) {
-			dropdowns.splice(indexToDelete, 1)
-			setStorageData('dropdowns', dropdowns)
+			dropdowns.splice(indexToDelete, 1);
+			chrome.storage.local.set({ 'dropdowns': dropdowns });
 		}
-	})
+	});
 }
 
 // start stop auto apply

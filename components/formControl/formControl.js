@@ -186,7 +186,7 @@ function deleteDropdownConfig(placeholderIncludes) {
     }
 }
 
-function updateConfigFC(placeholder) {
+function updateConfigFormControl(placeholder) {
     const inputField = document.getElementById(`config-${placeholder}`);
     const newValue = inputField.value.trim();
     chrome.runtime.sendMessage({ action: 'updateInputFieldValue', data: { placeholder, value: newValue } });
@@ -223,7 +223,7 @@ function displayAndUpdateInputFieldConfig(configurations) {
             inputField.className = 'config-input';
             inputField.value = config.defaultValue;
             updateButton.textContent = 'Update';
-            updateButton.addEventListener('click', () => updateConfigFC(config.placeholderIncludes));
+            updateButton.addEventListener('click', () => updateConfigFormControl(config.placeholderIncludes));
             deleteButton.textContent = 'Delete';
             deleteButton.addEventListener('click', () => deleteConfig(config.placeholderIncludes));
             configContainer.appendChild(inputField);
@@ -335,7 +335,7 @@ function renderInputFields(defaultFields) {
     }
 }
 
-function updateConfigDI(placeholder, newValue) {
+function updateConfigDefaultFields(placeholder, newValue) {
     return new Promise((resolve) => {
         chrome.runtime.sendMessage({ action: 'updateInputFieldValue', data: { placeholder, value: newValue } }, () => {
             resolve()
@@ -369,13 +369,13 @@ const observer = new MutationObserver((mutationsList) => {
                                 });
                                 
                                 if (fieldName === 'FirstName') {
-                                    await updateConfigDI('First name', fieldValue);
+                                    await updateConfigDefaultFields('First name', fieldValue);
                                 }
                                 if (fieldName === 'LastName') {
-                                    await updateConfigDI('Last name', fieldValue);
+                                    await updateConfigDefaultFields('Last name', fieldValue);
                                 }
                                 if (fieldName === 'PhoneNumber') {
-                                    await updateConfigDI('Mobile phone number', fieldValue);
+                                    await updateConfigDefaultFields('Mobile phone number', fieldValue);
                                 }
                                 updateStatusMessage();
                             });
