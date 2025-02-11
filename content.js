@@ -293,6 +293,13 @@ async function runValidations() {
 	await performCheckBoxFieldCityCheck()
 }
 
+async function uncheckFollowCompany() {
+	const followCheckbox = document.querySelector('#follow-company-checkbox');
+	if (followCheckbox?.checked) {
+		followCheckbox.checked = false;
+		followCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+	}
+}
 
 async function runApplyModel() {
 	await addDelay(2000)
@@ -302,7 +309,7 @@ async function runApplyModel() {
 	
 	if (continueApplyingButton) {
 		continueApplyingButton.click()
-		await runApplyModel()
+		void runApplyModel()
 	}
 	
 	const nextButton = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Next'))
@@ -310,11 +317,12 @@ async function runApplyModel() {
 	const submitButton = document.querySelector('button[aria-label="Submit application"]')
 	
 	if (submitButton) {
-		await addDelay()
-		
+		await addDelay(600)
+		await uncheckFollowCompany();
+		await addDelay(600)
 		submitButton.click()
 		
-		await addDelay(2000)
+		await addDelay()
 		
 		const modalCloseButton = document.querySelector('.artdeco-modal__dismiss')
 		
@@ -326,11 +334,11 @@ async function runApplyModel() {
 	
 	if (nextButton || reviewButton) {
 		const buttonToClick = reviewButton || nextButton
-		await runValidations()
+		runValidations()
 		const isError = await checkForError()
 		
 		if (isError) {
-			await terminateJobModel()
+			terminateJobModel()
 		} else {
 			await addDelay(2000)
 			buttonToClick.click()
@@ -543,9 +551,13 @@ async function runScript() {
 			jobNameLink.click()
 			await addDelay()
 			
-			const mainContentElement = document.querySelector('.jobs-details__main-content')
-			if (!mainContentElement) {
-				canClickToJob = false
+			try {
+				const mainContentElement = document.querySelector('.jobs-details__main-content')
+				if (!mainContentElement) {
+					canClickToJob = false
+				}
+			}catch (e) {
+				console.log('cannot find main content element')
 			}
 			try {
 				if (canClickToJob) {
