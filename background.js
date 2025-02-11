@@ -1,5 +1,5 @@
-let currentInputFieldConfigs = [];
-const inputFieldConfigs = [];
+let currentInputFieldConfigs = []
+const inputFieldConfigs = []
 
 chrome.runtime.onConnect.addListener(function(port) {
 	if (port.name === 'popup') {
@@ -20,29 +20,28 @@ chrome.runtime.onMessage.addListener((request) => {
 		chrome.storage.local.get(['inputFieldConfigs'], result => {
 			if (!result.inputFieldConfigs) {
 				chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
-					currentInputFieldConfigs = inputFieldConfigs;
-				});
+					currentInputFieldConfigs = inputFieldConfigs
+				})
+			} else {
+				currentInputFieldConfigs = result.inputFieldConfigs
 			}
-			else {
-				currentInputFieldConfigs = result.inputFieldConfigs;
-			}
-		});
+		})
 	}
-});
+})
 
 function deleteInputFieldConfig(placeholder) {
 	chrome.storage.local.get(['inputFieldConfigs'], result => {
-		const inputFieldConfigs = result?.inputFieldConfigs || [];
-		const configIndex = inputFieldConfigs.findIndex(config => config.placeholderIncludes === placeholder);
+		const inputFieldConfigs = result?.inputFieldConfigs || []
+		const configIndex = inputFieldConfigs.findIndex(config => config.placeholderIncludes === placeholder)
 		if (configIndex !== -1) {
-			inputFieldConfigs.splice(configIndex, 1);
+			inputFieldConfigs.splice(configIndex, 1)
 		} else {
-			return;
+			return
 		}
 		chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
-			currentInputFieldConfigs = inputFieldConfigs;
-		});
-	});
+			currentInputFieldConfigs = inputFieldConfigs
+		})
+	})
 }
 
 function saveLinkedInJobData(jobTitle, jobLink, companyName) {
@@ -78,7 +77,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			sendResponse({ success: false })
 		}
 		if (request.action === 'openDefaultInputPage') {
-			chrome.tabs.create({ url: 'components/formControl/formControl.html' });
+			chrome.tabs.create({ url: 'components/formControl/formControl.html' })
 		}
 		if (request.action === 'startAutoApply') {
 			try {
@@ -86,17 +85,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 					.then(tabs => {
 						if (!tabs?.[0]) {
 							sendResponse({ success: false, message: 'No active tab found.' })
-							return true;
+							return true
 						}
+						
 						const currentTabId = tabs?.[0]?.id
 						const currentUrl = tabs?.[0]?.url || ''
 						chrome.storage.local.get('defaultFields', storageResult => {
 							if (storageResult?.defaultFields) {
-								const result = storageResult.defaultFields;
+								const result = storageResult.defaultFields
 								const isDefaultFieldsEmpty = Object.values(result).some(value => value === '')
 								if (!currentUrl.includes('linkedin.com/jobs')) {
 									void chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
 									sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
+									return true
 								}
 								if (isDefaultFieldsEmpty) {
 									chrome.tabs.sendMessage(currentTabId, { action: 'showFormControlAlert' })
@@ -104,6 +105,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 										success: false,
 										message: 'Form control fields are empty. Please set them in the extension options.'
 									})
+									return true
 								}
 								if (currentUrl.includes('linkedin.com/jobs') && !isDefaultFieldsEmpty) {
 									chrome.scripting.executeScript({
@@ -112,13 +114,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 										sendResponse({ success: true })
 										return true
 									}).catch(err => {
-										console.error('[startAutoApply] in bg error (executeScript): Error:', err);
+										console.error('[startAutoApply] in bg error (executeScript): Error:', err)
 										sendResponse({ success: false, message: err.message })
 									})
+									return true
 								}
 							}
 						})
+						return true
 					})
+				return true
 			} catch (err) {
 				console.error('[startAutoApply] in bg error:', err)
 				sendResponse({ success: false, message: err.message })
@@ -128,6 +133,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			chrome.storage.local.set({ 'autoApplyRunning': false }, () => {
 				sendResponse({ success: true })
 			})
+			return true
 		}
 		if (request.action === 'updateInputFieldValue') {
 			const placeholder = request.data.placeholder
@@ -144,7 +150,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		}
 		if (request.action === 'getInputFieldConfig') {
 			getInputFieldConfig(sendResponse)
-			return true;
+			return true
 		}
 		if (request.action === 'updateRadioButtonValueByPlaceholder') {
 			updateRadioButtonValue(request.placeholderIncludes, request.newValue)
@@ -168,103 +174,103 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 function updateOrAddInputFieldValue(placeholder, value) {
 	chrome.storage.local.get(['inputFieldConfigs'], result => {
-		const inputFieldConfigs = result.inputFieldConfigs || [];
-		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder);
+		const inputFieldConfigs = result.inputFieldConfigs || []
+		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder)
 		if (foundConfig) {
-			foundConfig.defaultValue = value;
+			foundConfig.defaultValue = value
 			chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
-				currentInputFieldConfigs = inputFieldConfigs;
-			});
+				currentInputFieldConfigs = inputFieldConfigs
+			})
 		} else {
-			const newConfig = { placeholderIncludes: placeholder, defaultValue: value, count: 1 };
-			inputFieldConfigs.push(newConfig);
+			const newConfig = { placeholderIncludes: placeholder, defaultValue: value, count: 1 }
+			inputFieldConfigs.push(newConfig)
 			chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
-				currentInputFieldConfigs = inputFieldConfigs;
-			});
+				currentInputFieldConfigs = inputFieldConfigs
+			})
 		}
-	});
+	})
 }
 
 function updateInputFieldConfigsInStorage(placeholder) {
 	chrome.storage.local.get(['inputFieldConfigs'], result => {
-		const inputFieldConfigs = result.inputFieldConfigs || [];
-		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder);
+		const inputFieldConfigs = result.inputFieldConfigs || []
+		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder)
 		if (foundConfig) {
-			foundConfig.count++;
+			foundConfig.count++
 			chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
-				currentInputFieldConfigs = inputFieldConfigs;
-			});
+				currentInputFieldConfigs = inputFieldConfigs
+			})
 		} else {
 			chrome.storage.local.get('defaultFields', function(result) {
-				const defaultFields = result.defaultFields || {};
-				const newConfig = { placeholderIncludes: placeholder, defaultValue: defaultFields.YearsOfExperience, count: 1 };
-				inputFieldConfigs.push(newConfig);
+				const defaultFields = result.defaultFields || {}
+				const newConfig = { placeholderIncludes: placeholder, defaultValue: defaultFields.YearsOfExperience, count: 1 }
+				inputFieldConfigs.push(newConfig)
 				chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
-					currentInputFieldConfigs = inputFieldConfigs;
-				});
-			});
+					currentInputFieldConfigs = inputFieldConfigs
+				})
+			})
 		}
-	});
+	})
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	if (request.action === 'deleteInputFieldConfig') {
-		const placeholder = request.data;
-		deleteInputFieldConfig(placeholder);
+		const placeholder = request.data
+		deleteInputFieldConfig(placeholder)
 	}
-});
+})
 
 function getInputFieldConfig(callback) {
 	try {
 		chrome.storage.local.get(['inputFieldConfigs'], result => {
-			const fieldConfig = result && result?.inputFieldConfigs ? result?.inputFieldConfigs : null;
-			callback(fieldConfig);
-		});
+			const fieldConfig = result && result?.inputFieldConfigs ? result?.inputFieldConfigs : null
+			callback(fieldConfig)
+		})
 	} catch (error) {
-		callback(null);
+		callback(null)
 	}
 }
 
 function updateRadioButtonValue(placeholderIncludes, newValue) {
 	chrome.storage.local.get('radioButtons', (result) => {
-		const storedRadioButtons = result.radioButtons || [];
-		const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderIncludes);
+		const storedRadioButtons = result.radioButtons || []
+		const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderIncludes)
 		if (storedRadioButtonInfo) {
-			storedRadioButtonInfo.defaultValue = newValue;
+			storedRadioButtonInfo.defaultValue = newValue
 			storedRadioButtonInfo.options.forEach(option => {
-				option.selected = option.value === newValue;
-			});
+				option.selected = option.value === newValue
+			})
 			chrome.storage.local.set({ 'radioButtons': storedRadioButtons }, () => {
-			});
+			})
 		} else {
 			console.error(`Item with placeholderIncludes ${placeholderIncludes} not found`)
 		}
-	});
+	})
 }
 
 function deleteRadioButtonConfig(placeholder) {
 	chrome.storage.local.get('radioButtons', function(result) {
-		const radioButtons = result.radioButtons || [];
-		const updatedRadioButtons = radioButtons.filter(config => config.placeholderIncludes !== placeholder);
-		chrome.storage.local.set({ 'radioButtons': updatedRadioButtons });
-	});
+		const radioButtons = result.radioButtons || []
+		const updatedRadioButtons = radioButtons.filter(config => config.placeholderIncludes !== placeholder)
+		chrome.storage.local.set({ 'radioButtons': updatedRadioButtons })
+	})
 }
 
 function updateDropdownConfig(dropdownData) {
 	if (!dropdownData || !dropdownData.placeholderIncludes || !dropdownData.value || !dropdownData.options) {
-		return;
+		return
 	}
 	
-	chrome.storage.local.get('dropdowns', function (result) {
-		let dropdowns = result.dropdowns || [];
-		const storedDropdownInfo = dropdowns.find(info => info.placeholderIncludes === dropdownData.placeholderIncludes);
+	chrome.storage.local.get('dropdowns', function(result) {
+		let dropdowns = result.dropdowns || []
+		const storedDropdownInfo = dropdowns.find(info => info.placeholderIncludes === dropdownData.placeholderIncludes)
 		if (storedDropdownInfo) {
-			storedDropdownInfo.value = dropdownData.value;
+			storedDropdownInfo.value = dropdownData.value
 			storedDropdownInfo.options = dropdownData.options.map(option => ({
 				value: option.value,
 				text: option.text || '',
-				selected: option.value === dropdownData.value,
-			}));
+				selected: option.value === dropdownData.value
+			}))
 		} else {
 			dropdowns.push({
 				placeholderIncludes: dropdownData.placeholderIncludes,
@@ -272,24 +278,24 @@ function updateDropdownConfig(dropdownData) {
 				options: dropdownData.options.map(option => ({
 					value: option.value,
 					text: option.text || '',
-					selected: option.value === dropdownData.value,
-				})),
-			});
+					selected: option.value === dropdownData.value
+				}))
+			})
 		}
-		chrome.storage.local.set({ dropdowns });
-	});
+		chrome.storage.local.set({ dropdowns })
+	})
 }
 
 
 function deleteDropdownValueConfig(placeholder) {
 	chrome.storage.local.get('dropdowns', function(result) {
-		let dropdowns = result.dropdowns || [];
-		const indexToDelete = dropdowns.findIndex(config => config.placeholderIncludes === placeholder);
+		let dropdowns = result.dropdowns || []
+		const indexToDelete = dropdowns.findIndex(config => config.placeholderIncludes === placeholder)
 		if (indexToDelete !== -1) {
-			dropdowns.splice(indexToDelete, 1);
-			chrome.storage.local.set({ 'dropdowns': dropdowns });
+			dropdowns.splice(indexToDelete, 1)
+			chrome.storage.local.set({ 'dropdowns': dropdowns })
 		}
-	});
+	})
 }
 
 // start stop auto apply
