@@ -49,16 +49,29 @@ async function jobPanelScrollLittle() {
 	})
 }
 
-async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
+async function clickDoneIfExist() {
+	try {
+		const modal = document.querySelector('.artdeco-modal')
+		if (modal) {
+			const xpathResult = getElementsByXPath({
+				context: modal,
+				xpath: '//button[.//*[contains(text(), "Done")] or contains(normalize-space(.), "Done")]'
+			})
+			if (xpathResult && xpathResult?.length > 0) {
+				const doneButton = xpathResult[0]
+				doneButton.click()
+				await addDelay()
+			}
+		}
+	} catch {
+	}
+}
+
+async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink) {
 	const apply = async () => {
 		await runFindEasyApply(jobTitle, companyName)
 		await jobPanelScrollLittle()
-	}
-	const jobNameLink = listItem.querySelector(
-		'.artdeco-entity-lockup__title .job-card-container__link'
-	)
-	if (!jobNameLink) {
-		return
+		await clickDoneIfExist()
 	}
 	jobNameLink.click()
 	await addDelay()
@@ -69,12 +82,12 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 			const response = await chrome.storage.local.get(['badWords'])
 			const badWords = response?.badWords
 			if (badWords?.length > 0) {
-				let matchedBadWord = null;
+				let matchedBadWord = null
 				for (const badWord of badWords) {
-					const regex = new RegExp('\\b' + badWord.trim().replace(/\+/g, '\\+') + '\\b', 'i');
+					const regex = new RegExp('\\b' + badWord.trim().replace(/\+/g, '\\+') + '\\b', 'i')
 					if (regex.test(jobContentText)) {
-						matchedBadWord = badWord;
-						break;
+						matchedBadWord = badWord
+						break
 					}
 				}
 				if (matchedBadWord) {
@@ -131,58 +144,58 @@ async function performInputFieldChecks() {
 async function performRadioButtonChecks() {
 	const storedRadioButtons = await new Promise((resolve) => {
 		chrome.storage.local.get('radioButtons', (result) => {
-			resolve(result.radioButtons || []);
-		});
-	});
+			resolve(result.radioButtons || [])
+		})
+	})
 	
-	const radioFieldsets = document.querySelectorAll('fieldset[data-test-form-builder-radio-button-form-component="true"]');
+	const radioFieldsets = document.querySelectorAll('fieldset[data-test-form-builder-radio-button-form-component="true"]')
 	
 	for (const fieldset of radioFieldsets) {
-		const legendElement = fieldset.querySelector('legend');
-		const questionTextElement = legendElement.querySelector('span[aria-hidden="true"]');
-		const placeholderText = questionTextElement?.textContent.trim() || legendElement.textContent.trim();
+		const legendElement = fieldset.querySelector('legend')
+		const questionTextElement = legendElement.querySelector('span[aria-hidden="true"]')
+		const placeholderText = questionTextElement?.textContent.trim() || legendElement.textContent.trim()
 		
-		const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderText);
+		const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderText)
 		
 		if (storedRadioButtonInfo) {
-			const radioButtonWithValue = fieldset.querySelector(`input[type="radio"][value="${storedRadioButtonInfo.defaultValue}"]`);
+			const radioButtonWithValue = fieldset.querySelector(`input[type="radio"][value="${storedRadioButtonInfo.defaultValue}"]`)
 			
 			if (radioButtonWithValue) {
-				radioButtonWithValue.checked = true;
-				radioButtonWithValue.dispatchEvent(new Event('change', { bubbles: true }));
+				radioButtonWithValue.checked = true
+				radioButtonWithValue.dispatchEvent(new Event('change', { bubbles: true }))
 			}
 			
-			storedRadioButtonInfo.count++;
+			storedRadioButtonInfo.count++
 		} else {
-			const firstRadioButton = fieldset.querySelector('input[type="radio"]');
+			const firstRadioButton = fieldset.querySelector('input[type="radio"]')
 			if (firstRadioButton) {
-				firstRadioButton.checked = true;
-				firstRadioButton.dispatchEvent(new Event('change', { bubbles: true }));
+				firstRadioButton.checked = true
+				firstRadioButton.dispatchEvent(new Event('change', { bubbles: true }))
 				
 				const options = Array.from(fieldset.querySelectorAll('input[type="radio"]')).map(radioButton => {
-					const labelElement = fieldset.querySelector(`label[for="${radioButton.id}"]`);
+					const labelElement = fieldset.querySelector(`label[for="${radioButton.id}"]`)
 					return {
 						value: radioButton.value,
 						text: labelElement?.textContent.trim() || radioButton.value,
 						selected: radioButton.checked
-					};
-				});
+					}
+				})
 				
 				const newRadioButtonInfo = {
 					placeholderIncludes: placeholderText,
 					defaultValue: firstRadioButton.value,
 					count: 1,
 					options: options
-				};
+				}
 				
-				storedRadioButtons.push(newRadioButtonInfo);
+				storedRadioButtons.push(newRadioButtonInfo)
 				
-				await chrome.storage.local.set({ 'radioButtons': storedRadioButtons });
+				await chrome.storage.local.set({ 'radioButtons': storedRadioButtons })
 			}
 		}
 	}
 	
-	await chrome.storage.local.set({ 'radioButtons': storedRadioButtons });
+	await chrome.storage.local.set({ 'radioButtons': storedRadioButtons })
 }
 
 async function performDropdownChecks() {
@@ -294,10 +307,10 @@ async function runValidations() {
 }
 
 async function uncheckFollowCompany() {
-	const followCheckbox = document.querySelector('#follow-company-checkbox');
+	const followCheckbox = document.querySelector('#follow-company-checkbox')
 	if (followCheckbox?.checked) {
-		followCheckbox.checked = false;
-		followCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+		followCheckbox.checked = false
+		followCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
 	}
 }
 
@@ -318,7 +331,7 @@ async function runApplyModel() {
 	
 	if (submitButton) {
 		await addDelay(600)
-		await uncheckFollowCompany();
+		await uncheckFollowCompany()
 		await addDelay(600)
 		submitButton.click()
 		
@@ -334,11 +347,11 @@ async function runApplyModel() {
 	
 	if (nextButton || reviewButton) {
 		const buttonToClick = reviewButton || nextButton
-		await runValidations()
+		void runValidations()
 		const isError = await checkForError()
 		
 		if (isError) {
-			await terminateJobModel()
+			void terminateJobModel()
 		} else {
 			await addDelay(2000)
 			buttonToClick.click()
@@ -378,7 +391,7 @@ async function goToNextPage() {
 	// if (buttons.length === 0) {
 	// 	buttons = getElementsByXPath({xpath: '//*[text()="Show all"]'})
 	// }
-	const nextButton = buttons[0]
+	const nextButton = buttons?.[0]
 	return new Promise((resolve, reject) => {
 		if (!nextButton) {
 			reject(new Error('No next and show all button found'))
@@ -448,7 +461,7 @@ async function checkAndPromptFields() {
 			return false
 		}
 		const response = await chrome.storage.local.get('defaultFields')
-		return response?.defaultFields;
+		return response?.defaultFields
 	} catch (e) {
 		console.error('Error in checkAndPromptFields:', e)
 		return false
@@ -456,21 +469,20 @@ async function checkAndPromptFields() {
 }
 
 async function closeApplicationSentModal() {
-	const modal = document.querySelector('.artdeco-modal');
+	const modal = document.querySelector('.artdeco-modal')
 	
 	if (modal?.textContent.includes('Application sent') && modal.textContent.includes('Your application was sent to')) {
-		modal.querySelector('.artdeco-modal__dismiss')?.click();
+		modal.querySelector('.artdeco-modal__dismiss')?.click()
 	}
 }
 
 async function runScript() {
 	try {
-		const fieldsComplete = await checkAndPromptFields();
+		const fieldsComplete = await checkAndPromptFields()
 		if (!fieldsComplete) {
-			await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' });
-			return;
+			await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
+			return
 		}
-	
 		
 		const limitReached = await checkLimitReached()
 		if (limitReached) {
@@ -499,17 +511,18 @@ async function runScript() {
 		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
 		
 		for (const listItem of listItems) {
-			await closeApplicationSentModal();
+			await closeApplicationSentModal()
 			let canClickToJob = true
-			const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning;
+			const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning
 			
 			if (!autoApplyRunning) {
 				break
 			}
 			
-			const jobNameLink = listItem.querySelector('.job-card-container__link')
+			const jobNameLink = listItem.querySelector('.artdeco-entity-lockup__title .job-card-container__link')
 			if (!jobNameLink) {
 				canClickToJob = false
+				continue
 			}
 			
 			const jobFooter = listItem.querySelector('[class*="footer"]')
@@ -527,21 +540,27 @@ async function runScript() {
 			})
 			
 			const companyName = companyNamesArray?.[0] ?? ''
-			const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
-			const jobTitle = visibleSpan ? visibleSpan.textContent.trim().toLowerCase() : ''
+			let jobTitle = ''
+			let visibleSpan = ''
+			if (jobNameLink) {
+				visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
+			}
+			if (visibleSpan) {
+				jobTitle = visibleSpan.textContent.trim().toLowerCase()
+			} else {
+				console.warn('job title not found by using: \'span[aria-hidden="true"]\'')
+			}
 			
 			if (titleSkipEnabled) {
 				const matchedSkipWord = titleSkipWords.find(word => jobTitle.toLowerCase().includes((word.toLowerCase())))
 				if (matchedSkipWord) {
-					jobNameLink.scrollIntoView({ block: 'center' })
 					canClickToJob = false
 				}
 			}
-
+			
 			if (titleFilterEnabled) {
 				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))
 				if (!jobTitleMustContains) {
-					jobNameLink.scrollIntoView({ block: 'center' })
 					canClickToJob = false
 				}
 			}
@@ -556,7 +575,7 @@ async function runScript() {
 				if (!mainContentElement) {
 					canClickToJob = false
 				}
-			}catch (e) {
+			} catch (e) {
 				console.log('cannot find main content element')
 			}
 			try {
@@ -565,7 +584,8 @@ async function runScript() {
 						listItem,
 						companyName,
 						jobTitle,
-						badWordsEnabled
+						badWordsEnabled,
+						jobNameLink
 					)
 				}
 			} catch (error) {
@@ -573,7 +593,7 @@ async function runScript() {
 			}
 		}
 		
-		const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning;
+		const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning
 		
 		if (autoApplyRunning) {
 			await goToNextPage()
