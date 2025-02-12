@@ -334,11 +334,11 @@ async function runApplyModel() {
 	
 	if (nextButton || reviewButton) {
 		const buttonToClick = reviewButton || nextButton
-		runValidations()
+		await runValidations()
 		const isError = await checkForError()
 		
 		if (isError) {
-			terminateJobModel()
+			await terminateJobModel()
 		} else {
 			await addDelay(2000)
 			buttonToClick.click()
