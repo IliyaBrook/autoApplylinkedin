@@ -522,7 +522,6 @@ async function runScript() {
 			const jobNameLink = listItem.querySelector('.artdeco-entity-lockup__title .job-card-container__link')
 			if (!jobNameLink) {
 				canClickToJob = false
-				continue
 			}
 			
 			const jobFooter = listItem.querySelector('[class*="footer"]')
