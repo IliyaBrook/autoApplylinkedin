@@ -1,5 +1,4 @@
 // noinspection JSCheckFunctionSignatures
-
 let defaultFields = {
 	YearsOfExperience: '',
 	City: '',
@@ -34,6 +33,22 @@ async function performInputFieldCityCheck() {
 			firstOption.click()
 		}
 	}
+}
+
+function getJobTitle(jobNameLink) {
+	if (!jobNameLink) return '';
+	let jobTitle = '';
+	
+	const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]');
+	if (visibleSpan && visibleSpan.textContent.trim().length > 0) {
+		jobTitle = visibleSpan.textContent.trim();
+	} else {
+		jobTitle = jobNameLink.getAttribute('aria-label') || '';
+		if (!jobTitle) {
+			console.warn('Job title not found using both selectors');
+		}
+	}
+	return jobTitle.toLowerCase();
 }
 
 async function jobPanelScrollLittle() {
@@ -477,134 +492,115 @@ async function closeApplicationSentModal() {
 }
 
 async function runScript() {
-	try {
-		const fieldsComplete = await checkAndPromptFields()
-		if (!fieldsComplete) {
-			await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
-			return
-		}
-		
-		const limitReached = await checkLimitReached()
-		if (limitReached) {
-			const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
-			toggleBlinkingBorder(feedbackMessageElement)
-			return
-		}
-		
-		const {
-			titleSkipEnabled,
-			titleFilterEnabled,
-			badWordsEnabled,
-			titleFilterWords,
-			titleSkipWords
-		} = await chrome.storage.local.get([
-			'titleSkipEnabled',
-			'titleFilterEnabled',
-			'badWordsEnabled',
-			'titleFilterWords',
-			'titleSkipWords'
-		])
-		
-		await jobPanelScroll()
-		await addDelay()
-		
-		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
-		
-		for (const listItem of listItems) {
-			await closeApplicationSentModal()
-			let canClickToJob = true
-			const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning
-			
-			if (!autoApplyRunning) {
-				break
-			}
-			
-			const jobNameLink = listItem.querySelector('.artdeco-entity-lockup__title .job-card-container__link')
-			if (!jobNameLink) {
-				canClickToJob = false
-			}
-			
-			const jobFooter = listItem.querySelector('[class*="footer"]')
-			if (jobFooter) {
-				const isApplied = jobFooter.textContent.trim() === 'Applied'
-				if (isApplied) {
-					canClickToJob = false
-				}
-			}
-			
-			const companyNames = listItem.querySelectorAll('[class*="subtitle"]')
-			
-			const companyNamesArray = Array.from(companyNames).map((companyNameElem) => {
-				return companyNameElem.textContent.trim()
-			})
-			
-			const companyName = companyNamesArray?.[0] ?? ''
-			let jobTitle = ''
-			let visibleSpan = ''
-			if (jobNameLink) {
-				visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
-			}
-			if (visibleSpan) {
-				jobTitle = visibleSpan.textContent.trim().toLowerCase()
-			} else {
-				console.warn('job title not found by using: \'span[aria-hidden="true"]\'')
-			}
-			
-			if (titleSkipEnabled) {
-				const matchedSkipWord = titleSkipWords.find(word => jobTitle.toLowerCase().includes((word.toLowerCase())))
-				if (matchedSkipWord) {
-					canClickToJob = false
-				}
-			}
-			
-			if (titleFilterEnabled) {
-				const jobTitleMustContains = titleFilterWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))
-				if (!jobTitleMustContains) {
-					canClickToJob = false
-				}
-			}
-			
-			jobNameLink.scrollIntoView({ block: 'center' })
-			await addDelay()
-			jobNameLink.click()
-			await addDelay()
-			
-			try {
-				const mainContentElement = document.querySelector('.jobs-details__main-content')
-				if (!mainContentElement) {
-					canClickToJob = false
-				}
-			} catch (e) {
-				console.log('cannot find main content element')
-			}
-			try {
-				if (canClickToJob) {
-					await clickJob(
-						listItem,
-						companyName,
-						jobTitle,
-						badWordsEnabled,
-						jobNameLink
-					)
-				}
-			} catch (error) {
-				console.error('Error in clickJob:', error)
-			}
-		}
-		
-		const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning
-		
-		if (autoApplyRunning) {
-			await goToNextPage()
-		}
-	} catch (error) {
-		console.error('Error in runScript:', error)
-		await stopScript()
-	}
+  try {
+    const fieldsComplete = await checkAndPromptFields();
+    if (!fieldsComplete) {
+      await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' });
+      return;
+    }
+
+    const limitReached = await checkLimitReached();
+    if (limitReached) {
+      const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message');
+      toggleBlinkingBorder(feedbackMessageElement);
+      return;
+    }
+
+    const {
+      titleSkipEnabled,
+      titleFilterEnabled,
+      badWordsEnabled,
+      titleFilterWords,
+      titleSkipWords
+    } = await chrome.storage.local.get([
+      'titleSkipEnabled',
+      'titleFilterEnabled',
+      'badWordsEnabled',
+      'titleFilterWords',
+      'titleSkipWords'
+    ]);
+
+    await jobPanelScroll();
+    await addDelay();
+
+    const listItems = document.querySelectorAll('.scaffold-layout__list-item');
+
+    for (const listItem of listItems) {
+      await closeApplicationSentModal();
+      let canClickToJob = true;
+      const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning;
+      if (!autoApplyRunning) break;
+
+      const jobNameLink = listItem.querySelector('.artdeco-entity-lockup__title .job-card-container__link');
+      if (!jobNameLink) {
+        canClickToJob = false;
+      }
+
+      const jobFooter = listItem.querySelector('[class*="footer"]');
+      if (jobFooter && jobFooter.textContent.trim() === 'Applied') {
+        canClickToJob = false;
+      }
+
+      const companyNames = listItem.querySelectorAll('[class*="subtitle"]');
+      const companyNamesArray = Array.from(companyNames).map(el => el.textContent.trim());
+      const companyName = companyNamesArray?.[0] ?? '';
+
+      let jobTitle = getJobTitle(jobNameLink);
+      if (!jobTitle) {
+        console.warn('Job title not found, skipping...');
+				continue
+      }
+
+      if (titleSkipEnabled && titleSkipWords.some(word => jobTitle.includes(word.toLowerCase()))) {
+        canClickToJob = false;
+      }
+
+      if (titleFilterEnabled && !titleFilterWords.some(word => jobTitle.includes(word.toLowerCase()))) {
+        canClickToJob = false;
+      }
+
+      jobNameLink.scrollIntoView({ block: 'center' });
+      await addDelay();
+      jobNameLink.click();
+      await addDelay();
+
+      try {
+        const mainContentElement = document.querySelector('.jobs-details__main-content');
+        if (!mainContentElement) {
+          canClickToJob = false;
+        }
+      } catch (e) {
+	      console.log('Failed to find the main job content')
+      }
+
+      try {
+        if (canClickToJob) {
+          await clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink);
+        }
+      } catch (error) {
+        console.error('Error in clickJob:', error);
+      }
+    }
+
+    const autoApplyRunningAfter = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning;
+    if (autoApplyRunningAfter) {
+      await goToNextPage();
+    }
+  } catch (error) {
+    console.error('Error in runScript:', error);
+    await stopScript();
+  }
 }
 
 // when refresh auto apply return to off state
-void stopScript()
+// void stopScript()
+if (window) {
+	chrome.storage.local.get('autoApplyRunning').then(result => {
+		if (result?.autoApplyRunning) {
+			void runScript()
+		}
+	})
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.action === 'showNotOnJobSearchAlert') {
@@ -624,3 +620,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		}
 	}
 })
+
+
