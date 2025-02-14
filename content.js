@@ -592,8 +592,6 @@ async function runScript() {
   }
 }
 
-// when refresh auto apply return to off state
-// void stopScript()
 if (window) {
 	chrome.storage.local.get('autoApplyRunning').then(result => {
 		if (result?.autoApplyRunning) {
