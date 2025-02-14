@@ -595,7 +595,7 @@ async function runScript() {
 if (window) {
 	chrome.storage.local.get('autoApplyRunning').then(result => {
 		if (result?.autoApplyRunning) {
-			void runScript()
+			void stopScript()
 		}
 	})
 }
