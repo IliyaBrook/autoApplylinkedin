@@ -106,44 +106,110 @@ document.addEventListener('click', event => {
 				break
 			case 'show-links':
 				try {
-					chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-						console.log("tabs:", tabs)
+					let accordion = document.getElementById('linksAccordion');
+					
+					// Если аккордеон уже создан — переключаем его видимость
+					if (accordion) {
+						const content = accordion.querySelector('.accordion-content');
+						content.style.display = content.style.display === 'none' ? 'block' : 'none';
+					} else {
+						// Создаем контейнер аккордеона
+						accordion = document.createElement('div');
+						accordion.id = 'linksAccordion';
+						accordion.style.border = '1px solid #ccc';
+						accordion.style.marginTop = '10px';
+						accordion.style.padding = '10px';
+						accordion.style.background = '#f9f9f9';
 						
-						const tab = tabs?.[0]
-						if (!tab?.id) {
-							chrome.tabs.sendMessage(tabs?.[0]?.id, {
-								action: 'showSavedLinksModal',
-								savedLinks: ''
-							}, (response) => {
-								console.log("response from content")
+						// Заголовок аккордеона (можно нажать для сворачивания/разворачивания)
+						const header = document.createElement('div');
+						header.style.cursor = 'pointer';
+						header.style.fontWeight = 'bold';
+						header.style.marginBottom = '5px';
+						header.textContent = 'Imported Links (нажмите для сворачивания/разворачивания)';
+						header.addEventListener('click', () => {
+							const content = accordion.querySelector('.accordion-content');
+							content.style.display = content.style.display === 'none' ? 'block' : 'none';
+						});
+						accordion.appendChild(header);
+						
+						// Контейнер для содержимого аккордеона
+						const content = document.createElement('div');
+						content.className = 'accordion-content';
+						content.style.display = 'block';
+						accordion.appendChild(content);
+						
+						// Вставляем аккордеон под кнопкой "show-links"
+						document.getElementById('show-links').parentElement.appendChild(accordion);
+						
+						// Загружаем сохранённые ссылки из chrome.storage.local
+						chrome.storage.local.get('savedLinks', (result) => {
+							const savedLinks = result.savedLinks || {};
+							content.innerHTML = ""; // очищаем содержимое
+							
+							// Если ссылок нет — выводим сообщение
+							if (Object.keys(savedLinks).length === 0) {
+								const emptyMsg = document.createElement('div');
+								emptyMsg.textContent = 'Сохранённых ссылок нет.';
+								content.appendChild(emptyMsg);
+								return;
+							}
+							
+							// Для каждого элемента создаём строку списка
+							Object.entries(savedLinks).forEach(([name, url]) => {
+								const item = document.createElement('div');
+								item.className = 'saved-link-item';
+								item.style.display = 'flex';
+								item.style.alignItems = 'center';
+								item.style.justifyContent = 'space-between';
+								item.style.marginBottom = '5px';
+								item.style.padding = '5px';
+								item.style.border = '1px solid #ddd';
+								item.style.borderRadius = '4px';
+								item.style.background = '#fff';
 								
-								if (chrome?.runtime?.lastError) {
-									console.log('failed to send message:', chrome.runtime.lastError)
-								}
-							})
-						}
-					})
-		
-					// chrome.storage.local.get('savedLinks', (result) => {
-					// 	chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-					// 		console.log("popup show-links tabs:",  tabs)
-					// 		if (tabs && tabs?.length) {
-					// 			const tab = tabs?.[0]
-					// 			if (tab?.id) {
-					// 				chrome.tabs.sendMessage(tabs?.[0]?.id, {
-					// 					action: 'showSavedLinksModal',
-					// 					savedLinks: result?.savedLinks
-					// 				}, () => {
-					// 					if (chrome?.runtime?.lastError) {
-					// 						console.log("failed to send message:", chrome.runtime.lastError);
-					// 					}
-					// 				})
-					// 			}else {
-					// 				console.log("no id found in tab:", tab)
-					// 			}
-					// 		}
-					// 	})
-					// })
+								// Название (ключ)
+								const nameEl = document.createElement('span');
+								nameEl.textContent = name;
+								nameEl.style.flexGrow = '1';
+								item.appendChild(nameEl);
+								
+								// Кнопка "Go"
+								const goButton = document.createElement('button');
+								goButton.className = 'modal-button primary go-button';
+								goButton.textContent = 'Go';
+								goButton.style.marginLeft = '5px';
+								goButton.addEventListener('click', () => {
+									// window.open(url, '_blank');
+									chrome.runtime.sendMessage(
+										{ action: 'openTabAndRunScript', url: url },
+										(response) => {
+											console.log('Результат открытия вкладки и выполнения скрипта:', response);
+										}
+									);
+								});
+								item.appendChild(goButton);
+								
+								// Кнопка "Delete"
+								const deleteButton = document.createElement('button');
+								deleteButton.className = 'modal-button danger delete-button';
+								deleteButton.textContent = 'Delete';
+								deleteButton.style.marginLeft = '5px';
+								deleteButton.addEventListener('click', () => {
+									chrome.storage.local.get('savedLinks', (res) => {
+										const links = res.savedLinks || {};
+										delete links[name];
+										chrome.storage.local.set({ savedLinks: links }, () => {
+											item.remove();
+										});
+									});
+								});
+								item.appendChild(deleteButton);
+								
+								content.appendChild(item);
+							});
+						});
+					}
 				}catch (error) {
 					console.log("show-links popup.js error:", error)
 				}

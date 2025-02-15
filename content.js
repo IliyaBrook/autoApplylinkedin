@@ -492,17 +492,24 @@ async function closeApplicationSentModal() {
 }
 
 async function runScript() {
+	console.log("run runScript called")
+	
 	try {
+		await chrome.storage.local.set({ autoApplyRunning: true })
+		
 		const fieldsComplete = await checkAndPromptFields()
+		
 		if (!fieldsComplete) {
 			await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
 			return
 		}
 		
 		const limitReached = await checkLimitReached()
+		
 		if (limitReached) {
 			const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
 			toggleBlinkingBorder(feedbackMessageElement)
+			
 			return
 		}
 		
@@ -522,13 +529,13 @@ async function runScript() {
 		
 		await jobPanelScroll()
 		await addDelay()
-		
 		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
-		
 		for (const listItem of listItems) {
 			await closeApplicationSentModal()
 			let canClickToJob = true
 			const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning
+			console.log("is auto apply running:", autoApplyRunning)
+			
 			if (!autoApplyRunning) break
 			
 			const jobNameLink = listItem.querySelector('.artdeco-entity-lockup__title .job-card-container__link')
@@ -551,9 +558,6 @@ async function runScript() {
 				await addDelay()
 				jobTitle = getJobTitle(jobNameLink)
 				if (!jobTitle) {
-					console.warn('[2]: Job title not found, skipping...')
-					console.warn('[2]: jobNameLink:', jobNameLink)
-					console.warn('[2]: listItem:', listItem)
 					continue
 				}
 			}
@@ -599,13 +603,13 @@ async function runScript() {
 	}
 }
 
-if (window) {
-	chrome.storage.local.get('autoApplyRunning').then(result => {
-		if (result?.autoApplyRunning) {
-			void stopScript()
-		}
-	})
-}
+// if (window) {
+// 	chrome.storage.local.get('autoApplyRunning').then(result => {
+// 		if (result?.autoApplyRunning) {
+// 			void stopScript()
+// 		}
+// 	})
+// }
 
 // content script listeners
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -634,12 +638,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 	console.log("message content:", message)
 	if (message.action === 'showSavedLinksModal') {
-	
-		
 		const modalWrapper = document.getElementById('savedLinksOverlay');
 		if (modalWrapper) {
 			console.log("message content:", message)
-			
 			const linksData = message.savedLinks;
 			modalWrapper.style.display = 'flex';
 			const listEl = modalWrapper.querySelector('#savedLinksList');

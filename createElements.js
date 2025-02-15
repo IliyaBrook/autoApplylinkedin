@@ -86,19 +86,6 @@ async function initElements() {
 		if (formControlAlert) {
 			document.body.appendChild(formControlAlert)
 		}
-		const savedLinksModal = await createCustomElement({
-			htmlPath: 'components/modals/savedLinksModal.html',
-			cssPath: 'components/modals/modals.css',
-			additionalScripts: [
-				'components/modals/modals.js'
-			],
-			elementId: 'savedLinksOverlay',
-		});
-		console.log("create elements saved links:", savedLinksModal)
-		
-		if (savedLinksModal) {
-			document.body.appendChild(savedLinksModal)
-		}
 	} catch (err) {
 		console.error('❌ Error creating elements:', err);
 	}

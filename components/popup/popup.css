@@ -195,3 +195,34 @@ body {
 	background-color: #f57c00;
 }
 
+/* saved links accordion */
+
+/* Стили для аккордеона сохраненных ссылок */
+#linksAccordion {
+	border: 1px solid #ccc;
+	margin-top: 10px;
+	padding: 10px;
+	background: #f9f9f9;
+	border-radius: 4px;
+}
+
+#linksAccordion .accordion-content {
+	margin-top: 5px;
+}
+
+/* Стили для каждого элемента списка */
+.saved-link-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 5px;
+	padding: 5px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	background: #fff;
+}
+
+/* Кнопки в аккордеоне */
+.saved-link-item button {
+	margin-left: 5px;
+}
