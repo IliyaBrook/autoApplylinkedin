@@ -45,6 +45,27 @@ We improved the “External Apply” feature to store only unique job postings. 
 
 - Required for submitting applications.
 
+### **New Feature** ###
+#### Job Search Links Feature
+
+You can now easily save your preferred LinkedIn job search links with your custom filters and use them even when you're not on LinkedIn. Here’s how it works:
+
+1. **Perform Your Job Search**  
+   Go to [LinkedIn > Jobs](https://www.linkedin.com/jobs) and perform a job search using the filters you use most frequently.
+
+2. **Save the Job Search Link**  
+   In the extension popup, click on **Save job search link**. Enter a name for your search link. This saves the current URL along with your selected filters.
+   ![](assets/for_readme/job_search_save.jpg)
+3. **Launch the Bot Anywhere**  
+   Even if you are not currently on the LinkedIn platform, simply open the popup and click on **Show job search links**.
+   ![](assets/for_readme/job_search_feature.jpg)
+   - An accordion will display all your saved job search links.
+   - Select the desired link and click **Go**.
+   
+   The extension will automatically navigate to the specified LinkedIn job search page and start working with your saved filters – no additional input is required.
+
+This new feature streamlines the process, allowing you to quickly resume your job search with your preferred settings, regardless of which website you are currently browsing.
+
 ![Personal Information](assets/for_readme/personal_information.jpg)
 
 ## How to Install

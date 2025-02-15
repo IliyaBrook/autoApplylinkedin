@@ -111,7 +111,7 @@ document.addEventListener('click', event => {
 					// data set toggle
 					const dataset = button.dataset;
 					if (dataset.open === "true") {
-						button.textContent = 'Show job search link'
+						button.textContent = 'Show job search links'
 						button.style.backgroundColor = 'rgb(9, 2, 214, 0.8)'
 						button.dataset.open = "false";
 						if (accordion) {
