@@ -24,7 +24,8 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["utils.js", "forGlobalWinElements.js", "content.js", "xpaths.js"]
+      "js": ["utils.js", "createElements.js", "content.js", "xpaths.js"],
+      "run_at": "document_idle"
     }
   ],
   "permissions": [
@@ -43,10 +44,11 @@
         "components/filterSettings/filterSettings.html",
         "components/modals/notOnJobSearchModal.html",
         "components/modals/formControlModal.html",
+        "components/modals/savedLinksModal.html",
         "components/modals/modals.js",
         "components/modals/modals.css"
       ],
-      "matches": ["*://www.linkedin.com/*"]
+      "matches": ["<all_urls>"]
     }
   ]
 }

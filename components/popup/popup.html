@@ -8,8 +8,7 @@
 </head>
 <body>
 <div class="popup-container">
-	<div class="column column-green">
-		
+	<div class="column">
 		<button id="form-control-button" class="button button-form">
         <span class="icon-wrapper">
           <svg viewBox="0 0 512 512" width="18" height="18">
@@ -30,17 +29,6 @@
           </svg>
         </span>
 			Filter settings
-		</button>
-		
-		<button id="default-button" class="button button-personal">
-        <span class="icon-wrapper">
-          <svg viewBox="0 0 448 512" width="18" height="18">
-            <path fill="currentColor"
-                  d="M224 256A128 128 0 1 0 96 128a128 128 0 0 0 128 128zm89.6 32.4a174.3 174.3 0 0 1-179.2 0A134.5 134.5 0 0 0 0 418.7V464a48 48 0 0 0 48 48H400a48 48 0 0 0 48-48v-45.3a134.5 134.5 0 0 0-134.4-130.3z"
-            />
-          </svg>
-        </span>
-			Personal Info
 		</button>
 		
 		<button id="external-apply-button" class="button button-external">
@@ -64,8 +52,17 @@
 		</button>
 		<input type="file" id="import-file" accept=".json" style="display: none;" />
 	</div>
+	
+	<div class="column column-links">
+		<button id="save-link" class="button button-links">
+			Save link
+		</button>
+		<button id="show-links" class="button button-links">
+			Show imported links
+		</button>
+	</div>
 </div>
-<div class="column column-green">
+<div class="column start-button-column">
 	<button id="start-auto-apply-button" class="button button-auto-apply">
         <span class="icon-wrapper">
             <svg id="start-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18">

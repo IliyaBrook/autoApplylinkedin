@@ -1,46 +1,20 @@
-// selectors
-const goToJobSearchButton = document.getElementById('goToJobSearchButton')
-const closeModalButton = document.getElementById('closeModalButton')
-const notOnJobSearchOverlay = document.getElementById('notOnJobSearchOverlay')
-
-const closeModalBtnFormControl = document.getElementById('closeModalFormControl')
-const formControlOverlay = document.getElementById('formControlOverlay')
-
-// Not on job search modal
-function notOnJobSearchModalShow() {
-	if (notOnJobSearchOverlay) {
-		hideAllModals()
-		notOnJobSearchOverlay.style.display = 'flex'
+document.addEventListener('click', event => {
+	const notOnJobSearchOverlay = document.getElementById('notOnJobSearchOverlay')
+	const savedLinksOverlay = document.getElementById('savedLinksOverlay')
+	const formControlOverlay = document.getElementById('formControlOverlay')
+	
+	const allOverlays = [
+		notOnJobSearchOverlay,
+		savedLinksOverlay,
+		formControlOverlay
+	]
+	const tagName = event.target.tagName
+	if (tagName=== 'BUTTON') {
+		const buttonId = event.target.id
+		if (buttonId.includes('close')) {
+			allOverlays.forEach(overlay => {
+				overlay.style.display = 'none'
+			})
+		}
 	}
-}
-
-function hideAllModals() {
-	if (notOnJobSearchOverlay) {
-		notOnJobSearchOverlay.style.display = 'none'
-	}
-	if (formControlOverlay) {
-		formControlOverlay.style.display = 'none'
-	}
-}
-
-if (goToJobSearchButton) {
-	goToJobSearchButton.addEventListener('click', () => {
-		hideAllModals()
-		window.location.href = 'https://www.linkedin.com/jobs/search'
-	})
-}
-
-if (closeModalButton) {
-	closeModalButton.addEventListener('click', hideAllModals)
-}
-
-if (closeModalBtnFormControl) {
-	closeModalBtnFormControl.addEventListener('click', hideAllModals)
-}
-
-function showFormControlModal() {
-	hideAllModals()
-	if (formControlOverlay) {
-		formControlOverlay.style.display = 'flex'
-	}
-}
+})

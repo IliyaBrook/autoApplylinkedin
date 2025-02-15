@@ -40,9 +40,9 @@ body {
 	align-items: center; /* buttons centered */
 }
 
-/* Group with green buttons */
-.column-green {
-	background-color: #f0fff0;
+.start-button-column{
+	border-radius: unset;
+	border:none;
 }
 
 /* Special background for right column (optional) */
@@ -62,7 +62,6 @@ body {
 	transition: background-color 0.3s ease;
 	text-align: center;
 	color: #fff;
-	padding: 10px 20px;
 }
 
 /* Icon wrapper inside the button */
@@ -121,6 +120,13 @@ body {
 
 .button-import:hover {
 	background-color: #cc7a00;
+}
+
+.button-links{
+	background-color: rgb(9, 2, 214, 0.8);
+}
+.button-links:hover {
+	background-color: rgb(9, 2, 214, 1);
 }
 
 /* Links, where needed */
@@ -188,3 +194,4 @@ body {
 .button-auto-apply.running:hover {
 	background-color: #f57c00;
 }
+

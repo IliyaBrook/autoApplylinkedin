@@ -1,8 +1,8 @@
-#notOnJobSearchOverlay, #formControlOverlay{
+#notOnJobSearchOverlay, #formControlOverlay, #savedLinksOverlay{
 	display: none;
 }
 
-.modal-overlay {
+.auto-apply-modal-overlay {
 	position: fixed;
 	top: 0;
 	left: 0;
@@ -62,18 +62,34 @@
 	color: white;
 }
 
-.modal-overlay {
-	position: fixed;
-	top: 0;
-	right: 50%;
-	background-color: rgba(0, 0, 0, 0.2);
-	color: #fff;
-	padding: 20px;
-	border-radius: 10px;
-	box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-	z-index: 9999;
-	width: 100vw;
-	height: 100vh;
-	overflow-y: auto;
-	display: none;
+
+#savedLinksList li {
+	padding: 10px;
+	margin: 10px 0;
+	background-color: #fff;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+#savedLinksList li span {
+	font-size: 14px;
+	color: #333;
+	flex-grow: 1;
+	margin-right: 10px;
+}
+
+#savedLinksList li .modal-button {
+	margin-left: 5px;
+}
+
+/*global buttons hover*/
+button {
+	transition: filter 0.3s ease;
+}
+
+button:hover {
+	filter: brightness(0.8);
 }

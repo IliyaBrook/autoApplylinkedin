@@ -1,58 +1,193 @@
-const autoApplyButton = document.getElementById('start-auto-apply-button')
-const startIcon = document.getElementById('start-icon')
-const runningIcon = document.getElementById('running-icon')
-
-const settingsButton = document.getElementById('form-control-button')
-settingsButton.addEventListener('click', function() {
-	chrome.tabs.create({ url: '/components/formControl/formControl.html' })
-})
-
-const filterSettingsButton = document.getElementById('filter-settings-button')
-filterSettingsButton.addEventListener('click', function() {
-	chrome.tabs.create({ url: '/components/filterSettings/filterSettings.html' })
-})
-
-// export settings button
-document.getElementById('export-button').addEventListener('click', function() {
-	chrome.storage.local.get(null, function(data) {
-		const jsonData = JSON.stringify(data, null, 2)
-		const blob = new Blob([jsonData], { type: 'application/json' })
-		const url = URL.createObjectURL(blob)
-		
-		const link = document.createElement('a')
-		link.href = url
-		const { day, hour, minute, month } = getTime()
-		link.download = `autoapply_settings_${day}_${month}_[${hour}_${minute}].json`
-		link.click()
-		
-		URL.revokeObjectURL(url)
-	})
-})
-
-function changeAutoApplyButton(isRunning) {
+function changeAutoApplyButton(isRunning, selector) {
+	const startIcon = document.getElementById('start-icon')
+	const runningIcon = document.getElementById('running-icon')
+	
 	if (isRunning) {
-		autoApplyButton.classList.add('running');
-		autoApplyButton.textContent = 'Stop Auto Apply';
-		startIcon.style.display = 'none';
-		runningIcon.style.display = 'inline';
+		selector.classList.add('running')
+		selector.textContent = 'Stop Auto Apply'
+		if (startIcon) startIcon.style.display = 'none'
+		if (runningIcon) runningIcon.style.display = 'inline'
 	} else {
-		autoApplyButton.classList.remove('running');
-		autoApplyButton.textContent = 'Start Auto Apply';
-		startIcon.style.display = 'inline';
-		runningIcon.style.display = 'none';
+		selector.classList.remove('running')
+		selector.textContent = 'Start Auto Apply'
+		if (startIcon) startIcon.style.display = 'inline'
+		if (runningIcon) runningIcon.style.display = 'none'
 	}
 }
 
-// import settings
-document.getElementById('import-button').addEventListener('click', function() {
-	document.getElementById('import-file').click()
-})
-// external apply links button
-document.getElementById('external-apply-button').addEventListener('click', () => {
-	chrome.tabs.create({ url: '/components/externalApply/externalApply.html' })
+const getCurrentUrl = () => {
+	return new Promise((resolve, reject) => {
+		chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+			if (tabs.length > 0) {
+				chrome.tabs.sendMessage(tabs[0].id, { action: 'getCurrentUrl' }, (response) => {
+					const url = response?.url
+					if (!url?.includes('linkedin.com/jobs')) {
+						alert('Saved is only available on the LinkedIn jobs search page.')
+						resolve(false)
+						return
+					}
+					resolve(response.url)
+				})
+			} else {
+				reject('Active tab not found')
+			}
+		})
+	})
+}
+
+document.addEventListener('click', event => {
+	if (event.target.tagName === 'BUTTON') {
+		const buttonId = event.target.id
+		const button = document.getElementById(buttonId)
+		switch (buttonId) {
+			case 'form-control-button':
+				chrome.tabs.create({ url: '/components/formControl/formControl.html' })
+				break
+			case 'filter-settings-button':
+				chrome.tabs.create({ url: '/components/filterSettings/filterSettings.html' })
+				break
+			case 'external-apply-button':
+				chrome.tabs.create({ url: '/components/externalApply/externalApply.html' })
+				break
+			case 'export-button':
+				chrome.storage.local.get(null, function(data) {
+					const jsonData = JSON.stringify(data, null, 2)
+					const blob = new Blob([jsonData], { type: 'application/json' })
+					const url = URL.createObjectURL(blob)
+					
+					const link = document.createElement('a')
+					link.href = url
+					const { day, hour, minute, month } = getTime()
+					link.download = `autoapply_settings_${day}_${month}_[${hour}_${minute}].json`
+					link.click()
+					
+					URL.revokeObjectURL(url)
+				})
+				break
+			case 'import-button':
+				document.getElementById('import-file').click()
+				break
+			case 'save-link':
+				chrome.storage.local.get('savedLinks', (result) => {
+					const linkName = prompt('Enter link name')
+					if (!linkName) {
+						alert('Link name cannot be empty.')
+						return
+					}
+					if (!('savedLinks' in result)) {
+						getCurrentUrl().then(url => {
+							chrome.storage.local.set({ savedLinks: { [linkName]: url } }, () => {
+								alert('Link saved successfully!')
+							})
+						}).catch(err => {
+							console.error('Error getting current url: ', err)
+						})
+					} else {
+						getCurrentUrl().then(url => {
+							const savedLinks = result.savedLinks
+							const savedLinksSet = new Set(Object.values(savedLinks))
+							if (linkName in savedLinks) {
+								alert('Link name already exists.')
+							} else if (savedLinksSet.has(url)) {
+								alert('Link already exists.')
+							} else {
+								chrome.storage.local.set({
+									savedLinks: {
+										...savedLinks,
+										[linkName]: url
+									}
+								}, () => {
+									alert('Link saved successfully!')
+								})
+							}
+						})
+					}
+				})
+				break
+			case 'show-links':
+				try {
+					chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+						console.log("tabs:", tabs)
+						
+						const tab = tabs?.[0]
+						if (!tab?.id) {
+							chrome.tabs.sendMessage(tabs?.[0]?.id, {
+								action: 'showSavedLinksModal',
+								savedLinks: ''
+							}, (response) => {
+								console.log("response from content")
+								
+								if (chrome?.runtime?.lastError) {
+									console.log('failed to send message:', chrome.runtime.lastError)
+								}
+							})
+						}
+					})
+		
+					// chrome.storage.local.get('savedLinks', (result) => {
+					// 	chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+					// 		console.log("popup show-links tabs:",  tabs)
+					// 		if (tabs && tabs?.length) {
+					// 			const tab = tabs?.[0]
+					// 			if (tab?.id) {
+					// 				chrome.tabs.sendMessage(tabs?.[0]?.id, {
+					// 					action: 'showSavedLinksModal',
+					// 					savedLinks: result?.savedLinks
+					// 				}, () => {
+					// 					if (chrome?.runtime?.lastError) {
+					// 						console.log("failed to send message:", chrome.runtime.lastError);
+					// 					}
+					// 				})
+					// 			}else {
+					// 				console.log("no id found in tab:", tab)
+					// 			}
+					// 		}
+					// 	})
+					// })
+				}catch (error) {
+					console.log("show-links popup.js error:", error)
+				}
+				break
+			case 'start-auto-apply-button':
+				// save udemy links with filters query
+				if (typeof chrome !== 'undefined' && chrome?.storage && chrome?.storage.local) {
+					chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
+						const newState = !autoApplyRunning
+						changeAutoApplyButton(newState, button)
+						chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+							const noActiveTabsText = 'No active tabs found try to go to a LinkedIn job search page or refresh the page.'
+							if (tabs && tabs.length > 0) {
+								const currentTabId = tabs?.id
+								chrome.runtime.sendMessage({
+									action: newState ? 'startAutoApply' : 'stopAutoApply',
+									tabId: currentTabId
+								}, response => {
+									if (response?.success) {
+										chrome.storage.local.set({ autoApplyRunning: newState }, () => {
+											console.log('Auto apply state updated in storage and UI (success response). New state:', newState)
+										})
+									} else {
+										chrome.storage.local.set({ autoApplyRunning: false }, () => {
+											changeAutoApplyButton(false, button)
+											if (response?.message === 'No active tab found.') {
+												alert(noActiveTabsText)
+											}
+										})
+									}
+								})
+							} else {
+								console.error('Error: No active tab found.')
+								alert(noActiveTabsText)
+							}
+						})
+					})
+				}
+				break
+		}
+	}
 })
 
-// parse file to local storage
+// import file button logic
 document.getElementById('import-file').addEventListener('change', function(event) {
 	const file = event.target.files[0]
 	if (!file) return
@@ -71,49 +206,9 @@ document.getElementById('import-file').addEventListener('change', function(event
 	reader.readAsText(file)
 })
 
-function ApplyButton(isRunning) {
-	changeAutoApplyButton(isRunning);
-}
-
-autoApplyButton.addEventListener('click', () => {
-	if (typeof chrome!== 'undefined' && chrome?.storage && chrome?.storage.local) {
-		chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
-			const newState =!autoApplyRunning;
-			ApplyButton(newState);
-			chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-				const noActiveTabsText = 'No active tabs found try to go to a LinkedIn job search page or refresh the page.';
-				if (tabs && tabs.length > 0) {
-					const currentTabId = tabs?.id;
-					
-					chrome.runtime.sendMessage({
-						action: newState? 'startAutoApply': 'stopAutoApply',
-						tabId: currentTabId
-					}, response => {
-						if (response?.success) {
-							chrome.storage.local.set({ autoApplyRunning: newState }, () => {
-								console.log("Auto apply state updated in storage and UI (success response). New state:", newState);
-							});
-						} else {
-							chrome.storage.local.set({ autoApplyRunning: false }, () => {
-								ApplyButton(false);
-								console.error("Error starting/stopping auto apply. Reverting UI to 'Start'. Error:", response?.message);
-								if (response?.message === 'No active tab found.') {
-									alert(noActiveTabsText);
-								}
-							});
-						}
-					});
-				} else {
-					console.error("Error: No active tab found.");
-					alert(noActiveTabsText);
-				}
-			});
-		});
-	}
-});
-
 document.addEventListener('DOMContentLoaded', () => {
+	const autoApplyButton = document.getElementById('start-auto-apply-button')
 	chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
-		changeAutoApplyButton(autoApplyRunning);
-	});
-});
+		changeAutoApplyButton(autoApplyRunning, autoApplyButton)
+	})
+})

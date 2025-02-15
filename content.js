@@ -36,19 +36,19 @@ async function performInputFieldCityCheck() {
 }
 
 function getJobTitle(jobNameLink) {
-	if (!jobNameLink) return '';
-	let jobTitle = '';
+	if (!jobNameLink) return ''
+	let jobTitle = ''
 	
-	const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]');
+	const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
 	if (visibleSpan && visibleSpan.textContent.trim().length > 0) {
-		jobTitle = visibleSpan.textContent.trim();
+		jobTitle = visibleSpan.textContent.trim()
 	} else {
-		jobTitle = jobNameLink.getAttribute('aria-label') || '';
+		jobTitle = jobNameLink.getAttribute('aria-label') || ''
 		if (!jobTitle) {
-			console.warn('Job title not found using both selectors');
+			console.warn('Job title not found using both selectors')
 		}
 	}
-	return jobTitle.toLowerCase();
+	return jobTitle.toLowerCase()
 }
 
 async function jobPanelScrollLittle() {
@@ -492,104 +492,111 @@ async function closeApplicationSentModal() {
 }
 
 async function runScript() {
-  try {
-    const fieldsComplete = await checkAndPromptFields();
-    if (!fieldsComplete) {
-      await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' });
-      return;
-    }
-
-    const limitReached = await checkLimitReached();
-    if (limitReached) {
-      const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message');
-      toggleBlinkingBorder(feedbackMessageElement);
-      return;
-    }
-
-    const {
-      titleSkipEnabled,
-      titleFilterEnabled,
-      badWordsEnabled,
-      titleFilterWords,
-      titleSkipWords
-    } = await chrome.storage.local.get([
-      'titleSkipEnabled',
-      'titleFilterEnabled',
-      'badWordsEnabled',
-      'titleFilterWords',
-      'titleSkipWords'
-    ]);
-
-    await jobPanelScroll();
-    await addDelay();
-
-    const listItems = document.querySelectorAll('.scaffold-layout__list-item');
-
-    for (const listItem of listItems) {
-      await closeApplicationSentModal();
-      let canClickToJob = true;
-      const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning;
-      if (!autoApplyRunning) break;
-
-      const jobNameLink = listItem.querySelector('.artdeco-entity-lockup__title .job-card-container__link');
-      if (!jobNameLink) {
-        canClickToJob = false;
-      }
-
-      const jobFooter = listItem.querySelector('[class*="footer"]');
-      if (jobFooter && jobFooter.textContent.trim() === 'Applied') {
-        canClickToJob = false;
-      }
-
-      const companyNames = listItem.querySelectorAll('[class*="subtitle"]');
-      const companyNamesArray = Array.from(companyNames).map(el => el.textContent.trim());
-      const companyName = companyNamesArray?.[0] ?? '';
-
-      let jobTitle = getJobTitle(jobNameLink);
-      if (!jobTitle) {
-        console.warn('Job title not found, skipping...');
-				continue
-      }
-
-      if (titleSkipEnabled && titleSkipWords.some(word => jobTitle.includes(word.toLowerCase()))) {
-        canClickToJob = false;
-      }
-
-      if (titleFilterEnabled && !titleFilterWords.some(word => jobTitle.includes(word.toLowerCase()))) {
-        canClickToJob = false;
-      }
-
-      jobNameLink.scrollIntoView({ block: 'center' });
-      await addDelay();
-      jobNameLink.click();
-      await addDelay();
-
-      try {
-        const mainContentElement = document.querySelector('.jobs-details__main-content');
-        if (!mainContentElement) {
-          canClickToJob = false;
-        }
-      } catch (e) {
-	      console.log('Failed to find the main job content')
-      }
-
-      try {
-        if (canClickToJob) {
-          await clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink);
-        }
-      } catch (error) {
-        console.error('Error in clickJob:', error);
-      }
-    }
-
-    const autoApplyRunningAfter = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning;
-    if (autoApplyRunningAfter) {
-      await goToNextPage();
-    }
-  } catch (error) {
-    console.error('Error in runScript:', error);
-    await stopScript();
-  }
+	try {
+		const fieldsComplete = await checkAndPromptFields()
+		if (!fieldsComplete) {
+			await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
+			return
+		}
+		
+		const limitReached = await checkLimitReached()
+		if (limitReached) {
+			const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
+			toggleBlinkingBorder(feedbackMessageElement)
+			return
+		}
+		
+		const {
+			titleSkipEnabled,
+			titleFilterEnabled,
+			badWordsEnabled,
+			titleFilterWords,
+			titleSkipWords
+		} = await chrome.storage.local.get([
+			'titleSkipEnabled',
+			'titleFilterEnabled',
+			'badWordsEnabled',
+			'titleFilterWords',
+			'titleSkipWords'
+		])
+		
+		await jobPanelScroll()
+		await addDelay()
+		
+		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
+		
+		for (const listItem of listItems) {
+			await closeApplicationSentModal()
+			let canClickToJob = true
+			const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning
+			if (!autoApplyRunning) break
+			
+			const jobNameLink = listItem.querySelector('.artdeco-entity-lockup__title .job-card-container__link')
+			if (!jobNameLink) {
+				canClickToJob = false
+			}
+			
+			const jobFooter = listItem.querySelector('[class*="footer"]')
+			if (jobFooter && jobFooter.textContent.trim() === 'Applied') {
+				canClickToJob = false
+			}
+			
+			const companyNames = listItem.querySelectorAll('[class*="subtitle"]')
+			const companyNamesArray = Array.from(companyNames).map(el => el.textContent.trim())
+			const companyName = companyNamesArray?.[0] ?? ''
+			
+			let jobTitle = getJobTitle(jobNameLink)
+			if (!jobTitle) {
+				console.warn('[1]: Job title not found, skipping...')
+				await addDelay()
+				jobTitle = getJobTitle(jobNameLink)
+				if (!jobTitle) {
+					console.warn('[2]: Job title not found, skipping...')
+					console.warn('[2]: jobNameLink:', jobNameLink)
+					console.warn('[2]: listItem:', listItem)
+					continue
+				}
+			}
+			
+			if (titleSkipEnabled && titleSkipWords.some(word => jobTitle.includes(word.toLowerCase()))) {
+				canClickToJob = false
+			}
+			
+			if (titleFilterEnabled && !titleFilterWords.some(word => jobTitle.includes(word.toLowerCase()))) {
+				canClickToJob = false
+			}
+			
+			jobNameLink.scrollIntoView({ block: 'center' })
+			await addDelay()
+			jobNameLink.click()
+			await addDelay()
+			
+			try {
+				const mainContentElement = document.querySelector('.jobs-details__main-content')
+				if (!mainContentElement) {
+					canClickToJob = false
+				}
+			} catch (e) {
+				console.log('Failed to find the main job content')
+			}
+			
+			try {
+				if (canClickToJob) {
+					await clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink)
+				}
+			} catch (error) {
+				console.error('Error in clickJob:', error)
+			}
+		}
+		
+		const autoApplyRunningAfter = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning
+		if (autoApplyRunningAfter) {
+			await goToNextPage()
+		}
+	} catch (error) {
+		console.error('Error in runScript:', error)
+		await stopScript()
+	}
 }
 
 if (window) {
@@ -600,7 +607,9 @@ if (window) {
 	})
 }
 
+// content script listeners
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+	// modals listerners
 	if (message.action === 'showNotOnJobSearchAlert') {
 		const modalWrapper = document.getElementById('notOnJobSearchOverlay')
 		if (modalWrapper) {
@@ -617,6 +626,61 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			sendResponse({ success: false, error: 'formControlOverlay not found' })
 		}
 	}
+	// get current url listener provider
+
+	
+	if (message.action === 'getCurrentUrl') {
+		sendResponse({ url: window.location.href })
+	}
+	console.log("message content:", message)
+	if (message.action === 'showSavedLinksModal') {
+	
+		
+		const modalWrapper = document.getElementById('savedLinksOverlay');
+		if (modalWrapper) {
+			console.log("message content:", message)
+			
+			const linksData = message.savedLinks;
+			modalWrapper.style.display = 'flex';
+			const listEl = modalWrapper.querySelector('#savedLinksList');
+			if (listEl) {
+				listEl.innerHTML = "";
+				Object.entries(linksData).forEach(([name, url]) => {
+					const li = document.createElement('li');
+					li.className = 'saved-link-item';
+					const nameEl = document.createElement('span');
+					nameEl.textContent = name;
+					li.appendChild(nameEl);
+					const goButton = document.createElement('button');
+					goButton.className = 'modal-button primary go-button';
+					goButton.textContent = 'Go';
+					goButton.addEventListener('click', () => {
+						window.open(url, '_blank');
+						chrome.runtime.sendMessage({ action: 'openTabAndRunScript', url: url }, (response) => {
+							console.log('Tab open request sent:', response);
+						});
+					});
+					li.appendChild(goButton);
+					const deleteButton = document.createElement('button');
+					deleteButton.className = 'modal-button danger delete-button';
+					deleteButton.textContent = 'Delete';
+					deleteButton.addEventListener('click', () => {
+						chrome.storage.local.get('savedLinks', (result) => {
+							const savedLinks = result.savedLinks || {};
+							delete savedLinks[name];
+							chrome.storage.local.set({ savedLinks }, () => {
+								li.remove();
+							});
+						});
+					});
+					li.appendChild(deleteButton);
+					listEl.appendChild(li);
+				});
+			}
+		}
+		sendResponse({ success: true });
+	}
+	
 })
 
 
