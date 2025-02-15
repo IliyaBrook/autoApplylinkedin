@@ -24,7 +24,6 @@ const getCurrentUrl = () => {
 					if (!url?.includes('linkedin.com/jobs')) {
 						alert('Saved is only available on the LinkedIn jobs search page.')
 						resolve(false)
-						return
 					}
 					resolve(response.url)
 				})
@@ -76,6 +75,7 @@ document.addEventListener('click', event => {
 					}
 					if (!('savedLinks' in result)) {
 						getCurrentUrl().then(url => {
+							if (!url) return
 							chrome.storage.local.set({ savedLinks: { [linkName]: url } }, () => {
 								alert('Link saved successfully!')
 							})
@@ -84,6 +84,7 @@ document.addEventListener('click', event => {
 						})
 					} else {
 						getCurrentUrl().then(url => {
+							if (!url) return
 							const savedLinks = result.savedLinks
 							const savedLinksSet = new Set(Object.values(savedLinks))
 							if (linkName in savedLinks) {
@@ -107,84 +108,90 @@ document.addEventListener('click', event => {
 			case 'show-links':
 				try {
 					let accordion = document.getElementById('linksAccordion');
-					
-					if (accordion) {
-						if (accordion.dataset.open === "true") {
+					// data set toggle
+					const dataset = button.dataset;
+					if (dataset.open === "true") {
+						button.textContent = 'Show job search link'
+						button.style.backgroundColor = 'rgb(9, 2, 214, 0.8)'
+						button.dataset.open = "false";
+						if (accordion) {
 							accordion.style.display = "none";
-							accordion.dataset.open = "false";
-							button.textContent = 'Show imported links'
-						} else {
-							accordion.style.display = "block";
-							accordion.dataset.open = "true";
-							button.textContent = 'Hide imported links'
 						}
-					} else {
-						accordion = document.createElement('div');
-						accordion.id = 'linksAccordion';
-						accordion.style.border = '1px solid #ccc';
-						accordion.style.marginTop = '10px';
-						accordion.style.padding = '10px';
-						accordion.style.background = '#f9f9f9';
-						accordion.style.borderRadius = '4px';
-						accordion.dataset.open = "true";
-						const content = document.createElement('div');
-						content.className = 'accordion-content';
-						content.style.display = 'block';
-						accordion.appendChild(content);
-						document.getElementById('show-links').parentElement.appendChild(accordion);
-						chrome.storage.local.get('savedLinks', (result) => {
-							const savedLinks = result.savedLinks || {};
-							content.innerHTML = "";
-							
-							if (Object.keys(savedLinks).length === 0) {
-								const emptyMsg = document.createElement('div');
-								emptyMsg.textContent = 'No saved links available.'
-								content.appendChild(emptyMsg);
-								return;
-							}
-							
-							Object.entries(savedLinks).forEach(([name, url]) => {
-								const item = document.createElement('div');
-								item.className = 'saved-link-item';
-								const nameEl = document.createElement('span');
-								nameEl.textContent = name;
-								item.appendChild(nameEl);
-								const goButton = document.createElement('button');
-								goButton.className = 'modal-button primary go-button';
-								goButton.textContent = 'Go';
-								goButton.addEventListener('click', () => {
-									chrome.runtime.sendMessage(
-										{ action: 'openTabAndRunScript', url: url },
-										(response) => {
-											console.log('Result of opening the tab and executing the script:', response)
-										}
-									);
-								});
-								item.appendChild(goButton);
-								const deleteButton = document.createElement('button');
-								deleteButton.className = 'modal-button danger delete-button';
-								deleteButton.textContent = 'Delete';
-								deleteButton.addEventListener('click', () => {
-									chrome.storage.local.get('savedLinks', (res) => {
-										const links = res.savedLinks || {};
-										delete links[name];
-										chrome.storage.local.set({ savedLinks: links }, () => {
-											item.remove();
+					}else {
+						button.dataset.open = "true";
+						button.textContent = 'Hide job search link'
+						button.style.backgroundColor = 'rgb(220,53,69)'
+
+						if (accordion) {
+							accordion.style.display = "block";
+						}
+					}
+					
+					
+					if (!accordion) {
+						if (dataset.open === "true") {
+							accordion = document.createElement('div');
+							accordion.id = 'linksAccordion';
+							accordion.style.border = '1px solid #ccc';
+							accordion.style.marginTop = '10px';
+							accordion.style.padding = '10px';
+							accordion.style.background = '#f9f9f9';
+							accordion.style.borderRadius = '4px';
+							const content = document.createElement('div');
+							content.className = 'accordion-content';
+							content.style.display = 'block';
+							accordion.appendChild(content);
+							document.getElementById('show-links').parentElement.appendChild(accordion);
+							chrome.storage.local.get('savedLinks', (result) => {
+								const savedLinks = result.savedLinks || {};
+								content.innerHTML = "";
+								if (Object.keys(savedLinks).length === 0) {
+									const emptyMsg = document.createElement('div');
+									emptyMsg.textContent = 'No saved links available.'
+									content.appendChild(emptyMsg);
+									return;
+								}
+								Object.entries(savedLinks).forEach(([name, url]) => {
+									const item = document.createElement('div');
+									item.className = 'saved-link-item';
+									const nameEl = document.createElement('span');
+									nameEl.textContent = name;
+									item.appendChild(nameEl);
+									const goButton = document.createElement('button');
+									goButton.className = 'modal-button primary go-button';
+									goButton.textContent = 'Go';
+									goButton.addEventListener('click', () => {
+										chrome.runtime.sendMessage(
+											{ action: 'openTabAndRunScript', url: url },
+											(response) => {
+												console.log('Result of opening the tab and executing the script:', response)
+											}
+										);
+									});
+									item.appendChild(goButton);
+									const deleteButton = document.createElement('button');
+									deleteButton.className = 'modal-button danger delete-button';
+									deleteButton.textContent = 'Delete';
+									deleteButton.addEventListener('click', () => {
+										chrome.storage.local.get('savedLinks', (res) => {
+											const links = res.savedLinks || {};
+											delete links[name];
+											chrome.storage.local.set({ savedLinks: links }, () => {
+												item.remove();
+											});
 										});
 									});
+									item.appendChild(deleteButton);
+									content.appendChild(item);
 								});
-								item.appendChild(deleteButton);
-								
-								content.appendChild(item);
 							});
-						});
+						}
 					}
 				} catch (error) {
 					console.log("show-links popup.js error:", error);
 				}
 				break;
 			case 'start-auto-apply-button':
-				// save udemy links with filters query
 				if (typeof chrome !== 'undefined' && chrome?.storage && chrome?.storage.local) {
 					chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
 						const newState = !autoApplyRunning
@@ -226,7 +233,6 @@ document.addEventListener('click', event => {
 document.getElementById('import-file').addEventListener('change', function(event) {
 	const file = event.target.files[0]
 	if (!file) return
-	
 	const reader = new FileReader()
 	reader.onload = function(e) {
 		try {

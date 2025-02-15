@@ -16,6 +16,15 @@ body {
 	font-family: Arial, sans-serif;
 }
 
+/*global buttons hover*/
+button {
+	transition: filter 0.3s ease;
+}
+
+button:hover {
+	filter: brightness(0.8);
+}
+
 /* The entire popup: vertical column so that
 	 there's a group of green buttons at the top, then a group below */
 .popup-container {
@@ -77,40 +86,25 @@ body {
 .button-form {
 	background-color: #4CAF50;
 }
-.button-form:hover {
-	background-color: #45a047;
-}
 
 /* Filter settings: purple */
 .button-filter {
 	background-color: #9C27B0;
-}
-.button-filter:hover {
-	background-color: #7B1FA2;
 }
 
 /* Personal Info: red */
 .button-personal {
 	background-color: #F44336;
 }
-.button-personal:hover {
-	background-color: #D32F2F;
-}
 
 /* External Apply: orange */
 .button-external {
 	background-color: #30c8e3;
 }
-.button-external:hover {
-	background-color: #FB8C00;
-}
 
 /* Export (blue) */
 .button-export {
 	background-color: #0066cc;
-}
-.button-export:hover {
-	background-color: #004080;
 }
 
 /* Import (yellowish) */
@@ -118,15 +112,8 @@ body {
 	background-color: #ff9900;
 }
 
-.button-import:hover {
-	background-color: #cc7a00;
-}
-
 .button-links{
 	background-color: rgb(9, 2, 214, 0.8);
-}
-.button-links:hover {
-	background-color: rgb(9, 2, 214, 1);
 }
 
 /* Links, where needed */
@@ -135,11 +122,6 @@ body {
 	text-decoration: none;
 	font-size: 14px;
 }
-
-.link:hover {
-	text-decoration: underline;
-}
-
 
 .button-auto-apply {
 	background-color: #4CAF50;
