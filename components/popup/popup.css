@@ -197,32 +197,76 @@ body {
 
 /* saved links accordion */
 
-/* Стили для аккордеона сохраненных ссылок */
 #linksAccordion {
 	border: 1px solid #ccc;
 	margin-top: 10px;
 	padding: 10px;
 	background: #f9f9f9;
 	border-radius: 4px;
+	width: 100%;
 }
 
 #linksAccordion .accordion-content {
 	margin-top: 5px;
 }
 
-/* Стили для каждого элемента списка */
+#linksAccordion {
+	border: 1px solid #ccc;
+	margin-top: 10px;
+	padding: 10px;
+	background-color: #f9f9f9;
+	border-radius: 4px;
+}
+
+#linksAccordion .accordion-content {
+	display: block;
+}
+
 .saved-link-item {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin-bottom: 5px;
-	padding: 5px;
+	margin-bottom: 10px;
+	padding: 8px;
 	border: 1px solid #ddd;
 	border-radius: 4px;
-	background: #fff;
+	background-color: #fff;
+	transition: background-color 0.3s ease;
 }
 
-/* Кнопки в аккордеоне */
+.saved-link-item:hover {
+	background-color: #f1f1f1;
+}
+
+.saved-link-item span {
+	flex-grow: 1;
+	font-size: 14px;
+	color: #333;
+}
+
 .saved-link-item button {
-	margin-left: 5px;
+	margin-left: 8px;
+	padding: 6px 12px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background-color 0.3s ease;
+}
+
+.modal-button.primary {
+	background-color: #007bff;
+	color: #fff;
+}
+
+.modal-button.primary:hover {
+	background-color: #0069d9;
+}
+
+.modal-button.danger {
+	background-color: #dc3545;
+	color: #fff;
+}
+
+.modal-button.danger:hover {
+	background-color: #c82333;
 }

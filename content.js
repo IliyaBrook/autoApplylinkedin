@@ -492,24 +492,19 @@ async function closeApplicationSentModal() {
 }
 
 async function runScript() {
-	console.log("run runScript called")
-	
+	console.log("Easy apply started!")
 	try {
 		await chrome.storage.local.set({ autoApplyRunning: true })
-		
 		const fieldsComplete = await checkAndPromptFields()
-		
 		if (!fieldsComplete) {
 			await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
 			return
 		}
-		
 		const limitReached = await checkLimitReached()
 		
 		if (limitReached) {
 			const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
 			toggleBlinkingBorder(feedbackMessageElement)
-			
 			return
 		}
 		
@@ -534,10 +529,7 @@ async function runScript() {
 			await closeApplicationSentModal()
 			let canClickToJob = true
 			const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning
-			console.log("is auto apply running:", autoApplyRunning)
-			
 			if (!autoApplyRunning) break
-			
 			const jobNameLink = listItem.querySelector('.artdeco-entity-lockup__title .job-card-container__link')
 			if (!jobNameLink) {
 				canClickToJob = false
@@ -636,11 +628,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.action === 'getCurrentUrl') {
 		sendResponse({ url: window.location.href })
 	}
-	console.log("message content:", message)
 	if (message.action === 'showSavedLinksModal') {
 		const modalWrapper = document.getElementById('savedLinksOverlay');
 		if (modalWrapper) {
-			console.log("message content:", message)
 			const linksData = message.savedLinks;
 			modalWrapper.style.display = 'flex';
 			const listEl = modalWrapper.querySelector('#savedLinksList');

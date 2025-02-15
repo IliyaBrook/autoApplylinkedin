@@ -129,14 +129,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			}
 		}
 		if (request.action === 'openTabAndRunScript') {
-			console.log("openTabAndRunScript:", request.action)
 			
 			chrome.tabs.create({ url: request.url }, (tab) => {
 				chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
-					console.log("requestUrl: ", request.url)
-					console.log("tab: ", tab)
-					console.log("changeInfo: ", changeInfo)
-					
 					if (tabId === tab.id && changeInfo.status === 'complete') {
 						chrome.scripting.executeScript({
 							target: { tabId: tabId },
@@ -144,7 +139,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 						}).then(() => {
 							sendResponse({ success: true });
 						}).catch(err => {
-							console.error('[openTabAndRunScript] Ошибка executeScript:', err);
 							sendResponse({ success: false, message: err.message });
 						});
 						chrome.tabs.onUpdated.removeListener(listener);
