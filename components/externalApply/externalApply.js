@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 	const linksDiv = document.getElementById('links');
 	const removeAllBtn = document.getElementById('remove-all');
+	const openAllLinksBtn = document.getElementById('open-all-links');
 	
 	chrome.storage.local.get('' +
 		'externalApplyData', result => {
@@ -14,6 +15,15 @@ document.addEventListener('DOMContentLoaded', () => {
 		chrome.storage.local.set({ externalApplyData: [] }, () => {
 			linksDiv.innerHTML = '';
 		});
+	});
+	
+	openAllLinksBtn.addEventListener('click', () => {
+		chrome.storage.local.get('externalApplyData', result => {
+			const arr = result.externalApplyData || [];
+			arr.forEach(job => {
+				window.open(job.link, '_blank');
+			});
+		})
 	});
 	
 	function addLinkRow(job) {

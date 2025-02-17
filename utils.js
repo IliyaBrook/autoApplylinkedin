@@ -20,7 +20,7 @@ function getTime() {
  * Finds elements by XPath.
  *
  * @param {string} xpath - The XPath expression to evaluate.
- * @param {Document | HTMLElement} [context=document] - The context node to search within.
+ * @param {Document | HTMLElement | Element} [context=document | Element] - The context node to search within.
  * @returns {HTMLElement[]} - An array of found elements.
  */
 function getElementsByXPath({ xpath, context = document }) {
