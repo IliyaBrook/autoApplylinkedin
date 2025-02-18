@@ -88,8 +88,8 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 		await jobPanelScrollLittle()
 		await clickDoneIfExist()
 	}
-	jobNameLink.click()
-	await addDelay()
+	await clickElement(jobNameLink, 5000)
+
 	if (badWordsEnabled) {
 		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
 		if (jobDetailsElement) {
@@ -472,7 +472,6 @@ function isChromeStorageAvailable() {
 async function checkAndPromptFields() {
 	try {
 		if (!isChromeStorageAvailable()) {
-			console.warn('Chrome storage is not available, skipping checkAndPromptFields.')
 			return false
 		}
 		const response = await chrome.storage.local.get('defaultFields')
@@ -546,7 +545,6 @@ async function runScript() {
 			
 			let jobTitle = getJobTitle(jobNameLink)
 			if (!jobTitle) {
-				console.warn('[1]: Job title not found, skipping...')
 				await addDelay()
 				jobTitle = getJobTitle(jobNameLink)
 				if (!jobTitle) {
@@ -563,9 +561,6 @@ async function runScript() {
 			}
 			
 			jobNameLink.scrollIntoView({ block: 'center' })
-			await addDelay()
-			jobNameLink.click()
-			await addDelay()
 			
 			try {
 				const mainContentElement = document.querySelector('.jobs-details__main-content')
