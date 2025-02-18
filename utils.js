@@ -107,7 +107,7 @@ async function waitForElements({ elementOrSelector, timeout = 5000, contextNode 
  * or an empty array if none are found within the timeout.
  */
 async function clickElement({ elementOrSelector, timeout = 5000, contextNode = document }) {
-	return new Promise(async (resolve, reject) => {
+	return new Promise(async resolve => {
 		try {
 			let element
 			if (typeof elementOrSelector === 'string') {
@@ -118,19 +118,19 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 				})
 				element = elements[0]
 				if (!element) {
-					reject(new Error(`[clickElement]: No element found for selector: ${elementOrSelector}`))
+					console.log('No element found for selector: ', elementOrSelector)
 					return
 				}
 			} else if (elementOrSelector instanceof Element) {
 				element = elementOrSelector
 			} else {
-				reject(new Error('[clickElement]: Argument must be a selector string or a DOM Element.'))
+				console.log("'[clickElement]: Argument must be a selector string or a DOM Element.'")
 				return
 			}
 			
 			
 			if (element.offsetParent === null || !element.isConnected) {
-				reject(new Error('[clickElement] Element is not visible or not connected'))
+				console.log('[clickElement] Element is not visible or not connected')
 				return
 			}
 			element.scrollIntoView({ block: 'center' })
@@ -138,7 +138,7 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 			resolve()
 			
 		} catch (error) {
-			reject(error)
+			console.log("element is not clickable:", error)
 		}
 	})
 }
