@@ -11,6 +11,22 @@ let defaultFields = {
 async function stopScript() {
 	await chrome.runtime.sendMessage({ action: 'stopAutoApply' })
 	await chrome.storage.local.set({ autoApplyRunning: false })
+	console.log("Easy apply stopped!")
+}
+
+async function checkAndPrepareRunState() {
+	return new Promise((resolve) => {
+		chrome.storage.local.get('autoApplyRunning', (result) => {
+			if (result.autoApplyRunning) {
+				resolve(true)
+			} else {
+				stopScript()
+					.then(() => {
+						resolve(false)
+					})
+			}
+		})
+	})
 }
 
 async function performInputFieldCityCheck() {
@@ -51,19 +67,6 @@ function getJobTitle(jobNameLink) {
 	return jobTitle.toLowerCase()
 }
 
-async function jobPanelScrollLittle() {
-	return await new Promise(async resolve => {
-		const jobsPanel = document.querySelector('.jobs-search-results-list')
-		if (jobsPanel) {
-			const scrollPercentage = 0.03
-			const scrollDistance = jobsPanel.scrollHeight * scrollPercentage
-			jobsPanel.scrollTop += scrollDistance
-			await addDelay()
-		}
-		resolve()
-	})
-}
-
 async function clickDoneIfExist() {
 	try {
 		const modal = document.querySelector('.artdeco-modal')
@@ -85,11 +88,14 @@ async function clickDoneIfExist() {
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink) {
 	const apply = async () => {
 		await runFindEasyApply(jobTitle, companyName)
-		await jobPanelScrollLittle()
 		await clickDoneIfExist()
+		await addDelay(1000)
 	}
-	await clickElement(jobNameLink, 5000)
-
+	await clickElement({
+		elementOrSelector: jobNameLink,
+		timeout: 5000
+	})
+	await addDelay()
 	if (badWordsEnabled) {
 		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
 		if (jobDetailsElement) {
@@ -106,6 +112,7 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 					}
 				}
 				if (matchedBadWord) {
+					console.log('Bad word found: ' + matchedBadWord)
 					return
 				}
 			}
@@ -322,10 +329,11 @@ async function runValidations() {
 }
 
 async function uncheckFollowCompany() {
-	const followCheckbox = document.querySelector('#follow-company-checkbox')
+	const followCheckbox = document.querySelector < HTMLInputElement > ('#follow-company-checkbox')
 	if (followCheckbox?.checked) {
 		followCheckbox.checked = false
-		followCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+		const changeEvent = new Event('change', { bubbles: true, cancelable: true })
+		followCheckbox.dispatchEvent(changeEvent)
 	}
 }
 
@@ -401,6 +409,22 @@ async function runFindEasyApply(jobTitle, companyName) {
 	})
 }
 
+// if (buttons.length === 0) {
+// 	buttons = getElementsByXPath({xpath: '//*[text()="Show all"]'})
+// }
+// async function goToNextPage() {
+// 	const buttons = getElementsByXPath({ xpath: '//button[.//text()[contains(., \'Next\')]]' })
+//
+// 	const nextButton = buttons?.[0]
+// 	return await clickElement({
+// 		elementOrSelector: nextButton,
+// 		timeout: 5000,
+// 		action: () => {
+// 			scrollLittle()
+// 		}
+// 	})
+// }
+
 async function goToNextPage() {
 	let buttons = getElementsByXPath({ xpath: '//button[.//text()[contains(., \'Next\')]]' })
 	// if (buttons.length === 0) {
@@ -422,6 +446,7 @@ async function goToNextPage() {
 			console.error('goToNextPage error:', err)
 		})
 }
+
 
 
 function toggleBlinkingBorder(element) {
@@ -452,15 +477,6 @@ async function checkLimitReached() {
 	})
 }
 
-async function jobPanelScroll() {
-	const jobsPanel = document.querySelector('.jobs-search-results-list')
-	if (jobsPanel) {
-		jobsPanel.scrollTop = jobsPanel.scrollHeight
-		await addDelay()
-		jobsPanel.scrollTop = 0
-	}
-}
-
 function isChromeStorageAvailable() {
 	return (
 		typeof chrome !== 'undefined' &&
@@ -489,9 +505,18 @@ async function closeApplicationSentModal() {
 		modal.querySelector('.artdeco-modal__dismiss')?.click()
 	}
 }
-
+let firstRun = true
 async function runScript() {
-	console.log("Easy apply started!")
+	console.log('Easy apply started!')
+
+	if (firstRun) {
+		console.log('is first time!', firstRun)
+		await addDelay(4000)
+	}else {
+		await addDelay(2000)
+	}
+	firstRun = false
+	
 	try {
 		await chrome.storage.local.set({ autoApplyRunning: true })
 		const fieldsComplete = await checkAndPromptFields()
@@ -520,20 +545,22 @@ async function runScript() {
 			'titleFilterWords',
 			'titleSkipWords'
 		])
-		
-		await jobPanelScroll()
 		await addDelay()
 		const listItems = document.querySelectorAll('.scaffold-layout__list-item')
+		let canClickToJob = true
 		for (const listItem of listItems) {
 			await closeApplicationSentModal()
-			let canClickToJob = true
-			const autoApplyRunning = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning
-			if (!autoApplyRunning) break
-			const jobNameLink = listItem.querySelector('.artdeco-entity-lockup__title .job-card-container__link')
+			
+			const linksElements = await waitForElements({
+				elementOrSelector: '.artdeco-entity-lockup__title .job-card-container__link',
+				timeout: 5000,
+				contextNode: listItem
+			})
+			
+			const jobNameLink = linksElements?.[0]
 			if (!jobNameLink) {
 				canClickToJob = false
 			}
-			
 			const jobFooter = listItem.querySelector('[class*="footer"]')
 			if (jobFooter && jobFooter.textContent.trim() === 'Applied') {
 				canClickToJob = false
@@ -543,25 +570,23 @@ async function runScript() {
 			const companyNamesArray = Array.from(companyNames).map(el => el.textContent.trim())
 			const companyName = companyNamesArray?.[0] ?? ''
 			
-			let jobTitle = getJobTitle(jobNameLink)
+			const jobTitle = getJobTitle(jobNameLink)
+			
 			if (!jobTitle) {
-				await addDelay()
-				jobTitle = getJobTitle(jobNameLink)
-				if (!jobTitle) {
-					continue
-				}
+				canClickToJob = false
 			}
 			
 			if (titleSkipEnabled && titleSkipWords.some(word => jobTitle.includes(word.toLowerCase()))) {
+				console.log('[titleSkipWords]: Skipping job:', jobTitle)
 				canClickToJob = false
 			}
 			
 			if (titleFilterEnabled && !titleFilterWords.some(word => jobTitle.includes(word.toLowerCase()))) {
+				console.log('[title must contains]:', jobTitle)
 				canClickToJob = false
 			}
-			
 			jobNameLink.scrollIntoView({ block: 'center' })
-			
+			await addDelay(300)
 			try {
 				const mainContentElement = document.querySelector('.jobs-details__main-content')
 				if (!mainContentElement) {
@@ -570,18 +595,18 @@ async function runScript() {
 			} catch (e) {
 				console.log('Failed to find the main job content')
 			}
-			
-			try {
-				if (canClickToJob) {
-					await clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink)
-				}
-			} catch (error) {
-				console.error('Error in clickJob:', error)
+			const isRunning = await checkAndPrepareRunState()
+			if (!isRunning) {
+				return
+			}
+			if (canClickToJob) {
+				await clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink)
 			}
 		}
 		
-		const autoApplyRunningAfter = (await chrome.storage.local.get('autoApplyRunning'))?.autoApplyRunning
-		if (autoApplyRunningAfter) {
+		const isRunning = await checkAndPrepareRunState()
+		if (isRunning) {
+			console.log('Script is already running.')
 			await goToNextPage()
 		}
 	} catch (error) {
@@ -618,53 +643,53 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		}
 	}
 	// get current url listener provider
-
+	
 	
 	if (message.action === 'getCurrentUrl') {
 		sendResponse({ url: window.location.href })
 	}
 	if (message.action === 'showSavedLinksModal') {
-		const modalWrapper = document.getElementById('savedLinksOverlay');
+		const modalWrapper = document.getElementById('savedLinksOverlay')
 		if (modalWrapper) {
-			const linksData = message.savedLinks;
-			modalWrapper.style.display = 'flex';
-			const listEl = modalWrapper.querySelector('#savedLinksList');
+			const linksData = message.savedLinks
+			modalWrapper.style.display = 'flex'
+			const listEl = modalWrapper.querySelector('#savedLinksList')
 			if (listEl) {
-				listEl.innerHTML = "";
+				listEl.innerHTML = ''
 				Object.entries(linksData).forEach(([name, url]) => {
-					const li = document.createElement('li');
-					li.className = 'saved-link-item';
-					const nameEl = document.createElement('span');
-					nameEl.textContent = name;
-					li.appendChild(nameEl);
-					const goButton = document.createElement('button');
-					goButton.className = 'modal-button primary go-button';
-					goButton.textContent = 'Go';
+					const li = document.createElement('li')
+					li.className = 'saved-link-item'
+					const nameEl = document.createElement('span')
+					nameEl.textContent = name
+					li.appendChild(nameEl)
+					const goButton = document.createElement('button')
+					goButton.className = 'modal-button primary go-button'
+					goButton.textContent = 'Go'
 					goButton.addEventListener('click', () => {
-						window.open(url, '_blank');
+						window.open(url, '_blank')
 						chrome.runtime.sendMessage({ action: 'openTabAndRunScript', url: url }, (response) => {
-							console.log('Tab open request sent:', response);
-						});
-					});
-					li.appendChild(goButton);
-					const deleteButton = document.createElement('button');
-					deleteButton.className = 'modal-button danger delete-button';
-					deleteButton.textContent = 'Delete';
+							console.log('Tab open request sent:', response)
+						})
+					})
+					li.appendChild(goButton)
+					const deleteButton = document.createElement('button')
+					deleteButton.className = 'modal-button danger delete-button'
+					deleteButton.textContent = 'Delete'
 					deleteButton.addEventListener('click', () => {
 						chrome.storage.local.get('savedLinks', (result) => {
-							const savedLinks = result.savedLinks || {};
-							delete savedLinks[name];
+							const savedLinks = result.savedLinks || {}
+							delete savedLinks[name]
 							chrome.storage.local.set({ savedLinks }, () => {
-								li.remove();
-							});
-						});
-					});
-					li.appendChild(deleteButton);
-					listEl.appendChild(li);
-				});
+								li.remove()
+							})
+						})
+					})
+					li.appendChild(deleteButton)
+					listEl.appendChild(li)
+				})
 			}
 		}
-		sendResponse({ success: true });
+		sendResponse({ success: true })
 	}
 	
 })

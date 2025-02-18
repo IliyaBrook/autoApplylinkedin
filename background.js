@@ -128,8 +128,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				sendResponse({ success: false, message: err.message })
 			}
 		}
+		if (request.action === 'stopAutoApply') {
+			chrome.storage.local.set({ 'autoApplyRunning': false }, () => {
+				sendResponse({ success: true })
+			})
+			return true
+		}
 		if (request.action === 'openTabAndRunScript') {
-			
 			chrome.tabs.create({ url: request.url }, (tab) => {
 				chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
 					if (tabId === tab.id && changeInfo.status === 'complete') {
@@ -146,12 +151,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				});
 			});
 			return true;
-		}
-		if (request.action === 'stopAutoApply') {
-			chrome.storage.local.set({ 'autoApplyRunning': false }, () => {
-				sendResponse({ success: true })
-			})
-			return true
 		}
 		if (request.action === 'updateInputFieldValue') {
 			const placeholder = request.data.placeholder

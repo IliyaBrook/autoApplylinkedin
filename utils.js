@@ -44,49 +44,83 @@ function getElementsByXPath({ xpath, context = document }) {
 	return elements
 }
 
-async function waitForElements(selector, timeout = 5000, contextNode = document) {
-	return new Promise((resolve, reject) => {
-		const startTime = Date.now()
+
+
+
+/**
+ * Waits for visible elements to appear in the DOM.
+ *
+ * @param {Object} options - Options for the wait operation.
+ * @param {string|Element|HTMLElement} options.elementOrSelector - A CSS selector string or a DOM element.
+ * @param {number} [options.timeout=5000] - Maximum waiting time in milliseconds.
+ * @param {Document|Element} [options.contextNode=document] - The node (Document or Element) to search within.
+ * @returns {Promise<Element[]>} A promise that resolves with an array of visible elements,
+ * or an empty array if none are found within the timeout.
+ */
+async function waitForElements({ elementOrSelector, timeout = 5000, contextNode = document }) {
+	return new Promise(resolve => {
+		const startTime = Date.now();
 		
 		const intervalId = setInterval(() => {
-			const elements = contextNode.querySelectorAll(selector)
-			const visibleAndConnectedElements = []
+			let elements = [];
 			
-			if (elements.length > 0) {
-				for (let i = 0; i < elements.length; i++) {
-					if (elements[i].offsetParent !== null && elements[i].isConnected) {
-						visibleAndConnectedElements.push(elements[i])
-					}
+			if (typeof elementOrSelector === 'string') {
+				elements = contextNode.querySelectorAll(elementOrSelector);
+			} else if (elementOrSelector instanceof Element) {
+				elements = [elementOrSelector];
+			} else {
+				clearInterval(intervalId);
+				resolve([]);
+				return;
+			}
+			
+			const visibleElements = [];
+			for (let i = 0; i < elements.length; i++) {
+				if (elements[i].offsetParent !== null && elements[i].isConnected) {
+					visibleElements.push(elements[i]);
 				}
-				
-				if (visibleAndConnectedElements.length > 0) {
-					clearInterval(intervalId)
-					resolve(visibleAndConnectedElements)
-					return
-				}
+			}
+			
+			if (visibleElements.length > 0) {
+				clearInterval(intervalId);
+				resolve(visibleElements);
+				return;
 			}
 			
 			if (Date.now() - startTime > timeout) {
-				clearInterval(intervalId)
-				reject(new Error(`[waitForElements]: timeout exceeded: ${selector}`))
+				clearInterval(intervalId);
+				resolve([]);
 			}
-		}, 50)
-	})
+		}, 100);
+	});
 }
 
 
-async function clickElement(elementOrSelector, timeout = 5000, contextNode = document) {
+/**
+ * Waits for visible elements to appear in the DOM.
+ *
+ * @param {Object} options - Options for the wait operation.
+ * @param {string|Element|HTMLElement} options.elementOrSelector - A CSS selector string or a DOM element.
+ * @param {number} [options.timeout=5000] - Maximum waiting time in milliseconds.
+ * @param {ParentNode} [options.contextNode=document] - The node to search within.
+ * @returns {Promise<Element[]>} A promise that resolves with an array of visible elements,
+ * or an empty array if none are found within the timeout.
+ */
+async function clickElement({ elementOrSelector, timeout = 5000, contextNode = document }) {
 	return new Promise(async (resolve, reject) => {
 		try {
 			let element
 			if (typeof elementOrSelector === 'string') {
-				const elements = await waitForElements(elementOrSelector, timeout, contextNode)
+				const elements = await waitForElements({
+					elementOrSelector,
+					timeout,
+					contextNode
+				})
 				element = elements[0]
 				if (!element) {
 					reject(new Error(`[clickElement]: No element found for selector: ${elementOrSelector}`))
 					return
 				}
-				
 			} else if (elementOrSelector instanceof Element) {
 				element = elementOrSelector
 			} else {
@@ -99,7 +133,7 @@ async function clickElement(elementOrSelector, timeout = 5000, contextNode = doc
 				reject(new Error('[clickElement] Element is not visible or not connected'))
 				return
 			}
-			
+			element.scrollIntoView({ block: 'center' })
 			element.click()
 			resolve()
 			
