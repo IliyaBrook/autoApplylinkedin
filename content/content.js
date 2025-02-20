@@ -15,6 +15,10 @@ async function stopScript() {
 	await chrome.storage.local.set({ autoApplyRunning: false })
 }
 
+async function startScript() {
+	await chrome.storage.local.set({ autoApplyRunning: true })
+}
+
 async function checkAndPrepareRunState() {
 	return new Promise(resolve => {
 		chrome.storage.local.get('autoApplyRunning', (result) => {
@@ -473,6 +477,7 @@ async function closeApplicationSentModal() {
 
 async function runScript() {
 	console.log('Easy apply started!')
+	await startScript()
 	await addDelay(firstRun ? 4000 : 2000);
 	firstRun = false
 	
