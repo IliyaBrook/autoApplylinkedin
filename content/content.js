@@ -358,7 +358,7 @@ async function runFindEasyApply(jobTitle, companyName) {
 	const currentPageLink = window.location.href;
 	const externalApplyElementsRes = getElementsByXPath({ xpath: not_easy_apply_button });
 	const externalApplyElements = await waitForElements({elementOrSelector: externalApplyElementsRes})
-	if (externalApplyElements.length > 0) {
+	if (externalApplyElements?.length > 0) {
 		await chrome.runtime.sendMessage({
 			action: 'externalApplyAction',
 			data: { jobTitle, currentPageLink, companyName }
@@ -374,22 +374,6 @@ async function runFindEasyApply(jobTitle, companyName) {
 		);
 	}
 }
-
-// if (buttons.length === 0) {
-// 	buttons = getElementsByXPath({xpath: '//*[text()="Show all"]'})
-// }
-// async function goToNextPage() {
-// 	const buttons = getElementsByXPath({ xpath: '//button[.//text()[contains(., \'Next\')]]' })
-//
-// 	const nextButton = buttons?.[0]
-// 	return await clickElement({
-// 		elementOrSelector: nextButton,
-// 		timeout: 5000,
-// 		action: () => {
-// 			scrollLittle()
-// 		}
-// 	})
-// }
 
 async function goToNextPage() {
 	let buttons = getElementsByXPath({ xpath: '//button[.//text()[contains(., \'Next\')]]' })
