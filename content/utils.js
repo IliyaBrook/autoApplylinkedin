@@ -48,7 +48,7 @@ function getElementsByXPath({ xpath, context = document }) {
  * Waits for visible elements to appear in the DOM.
  *
  * @param {Object} options - Options for the wait operation.
- * @param {string|Element|HTMLElement|HTMLElement[]} options.elementOrSelector - A CSS selector string, a DOM element, or an array of elements.
+ * @param {string|Element|HTMLElement|HTMLElement[]|Element[]} options.elementOrSelector - A CSS selector string, a DOM element, or an array of elements.
  * @param {number} [options.timeout=5000] - Maximum waiting time in milliseconds.
  * @param {Document|Element|HTMLElement[]} [options.contextNode=document] - The node (Document, Element, or an array of Elements) to search within.
  * @returns {Promise<HTMLElement[]> | Promise<Element[]>} A promise that resolves with an array of visible elements,
@@ -56,51 +56,55 @@ function getElementsByXPath({ xpath, context = document }) {
  */
 async function waitForElements({ elementOrSelector, timeout = 5000, contextNode = document }) {
 	return new Promise(resolve => {
-		const startTime = Date.now();
-		
-		const intervalId = setInterval(() => {
-			let elements = [];
+		try {
+			const startTime = Date.now()
 			
-			if (typeof elementOrSelector === 'string') {
-				if (Array.isArray(contextNode)) {
-					contextNode.forEach(node => {
-						if (node instanceof Element) {
-							elements.push(...node.querySelectorAll(elementOrSelector));
-						}
-					});
+			const intervalId = setInterval(() => {
+				let elements = []
+				
+				if (typeof elementOrSelector === 'string') {
+					if (Array.isArray(contextNode)) {
+						contextNode.forEach(node => {
+							if (node instanceof Element) {
+								elements.push(...node.querySelectorAll(elementOrSelector))
+							}
+						})
+					} else {
+						elements = contextNode.querySelectorAll(elementOrSelector)
+					}
+				} else if (elementOrSelector instanceof Element) {
+					elements = [elementOrSelector]
+				} else if (Array.isArray(elementOrSelector)) {
+					elements = elementOrSelector.filter(el => el instanceof Element)
 				} else {
-					elements = contextNode.querySelectorAll(elementOrSelector);
+					clearInterval(intervalId)
+					resolve([])
+					return
 				}
-			} else if (elementOrSelector instanceof Element) {
-				elements = [elementOrSelector];
-			} else if (Array.isArray(elementOrSelector)) {
-				elements = elementOrSelector.filter(el => el instanceof Element);
-			} else {
-				clearInterval(intervalId);
-				resolve([]);
-				return;
-			}
-			
-			// const visibleElements = elements.filter(el => el.offsetParent !== null && el.isConnected);
-			const visibleElements = [];
-			for (let i = 0; i < elements.length; i++) {
-				if (elements[i].offsetParent !== null && elements[i].isConnected) {
-					visibleElements.push(elements[i]);
+				
+				// const visibleElements = elements.filter(el => el.offsetParent !== null && el.isConnected);
+				const visibleElements = []
+				for (let i = 0; i < elements.length; i++) {
+					if (elements[i].offsetParent !== null && elements[i].isConnected) {
+						visibleElements.push(elements[i])
+					}
 				}
-			}
-			
-			if (visibleElements.length > 0) {
-				clearInterval(intervalId);
-				resolve(visibleElements);
-				return;
-			}
-			
-			if (Date.now() - startTime > timeout) {
-				clearInterval(intervalId);
-				resolve([]);
-			}
-		}, 100);
-	});
+				
+				if (visibleElements.length > 0) {
+					clearInterval(intervalId)
+					resolve(visibleElements)
+					return
+				}
+				
+				if (Date.now() - startTime > timeout) {
+					clearInterval(intervalId)
+					resolve([])
+				}
+			}, 100)
+		} catch (e) {
+			console.log('Error in waitForElements:', elementOrSelector)
+		}
+	})
 }
 
 
@@ -132,7 +136,7 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 			} else if (elementOrSelector instanceof Element) {
 				element = elementOrSelector
 			} else {
-				console.log("'[clickElement]: Argument must be a selector string or a DOM Element.'")
+				console.log('\'[clickElement]: Argument must be a selector string or a DOM Element.\'')
 				return
 			}
 			
@@ -146,7 +150,7 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 			resolve(element)
 			
 		} catch (error) {
-			console.log("element is not clickable:", error)
+			console.log('element is not clickable:', error)
 		}
 	})
 }
