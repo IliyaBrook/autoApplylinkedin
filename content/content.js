@@ -355,23 +355,40 @@ async function runApplyModel() {
 }
 
 async function runFindEasyApply(jobTitle, companyName) {
-	const currentPageLink = window.location.href;
-	const externalApplyElementsRes = getElementsByXPath({ xpath: not_easy_apply_button });
-	const externalApplyElements = await waitForElements({elementOrSelector: externalApplyElementsRes})
-	if (externalApplyElements?.length > 0) {
-		await chrome.runtime.sendMessage({
-			action: 'externalApplyAction',
-			data: { jobTitle, currentPageLink, companyName }
-		});
-	}
-	const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button });
-	if (easyApplyElements.length > 0) {
-		await Promise.race(
-			Array.from(easyApplyElements).map(async (button) => {
-				button.click();
-				return await runApplyModel();
-			})
-		);
+	// const currentPageLink = window.location.href;
+	// const externalApplyElementsRes = getElementsByXPath({ xpath: not_easy_apply_button });
+	// const externalApplyElements = await waitForElements({elementOrSelector: externalApplyElementsRes})
+	// if (externalApplyElements?.length > 0) {
+	// 	await chrome.runtime.sendMessage({
+	// 		action: 'externalApplyAction',
+	// 		data: { jobTitle, currentPageLink, companyName }
+	// 	});
+	// }
+	// const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button });
+	// if (easyApplyElements.length > 0) {
+	// 	await Promise.race(
+	// 		Array.from(easyApplyElements).map(async (button) => {
+	// 			button.click();
+	// 			return await runApplyModel();
+	// 		})
+	// 	);
+	// }
+	
+	//
+	const mainContentWait = await waitForElements({elementOrSelector: '.jobs-details__main-content'})
+	const mainContent = mainContentWait?.[0]
+	if (mainContent) {
+		const mainContentText = mainContent?.textContent;
+		const button = mainContent.querySelector('.jobs-apply-button');
+		if (mainContentText?.includes('Easy Apply')) {
+			button.click()
+			await runApplyModel()
+		}else {
+			await chrome.runtime.sendMessage({
+				action: 'externalApplyAction',
+				data: { jobTitle, currentPageLink, companyName }
+			});
+		}
 	}
 }
 
