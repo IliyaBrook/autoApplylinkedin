@@ -44,17 +44,14 @@ function getElementsByXPath({ xpath, context = document }) {
 	return elements
 }
 
-
-
-
 /**
  * Waits for visible elements to appear in the DOM.
  *
  * @param {Object} options - Options for the wait operation.
- * @param {string|Element|HTMLElement} options.elementOrSelector - A CSS selector string or a DOM element.
+ * @param {string|Element|HTMLElement|HTMLElement[]} options.elementOrSelector - A CSS selector string, a DOM element, or an array of elements.
  * @param {number} [options.timeout=5000] - Maximum waiting time in milliseconds.
- * @param {Document|Element} [options.contextNode=document] - The node (Document or Element) to search within.
- * @returns {Promise<Element[]>} A promise that resolves with an array of visible elements,
+ * @param {Document|Element|HTMLElement[]} [options.contextNode=document] - The node (Document, Element, or an array of Elements) to search within.
+ * @returns {Promise<HTMLElement[]>} A promise that resolves with an array of visible elements,
  * or an empty array if none are found within the timeout.
  */
 async function waitForElements({ elementOrSelector, timeout = 5000, contextNode = document }) {
@@ -65,15 +62,26 @@ async function waitForElements({ elementOrSelector, timeout = 5000, contextNode 
 			let elements = [];
 			
 			if (typeof elementOrSelector === 'string') {
-				elements = contextNode.querySelectorAll(elementOrSelector);
+				if (Array.isArray(contextNode)) {
+					contextNode.forEach(node => {
+						if (node instanceof Element) {
+							elements.push(...node.querySelectorAll(elementOrSelector));
+						}
+					});
+				} else {
+					elements = contextNode.querySelectorAll(elementOrSelector);
+				}
 			} else if (elementOrSelector instanceof Element) {
 				elements = [elementOrSelector];
+			} else if (Array.isArray(elementOrSelector)) {
+				elements = elementOrSelector.filter(el => el instanceof Element);
 			} else {
 				clearInterval(intervalId);
 				resolve([]);
 				return;
 			}
 			
+			// const visibleElements = elements.filter(el => el.offsetParent !== null && el.isConnected);
 			const visibleElements = [];
 			for (let i = 0; i < elements.length; i++) {
 				if (elements[i].offsetParent !== null && elements[i].isConnected) {

@@ -77,7 +77,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			sendResponse({ success: false })
 		}
 		if (request.action === 'openDefaultInputPage') {
-			chrome.tabs.create({ url: 'components/formControl/formControl.html' })
+			chrome.tabs.create({ url: 'popup/formControl/formControl.html' })
 		}
 		if (request.action === 'startAutoApply') {
 			try {

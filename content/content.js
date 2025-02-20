@@ -70,6 +70,7 @@ function getJobTitle(jobNameLink) {
 async function clickDoneIfExist() {
 	try {
 		const modal = document.querySelector('.artdeco-modal');
+		await waitForElements({ elementOrSelector: modal })
 		if (modal) {
 			const xpathResult = getElementsByXPath({
 				context: modal,
@@ -90,10 +91,9 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 	const apply = async () => {
 		await runFindEasyApply(jobTitle, companyName);
 		await clickDoneIfExist();
-		await addDelay(1000);
+		// await addDelay(1000);
 	};
 	await clickElement({ elementOrSelector: jobNameLink })
-	// await addDelay()
 	if (badWordsEnabled) {
 		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]');
 		if (jobDetailsElement) {
@@ -384,9 +384,10 @@ async function runApplyModel() {
 }
 
 async function runFindEasyApply(jobTitle, companyName) {
-	await addDelay(1000);
+	// await addDelay(1000);
 	const currentPageLink = window.location.href;
-	const externalApplyElements = getElementsByXPath({ xpath: not_easy_apply_button });
+	const externalApplyElementsRes = getElementsByXPath({ xpath: not_easy_apply_button });
+	const externalApplyElements = await waitForElements({elementOrSelector: externalApplyElementsRes})
 	if (externalApplyElements.length > 0) {
 		await chrome.runtime.sendMessage({
 			action: 'externalApplyAction',
@@ -687,7 +688,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		}
 		sendResponse({ success: true })
 	}
-	
 })
 
-
+chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
+		console.log("[CONTENT]: autoApplyRunning:", autoApplyRunning)
+})

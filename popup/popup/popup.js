@@ -1,3 +1,5 @@
+console.log("popup script loaded")
+
 function changeAutoApplyButton(isRunning, selector) {
 	const startIcon = document.getElementById('start-icon')
 	const runningIcon = document.getElementById('running-icon')
@@ -40,13 +42,13 @@ document.addEventListener('click', event => {
 		const button = document.getElementById(buttonId)
 		switch (buttonId) {
 			case 'form-control-button':
-				chrome.tabs.create({ url: '/components/formControl/formControl.html' })
+				chrome.tabs.create({ url: '/popup/formControl/formControl.html' })
 				break
 			case 'filter-settings-button':
-				chrome.tabs.create({ url: '/components/filterSettings/filterSettings.html' })
+				chrome.tabs.create({ url: '/popup/filterSettings/filterSettings.html' })
 				break
 			case 'external-apply-button':
-				chrome.tabs.create({ url: '/components/externalApply/externalApply.html' })
+				chrome.tabs.create({ url: '/popup/externalApply/externalApply.html' })
 				break
 			case 'export-button':
 				chrome.storage.local.get(null, function(data) {
@@ -126,8 +128,6 @@ document.addEventListener('click', event => {
 							accordion.style.display = "block";
 						}
 					}
-					
-					
 					if (!accordion) {
 						if (dataset.open === "true") {
 							accordion = document.createElement('div');
@@ -192,14 +192,18 @@ document.addEventListener('click', event => {
 				}
 				break;
 			case 'start-auto-apply-button':
+				console.log("[START LOG]:start auto apply clicked")
+				console.log("[START LOG]:is auto apply can run:", typeof chrome !== 'undefined' && chrome?.storage && chrome?.storage.local)
 				if (typeof chrome !== 'undefined' && chrome?.storage && chrome?.storage.local) {
 					chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
 						const newState = !autoApplyRunning
 						changeAutoApplyButton(newState, button)
 						chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+							console.log("[START LOG]: @LOG TABs@", tabs)
 							const noActiveTabsText = 'No active tabs found try to go to a LinkedIn job search page or refresh the page.'
-							if (tabs && tabs.length > 0) {
-								const currentTabId = tabs?.id
+							console.log("[START LOG]: is tabs", tabs && tabs.length > 0)
+							if (tabs && tabs?.length > 0) {
+								const currentTabId = tabs?.[0].id
 								chrome.runtime.sendMessage({
 									action: newState ? 'startAutoApply' : 'stopAutoApply',
 									tabId: currentTabId
@@ -212,13 +216,14 @@ document.addEventListener('click', event => {
 										chrome.storage.local.set({ autoApplyRunning: false }, () => {
 											changeAutoApplyButton(false, button)
 											if (response?.message === 'No active tab found.') {
+												console.log('[START LOG]:No active tabs alert [1]')
 												alert(noActiveTabsText)
 											}
 										})
 									}
 								})
 							} else {
-								console.error('Error: No active tab found.')
+								console.log('[START LOG]:No active tabs alert [2]')
 								alert(noActiveTabsText)
 							}
 						})
@@ -236,10 +241,14 @@ document.getElementById('import-file').addEventListener('change', function(event
 	const reader = new FileReader()
 	reader.onload = function(e) {
 		try {
-			const importedData = JSON.parse(e.target.result)
-			chrome.storage.local.set(importedData, function() {
-				alert('Settings imported successfully!')
-			})
+			if (e?.target?.result && typeof e.target.result === 'string'){
+				const importedData = JSON.parse(e.target.result)
+				chrome.storage.local.set(importedData, function() {
+					alert('Settings imported successfully!')
+				})
+			}else {
+				alert('Error reading file.')
+			}
 		} catch (err) {
 			alert('Parsing error JSON. ' + err)
 		}

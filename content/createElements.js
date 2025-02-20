@@ -65,10 +65,10 @@ async function initElements() {
 			return;
 		}
 		const notOnJobSearchAlert = await createCustomElement({
-			htmlPath: 'components/modals/notOnJobSearchModal.html',
-			cssPath: 'components/modals/modals.css',
+			htmlPath: 'popup/modals/notOnJobSearchModal.html',
+			cssPath: 'popup/modals/modals.css',
 			additionalScripts: [
-				'components/modals/modals.js'
+				'popup/modals/modals.js'
 			],
 			elementId: 'notOnJobSearchOverlay',
 		});
@@ -76,10 +76,10 @@ async function initElements() {
 			document.body.appendChild(notOnJobSearchAlert)
 		}
 		const formControlAlert = await createCustomElement({
-			htmlPath: 'components/modals/formControlModal.html',
-			cssPath: 'components/modals/modals.css',
+			htmlPath: 'popup/modals/formControlModal.html',
+			cssPath: 'popup/modals/modals.css',
 			additionalScripts: [
-				'components/modals/modals.js'
+				'popup/modals/modals.js'
 			],
 			elementId: 'formControlOverlay',
 		});
