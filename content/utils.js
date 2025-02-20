@@ -143,7 +143,7 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 			}
 			element.scrollIntoView({ block: 'center' })
 			element.click()
-			resolve()
+			resolve(element)
 			
 		} catch (error) {
 			console.log("element is not clickable:", error)

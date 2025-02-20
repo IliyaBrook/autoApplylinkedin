@@ -12,6 +12,8 @@ document.addEventListener('click', event => {
 			allOverlays.forEach(overlay => {
 				overlay.style.display = 'none'
 			})
+		}else if (buttonId.includes('goToJobSearchButton')) {
+			window.location.href = 'https://www.linkedin.com/jobs/search'
 		}
 	}
 })
