@@ -7,8 +7,7 @@ let defaultFields = {
 	Email: '',
 	PhoneNumber: ''
 }
-// global flags
-// let isAutoApplyRunning = false;
+
 let firstRun = true
 
 async function stopScript() {
@@ -16,21 +15,6 @@ async function stopScript() {
 	await chrome.storage.local.set({ autoApplyRunning: false })
 	console.log("Easy apply stopped!")
 }
-
-// async function checkAndPrepareRunState() {
-// 	return new Promise((resolve) => {
-// 		chrome.storage.local.get('autoApplyRunning', (result) => {
-// 			if (result.autoApplyRunning) {
-// 				resolve(true)
-// 			} else {
-// 				stopScript()
-// 					.then(() => {
-// 						resolve(false)
-// 					})
-// 			}
-// 		})
-// 	})
-// }
 
 async function checkAndPrepareRunState() {
 	return new Promise(resolve => {
@@ -103,24 +87,9 @@ async function clickDoneIfExist() {
 }
 
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink) {
-	// await clickElement({ elementOrSelector: jobNameLink })
-	console.log("[jobNameLink]:", jobNameLink)
-	// const apply = async () => {
-	// 	return await new Promise( resolve => {
-	// 		setTimeout(async () => {
-	//
-	// 			console.log("[$$TO FILTER$$] click to job")
-	// 			console.log("[$$TO FILTER$$]click to job jobTitle:", jobTitle)
-	// 			console.log("[$$TO FILTER$$]click to job jobTitle:", jobTitle)
-	// 			console.log("[$$TO FILTER$$]click to job companyName:", companyName)
-	// 			await resolve()
-	// 		}, 2000)
-	// 	})
-	// };
 	const apply = async () => {
 		await runFindEasyApply(jobTitle, companyName);
 		await clickDoneIfExist();
-		// await addDelay(1000);
 	};
 	if (badWordsEnabled) {
 		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]');
@@ -276,40 +245,14 @@ async function performCheckBoxFieldCityCheck() {
 	})
 }
 
-// async function performSafetyReminderCheck() {
-//
-// 	// const modal = document.querySelector('.artdeco-modal')
-// 	const waitModal = await waitForElements({elementOrSelector: '.artdeco-modal'})
-// 	const modal = waitModal?.[0]
-// 	if (modal) {
-// 		const modalHeader = modal.querySelector('.artdeco-modal__header')
-// 		if (modalHeader && modalHeader.textContent.includes('Job search safety reminder')) {
-// 			const dismissButton = modal.querySelector('.artdeco-modal__dismiss')
-// 			if (dismissButton) {
-// 				dismissButton.click()
-// 			}
-// 		}
-// 	}
-// }
-
 async function performSafetyReminderCheck() {
-	
-
 	const waitModalWait = await waitForElements({elementOrSelector: '.artdeco-modal'})
 	const modal = waitModalWait?.[0]
-	console.log("[MODAL]:artdeco modal:", modal)
-	
-	
 	if (modal) {
-		
 		const modalHeader = modal.querySelector('.artdeco-modal__header')
-		
 		if (modalHeader && modalHeader.textContent.includes('Job search safety reminder')) {
-			
 			const dismissButton = modal.querySelector('.artdeco-modal__dismiss')
-			
 			if (dismissButton) {
-				
 				dismissButton.click()
 			}
 		}
@@ -317,48 +260,31 @@ async function performSafetyReminderCheck() {
 }
 
 async function validateAndCloseConfirmationModal() {
-	
 	const modal = document.querySelector('.artdeco-modal')
-	
 	if (modal) {
-		
 		const modalHeader = modal.querySelector('.artdeco-modal__header')
-		
 		if (modalHeader && modalHeader.textContent.includes('Save this application?')) {
-			
 			const dismissButton = modal.querySelector('.artdeco-modal__dismiss')
-			
 			if (dismissButton) {
-				
 				dismissButton.click()
 			}
 		}
 	}
 }
 
-
 async function checkForError() {
-	
 	const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
-	
 	return feedbackMessageElement !== null
 	
 }
 
 async function terminateJobModel() {
-	
 	const dismissButton = document.querySelector('button[aria-label="Dismiss"]')
-	
 	if (dismissButton) {
-		
 		dismissButton.click()
-		
 		dismissButton.dispatchEvent(new Event('change', { bubbles: true }))
-		
 		const discardButton = Array.from(document.querySelectorAll('button[data-test-dialog-secondary-btn]'))
-			
 			.find(button => button.textContent.trim() === 'Discard')
-		
 		if (discardButton) {
 			discardButton.click()
 			discardButton.dispatchEvent(new Event('change', { bubbles: true }))
@@ -385,9 +311,7 @@ async function uncheckFollowCompany() {
 }
 
 async function runApplyModel() {
-  // await addDelay(2000);
   await performSafetyReminderCheck();
-
   const continueApplyingButton = document.querySelector('button[aria-label="Continue applying"]');
   if (continueApplyingButton) {
     continueApplyingButton.click();
