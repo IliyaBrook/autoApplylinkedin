@@ -13,7 +13,6 @@ let firstRun = true
 async function stopScript() {
 	await chrome.runtime.sendMessage({ action: 'stopAutoApply' })
 	await chrome.storage.local.set({ autoApplyRunning: false })
-	console.log("Easy apply stopped!")
 }
 
 async function checkAndPrepareRunState() {
@@ -68,8 +67,8 @@ function getJobTitle(jobNameLink) {
 
 async function clickDoneIfExist() {
 	try {
-		const modalWait = await waitForElements({ elementOrSelector: '.artdeco-modal' })
-		const modal = modalWait?.[0]
+		const modal = document.querySelector('.artdeco-modal');
+		await waitForElements({ elementOrSelector: modal })
 		if (modal) {
 			const xpathResult = getElementsByXPath({
 				context: modal,
@@ -78,13 +77,13 @@ async function clickDoneIfExist() {
 			if (xpathResult && xpathResult.length > 0) {
 				const doneButton = xpathResult[0];
 				await clickElement({elementOrSelector: doneButton})
+				await addDelay();
 			}
 		}
 	} catch (error) {
 		console.error('clickDoneIfExist error:', error);
 	}
 }
-
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink) {
 	const apply = async () => {
 		await runFindEasyApply(jobTitle, companyName);
@@ -301,80 +300,61 @@ async function runValidations() {
 }
 
 async function uncheckFollowCompany() {
-	const followCheckboxWait = await waitForElements({elementOrSelector: '#follow-company-checkbox'})
-	const followCheckbox = followCheckboxWait?.[0]
+	const followCheckbox = document.querySelector < HTMLInputElement > ('#follow-company-checkbox')
 	if (followCheckbox?.checked) {
 		followCheckbox.checked = false
 		const changeEvent = new Event('change', { bubbles: true, cancelable: true })
-		// noinspection JSCheckFunctionSignatures
 		followCheckbox.dispatchEvent(changeEvent)
 	}
 }
 
 async function runApplyModel() {
-  await performSafetyReminderCheck();
-  const continueApplyingButton = document.querySelector('button[aria-label="Continue applying"]');
-  if (continueApplyingButton) {
-    continueApplyingButton.click();
-    await runApplyModel();
-    return;
-  }
-
-  const nextButton = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Next'));
-	const reviewButtonWait = await waitForElements({elementOrSelector: 'button[aria-label="Review your application"]'})
-	const reviewButton = reviewButtonWait?.[0]
-	const submitButtonWait = await waitForElements({elementOrSelector: 'button[aria-label="Submit application"]'})
-	const submitButton = submitButtonWait?.[0]
-
-  if (submitButton) {
-    await uncheckFollowCompany();
-    submitButton.click();
+	await performSafetyReminderCheck();
+	const continueApplyingButton = document.querySelector('button[aria-label="Continue applying"]');
+	if (continueApplyingButton) {
+		continueApplyingButton.click();
+		await runApplyModel();
+		return;
+	}
+	
+	const nextButton = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Next'));
+	const reviewButton = document.querySelector('button[aria-label="Review your application"]');
+	const submitButton = document.querySelector('button[aria-label="Submit application"]');
+	
+	if (submitButton) {
+		await addDelay(600);
+		await uncheckFollowCompany();
+		await addDelay(600);
+		submitButton.click();
 		
-    const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
-    if (modalCloseButton) {
-      modalCloseButton.click();
-      return;
-    }
-  }
-
-  if (nextButton || reviewButton) {
-    const buttonToClick = reviewButton || nextButton;
+		await addDelay();
 		
-    await runValidations();
-    const isError = await checkForError();
-
-    if (isError) {
-      await terminateJobModel();
-    } else {
-      await clickElement({
-	      elementOrSelector: buttonToClick
-      })
-      await runApplyModel();
-    }
-  }
+		const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
+		if (modalCloseButton) {
+			modalCloseButton.click();
+			return;
+		}
+	}
+	
+	if (nextButton || reviewButton) {
+		const buttonToClick = reviewButton || nextButton;
+		
+		await runValidations();
+		const isError = await checkForError();
+		
+		if (isError) {
+			await terminateJobModel();
+		} else {
+			await clickElement({
+				elementOrSelector: buttonToClick
+			})
+			await runApplyModel();
+		}
+	}
 }
 
 async function runFindEasyApply(jobTitle, companyName) {
-	// const currentPageLink = window.location.href;
-	// const externalApplyElementsRes = getElementsByXPath({ xpath: not_easy_apply_button });
-	// const externalApplyElements = await waitForElements({elementOrSelector: externalApplyElementsRes})
-	// if (externalApplyElements?.length > 0) {
-	// 	await chrome.runtime.sendMessage({
-	// 		action: 'externalApplyAction',
-	// 		data: { jobTitle, currentPageLink, companyName }
-	// 	});
-	// }
-	// const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button });
-	// if (easyApplyElements.length > 0) {
-	// 	await Promise.race(
-	// 		Array.from(easyApplyElements).map(async (button) => {
-	// 			button.click();
-	// 			return await runApplyModel();
-	// 		})
-	// 	);
-	// }
-	
-	//
+	const currentPageLink = window.location.href;
 	const mainContentWait = await waitForElements({elementOrSelector: '.jobs-details__main-content'})
 	const mainContent = mainContentWait?.[0]
 	if (mainContent) {
@@ -394,9 +374,6 @@ async function runFindEasyApply(jobTitle, companyName) {
 
 async function goToNextPage() {
 	let buttons = getElementsByXPath({ xpath: '//button[.//text()[contains(., \'Next\')]]' })
-	// if (buttons.length === 0) {
-	// 	buttons = getElementsByXPath({xpath: '//*[text()="Show all"]'})
-	// }
 	const nextButton = buttons?.[0]
 	return new Promise((resolve, reject) => {
 		if (!nextButton) {
@@ -413,8 +390,6 @@ async function goToNextPage() {
 			console.error('goToNextPage error:', err)
 		})
 }
-
-
 
 function toggleBlinkingBorder(element) {
 	let count = 0
