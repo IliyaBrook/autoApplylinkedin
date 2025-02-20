@@ -14,7 +14,7 @@
       "48": "assets/images/256256.png",
       "128": "assets/images/256256.png"
     },
-    "default_popup": "components/popup/popup.html",
+    "default_popup": "popup/popup/popup.html",
     "default_title": "CONFIGURATION"
   },
   "background": {
@@ -24,8 +24,13 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["utils.js", "createElements.js", "content.js", "xpaths.js"],
+      "js": ["content/utils.js", "content/createElements.js", "content/content.js", "content/xpaths.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content_end.js"],
+      "run_at": "document_end"
     }
   ],
   "permissions": [
@@ -38,15 +43,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "components/popup/popup.html",
-        "components/formControl/formControl.html",
-        "assets/images/on_search_robot.png",
-        "assets/images/256256.png",
-        "components/filterSettings/filterSettings.html",
-        "components/modals/notOnJobSearchModal.html",
-        "components/modals/formControlModal.html",
-        "components/modals/modals.js",
-        "components/modals/modals.css"
+        "popup/**",
+        "assets/images/**"
       ],
       "matches": ["<all_urls>"]
     }

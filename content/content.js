@@ -7,6 +7,9 @@ let defaultFields = {
 	Email: '',
 	PhoneNumber: ''
 }
+// global flags
+// let isAutoApplyRunning = false;
+let firstRun = true
 
 async function stopScript() {
 	await chrome.runtime.sendMessage({ action: 'stopAutoApply' })
@@ -14,19 +17,31 @@ async function stopScript() {
 	console.log("Easy apply stopped!")
 }
 
+// async function checkAndPrepareRunState() {
+// 	return new Promise((resolve) => {
+// 		chrome.storage.local.get('autoApplyRunning', (result) => {
+// 			if (result.autoApplyRunning) {
+// 				resolve(true)
+// 			} else {
+// 				stopScript()
+// 					.then(() => {
+// 						resolve(false)
+// 					})
+// 			}
+// 		})
+// 	})
+// }
+
 async function checkAndPrepareRunState() {
-	return new Promise((resolve) => {
+	return new Promise(resolve => {
 		chrome.storage.local.get('autoApplyRunning', (result) => {
 			if (result.autoApplyRunning) {
-				resolve(true)
+				resolve(true);
 			} else {
-				stopScript()
-					.then(() => {
-						resolve(false)
-					})
+				stopScript().then(() => resolve(false));
 			}
-		})
-	})
+		});
+	});
 }
 
 async function performInputFieldCityCheck() {
@@ -501,16 +516,10 @@ async function closeApplicationSentModal() {
 		modal.querySelector('.artdeco-modal__dismiss')?.click()
 	}
 }
-let firstRun = true
+
 async function runScript() {
 	console.log('Easy apply started!')
-
-	if (firstRun) {
-		console.log('is first time!', firstRun)
-		await addDelay(4000)
-	}else {
-		await addDelay(2000)
-	}
+	await addDelay(firstRun ? 4000 : 2000);
 	firstRun = false
 	
 	try {
@@ -545,8 +554,8 @@ async function runScript() {
 		const listItems = await waitForElements({ elementOrSelector: '.scaffold-layout__list-item'})
 		let canClickToJob = true
 		for (const listItem of listItems) {
+			if (!(await checkAndPrepareRunState())) return;
 			await closeApplicationSentModal()
-			
 			const linksElements = await waitForElements({
 				elementOrSelector: '.artdeco-entity-lockup__title .job-card-container__link',
 				timeout: 5000,
@@ -584,9 +593,11 @@ async function runScript() {
 			}
 			
 			jobNameLink.scrollIntoView({ block: 'center' })
-			await addDelay(300)
+			// await addDelay(300)
 			try {
-				const mainContentElement = document.querySelector('.jobs-details__main-content')
+				const mainContentElementWait = await waitForElements({elementOrSelector: '.jobs-details__main-content'})
+				// const mainContentElement = document.querySelector('.jobs-details__main-content')
+				const mainContentElement = mainContentElementWait?.[0]
 				if (!mainContentElement) {
 					canClickToJob = false
 				}
@@ -602,10 +613,9 @@ async function runScript() {
 			}
 		}
 		
-		const isRunning = await checkAndPrepareRunState()
-		if (isRunning) {
-			console.log('Script is already running.')
-			await goToNextPage()
+		if (await checkAndPrepareRunState()) {
+			console.log('Script is already running.');
+			await goToNextPage();
 		}
 	} catch (error) {
 		console.error('Error in runScript:', error)
@@ -613,17 +623,9 @@ async function runScript() {
 	}
 }
 
-// if (window) {
-// 	chrome.storage.local.get('autoApplyRunning').then(result => {
-// 		if (result?.autoApplyRunning) {
-// 			void stopScript()
-// 		}
-// 	})
-// }
-
 // content script listeners
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	// modals listerners
+	// modals listeners
 	if (message.action === 'showNotOnJobSearchAlert') {
 		const modalWrapper = document.getElementById('notOnJobSearchOverlay')
 		if (modalWrapper) {
@@ -641,8 +643,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		}
 	}
 	// get current url listener provider
-	
-	
 	if (message.action === 'getCurrentUrl') {
 		sendResponse({ url: window.location.href })
 	}
@@ -664,10 +664,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					goButton.className = 'modal-button primary go-button'
 					goButton.textContent = 'Go'
 					goButton.addEventListener('click', () => {
-						window.open(url, '_blank')
-						chrome.runtime.sendMessage({ action: 'openTabAndRunScript', url: url }, (response) => {
-							console.log('Tab open request sent:', response)
-						})
+						if (typeof url === 'string') {
+							window.open(url, '_blank')
+							chrome.runtime.sendMessage({ action: 'openTabAndRunScript', url: url }, (response) => {
+								console.log('Tab open request sent:', response)
+							})
+						}else {
+							console.error('Invalid url type:', typeof url)
+						}
 					})
 					li.appendChild(goButton)
 					const deleteButton = document.createElement('button')
