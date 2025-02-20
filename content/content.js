@@ -7,7 +7,7 @@ let defaultFields = {
 	Email: '',
 	PhoneNumber: ''
 }
-
+//global flags
 let firstRun = true
 
 async function stopScript() {
@@ -648,8 +648,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		}
 		sendResponse({ success: true })
 	}
-})
-
-chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
-		console.log("[CONTENT]: autoApplyRunning:", autoApplyRunning)
+	// running script modal
+	if (message.action === 'showRunningModal') {
+		const modalWrapper = document.getElementById('scriptRunningOverlay');
+		console.log("showRunningModal:", modalWrapper)
+		if (modalWrapper) {
+			modalWrapper.style.display = 'flex';
+			sendResponse({ success: true });
+		} else {
+			sendResponse({ success: false, error: 'scriptRunningOverlay not found' });
+		}
+	} else if (message.action === 'hideRunningModal') {
+		const modalWrapper = document.getElementById('scriptRunningOverlay');
+		console.log("hideRunningModal:", modalWrapper)
+		if (modalWrapper) {
+			modalWrapper.style.display = 'none';
+			sendResponse({ success: true });
+		} else {
+			sendResponse({ success: false, error: 'scriptRunningOverlay not found' });
+		}
+	}
 })

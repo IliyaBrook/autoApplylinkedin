@@ -116,7 +116,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 										console.error('[startAutoApply] in bg error (executeScript): Error:', err)
 										sendResponse({ success: false, message: err.message })
 									})
-									return true
+									chrome.tabs.sendMessage(currentTabId, { action: 'showRunningModal' }, (response) => {
+										if (response && response.success) {
+											chrome.scripting.executeScript({
+												target: { tabId: currentTabId },
+												func: runScriptInContent
+											}).then(() => {
+												sendResponse({ success: true });
+											}).catch(err => {
+												console.error('[startAutoApply] in bg error (executeScript): Error:', err);
+												sendResponse({ success: false, message: err.message });
+												chrome.tabs.sendMessage(currentTabId, { action: 'hideRunningModal' });
+											});
+										} else {
+											console.error('Failed to show running modal:', response);
+											sendResponse({ success: false, message: 'Failed to show running modal.' });
+										}
+									});
 								}
 							}
 						})
@@ -130,9 +146,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		}
 		if (request.action === 'stopAutoApply') {
 			chrome.storage.local.set({ 'autoApplyRunning': false }, () => {
-				sendResponse({ success: true })
-			})
-			return true
+				chrome.tabs.query({ active: true, currentWindow: true })
+					.then(tabs => {
+						if (!tabs?.[0]) {
+							sendResponse({ success: false, message: 'No active tab found.' })
+							return true
+						}
+						const currentTabId = tabs[0].id;
+						chrome.tabs.sendMessage(currentTabId, { action: 'hideRunningModal' }, (response) => {
+							if(response && response.success){
+								sendResponse({ success: true });
+							} else {
+								sendResponse({success: false, message: 'Failed to hide modal on stop.'})
+							}
+						});
+					})
+				return true
+			});
+			return true;
 		}
 		if (request.action === 'openTabAndRunScript') {
 			chrome.tabs.create({ url: request.url }, (tab) => {

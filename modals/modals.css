@@ -1,4 +1,4 @@
-#notOnJobSearchOverlay, #formControlOverlay, #savedLinksOverlay{
+#notOnJobSearchOverlay, #formControlOverlay, #savedLinksOverlay, #scriptRunningOverlay{
 	display: none;
 }
 
@@ -92,4 +92,26 @@ button {
 
 button:hover {
 	filter: brightness(0.8);
+}
+/* running script modal */
+#scriptRunningOverlay {
+	justify-content: center;
+	align-items: flex-end;
+	padding-bottom: 50px;
+}
+
+#scriptRunningOverlay .button-container{
+	justify-content: center;
+}
+
+.script-running-modal {
+	width: auto;
+	max-width: 80%;
+	margin: 0 auto;
+	
+}
+
+.modal-button.danger {
+	background-color: #f44336;
+	color: white;
 }

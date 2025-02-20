@@ -29,7 +29,9 @@
     },
     {
       "matches": ["<all_urls>"],
-      "js": ["content/content_end.js"],
+      "js": [
+        "content/content_end.js"
+      ],
       "run_at": "document_end"
     }
   ],
@@ -44,7 +46,8 @@
     {
       "resources": [
         "popup/**",
-        "assets/images/**"
+        "assets/images/*",
+        "modals/*"
       ],
       "matches": ["<all_urls>"]
     }
