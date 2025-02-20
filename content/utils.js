@@ -51,7 +51,7 @@ function getElementsByXPath({ xpath, context = document }) {
  * @param {string|Element|HTMLElement|HTMLElement[]} options.elementOrSelector - A CSS selector string, a DOM element, or an array of elements.
  * @param {number} [options.timeout=5000] - Maximum waiting time in milliseconds.
  * @param {Document|Element|HTMLElement[]} [options.contextNode=document] - The node (Document, Element, or an array of Elements) to search within.
- * @returns {Promise<HTMLElement[]>} A promise that resolves with an array of visible elements,
+ * @returns {Promise<HTMLElement[]> | Promise<Element[]>} A promise that resolves with an array of visible elements,
  * or an empty array if none are found within the timeout.
  */
 async function waitForElements({ elementOrSelector, timeout = 5000, contextNode = document }) {

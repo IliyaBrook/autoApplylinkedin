@@ -68,8 +68,8 @@ function getJobTitle(jobNameLink) {
 
 async function clickDoneIfExist() {
 	try {
-		const modal = document.querySelector('.artdeco-modal');
-		await waitForElements({ elementOrSelector: modal })
+		const modalWait = await waitForElements({ elementOrSelector: '.artdeco-modal' })
+		const modal = modalWait?.[0]
 		if (modal) {
 			const xpathResult = getElementsByXPath({
 				context: modal,
@@ -78,7 +78,6 @@ async function clickDoneIfExist() {
 			if (xpathResult && xpathResult.length > 0) {
 				const doneButton = xpathResult[0];
 				await clickElement({elementOrSelector: doneButton})
-				await addDelay();
 			}
 		}
 	} catch (error) {
@@ -302,10 +301,12 @@ async function runValidations() {
 }
 
 async function uncheckFollowCompany() {
-	const followCheckbox = document.querySelector < HTMLInputElement > ('#follow-company-checkbox')
+	const followCheckboxWait = await waitForElements({elementOrSelector: '#follow-company-checkbox'})
+	const followCheckbox = followCheckboxWait?.[0]
 	if (followCheckbox?.checked) {
 		followCheckbox.checked = false
 		const changeEvent = new Event('change', { bubbles: true, cancelable: true })
+		// noinspection JSCheckFunctionSignatures
 		followCheckbox.dispatchEvent(changeEvent)
 	}
 }
@@ -320,17 +321,15 @@ async function runApplyModel() {
   }
 
   const nextButton = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Next'));
-  const reviewButton = document.querySelector('button[aria-label="Review your application"]');
-  const submitButton = document.querySelector('button[aria-label="Submit application"]');
+	const reviewButtonWait = await waitForElements({elementOrSelector: 'button[aria-label="Review your application"]'})
+	const reviewButton = reviewButtonWait?.[0]
+	const submitButtonWait = await waitForElements({elementOrSelector: 'button[aria-label="Submit application"]'})
+	const submitButton = submitButtonWait?.[0]
 
   if (submitButton) {
-    await addDelay(600);
     await uncheckFollowCompany();
-    await addDelay(600);
     submitButton.click();
-
-    await addDelay();
-
+		
     const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
     if (modalCloseButton) {
       modalCloseButton.click();
