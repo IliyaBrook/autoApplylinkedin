@@ -582,6 +582,7 @@ async function runScript() {
 				console.log('[title must contains]:', jobTitle)
 				canClickToJob = false
 			}
+			
 			jobNameLink.scrollIntoView({ block: 'center' })
 			await addDelay(300)
 			try {
