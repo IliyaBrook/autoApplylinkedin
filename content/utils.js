@@ -145,7 +145,7 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 				console.log('[clickElement] Element is not visible or not connected')
 				return
 			}
-			element.scrollIntoView({ block: 'center' })
+			element?.scrollIntoView({ block: 'center' })
 			element.click()
 			resolve(element)
 			

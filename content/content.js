@@ -118,6 +118,7 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 		}
 	}
 	await runFindEasyApply(jobTitle, companyName);
+	await addDelay(2000)
 }
 
 async function performInputFieldChecks() {
@@ -308,68 +309,72 @@ async function uncheckFollowCompany() {
 }
 
 async function runApplyModel() {
-	await addDelay()
-	await performSafetyReminderCheck();
-	const applyModalWait = await waitForElements({
-		elementOrSelector: '.artdeco-modal',
-		timeout: 3000
-	})
-	if (Array.isArray(applyModalWait)) {
-		const applyModal = applyModalWait[0]
-		const continueApplyingButton = applyModal.querySelector('button[aria-label="Continue applying"]');
-
-		if (continueApplyingButton) {
-			continueApplyingButton.scrollIntoView({ block: 'center' })
-			await addDelay(300);
-			continueApplyingButton.click();
-			await runApplyModel();
-		}
-
-		const nextButton = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Next'));
-		const reviewButtonWait = await waitForElements({
-			elementOrSelector:'button[aria-label="Review your application"]',
-			timeout: 2000
+	try {
+		await addDelay()
+		await performSafetyReminderCheck();
+		const applyModalWait = await waitForElements({
+			elementOrSelector: '.artdeco-modal',
+			timeout: 3000
 		})
-		const reviewButton = reviewButtonWait?.[0]
-		const submitButtonWait = await waitForElements({
-			elementOrSelector:'button[aria-label="Submit application"]',
-			timeout: 2000
-		})
-		const submitButton = submitButtonWait?.[0]
-
-		if (submitButton) {
-			await addDelay(600);
-			await uncheckFollowCompany();
-			await addDelay(600);
-			submitButton.scrollIntoView({ block: 'center' })
-			await addDelay(300);
-			submitButton.click();
-			await addDelay();
-			const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
-			if (modalCloseButton) {
-				modalCloseButton.scrollIntoView({ block: 'center' })
+		if (Array.isArray(applyModalWait)) {
+			const applyModal = applyModalWait[0]
+			const continueApplyingButton = applyModal.querySelector('button[aria-label="Continue applying"]');
+			
+			if (continueApplyingButton) {
+				continueApplyingButton?.scrollIntoView({ block: 'center' })
 				await addDelay(300);
-				modalCloseButton.click();
-				return;
-			}
-			await clickDoneIfExist();
-		}
-		
-		if (nextButton || reviewButton) {
-			const buttonToClick = reviewButton || nextButton;
-
-			void runValidations();
-			const isError = await checkForError();
-
-			if (isError) {
-				void terminateJobModel();
-			} else {
-				buttonToClick.scrollIntoView({ block: 'center' })
-				await addDelay();
-				buttonToClick.click();
+				continueApplyingButton.click();
 				await runApplyModel();
 			}
+			
+			const nextButton = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Next'));
+			const reviewButtonWait = await waitForElements({
+				elementOrSelector:'button[aria-label="Review your application"]',
+				timeout: 2000
+			})
+			const reviewButton = reviewButtonWait?.[0]
+			const submitButtonWait = await waitForElements({
+				elementOrSelector:'button[aria-label="Submit application"]',
+				timeout: 2000
+			})
+			const submitButton = submitButtonWait?.[0]
+			
+			if (submitButton) {
+				await addDelay(600);
+				await uncheckFollowCompany();
+				await addDelay(600);
+				submitButton?.scrollIntoView({ block: 'center' })
+				await addDelay(300);
+				submitButton.click();
+				await addDelay();
+				const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
+				if (modalCloseButton) {
+					modalCloseButton?.scrollIntoView({ block: 'center' })
+					await addDelay(300);
+					modalCloseButton.click();
+					return;
+				}
+				await clickDoneIfExist();
+			}
+			
+			if (nextButton || reviewButton) {
+				const buttonToClick = reviewButton || nextButton;
+				
+				await runValidations();
+				const isError = await checkForError();
+				
+				if (isError) {
+					await terminateJobModel();
+				} else {
+					buttonToClick?.scrollIntoView({ block: 'center' })
+					await addDelay();
+					buttonToClick.click();
+					await runApplyModel();
+				}
+			}
 		}
+	}catch (e) {
+		console.error('runApplyModel error:', e)
 	}
 }
 
@@ -524,6 +529,8 @@ async function runScript() {
 			const jobNameLink = linksElements?.[0]
 			if (!jobNameLink) {
 				canClickToJob = false
+			}else {
+				jobNameLink?.scrollIntoView({ block: 'center' })
 			}
 			const jobFooter = listItem.querySelector('[class*="footer"]')
 			if (jobFooter && jobFooter.textContent.trim() === 'Applied') {
@@ -549,7 +556,6 @@ async function runScript() {
 					canClickToJob = false;
 				}
 			}
-			jobNameLink.scrollIntoView({ block: 'center' })
 			if (canClickToJob) {
 				await clickElement({elementOrSelector: jobNameLink})
 			}
