@@ -196,22 +196,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				return true;
 			});
 			return true;
-		} else if (request.action === 'openTabAndRunScript') {
+		} else  if (request.action === 'openTabAndRunScript') {
 			chrome.tabs.create({ url: request.url }, (tab) => {
 				chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
 					if (tabId === tab.id && changeInfo.status === 'complete') {
-						chrome.scripting.executeScript({
-							target: { tabId: tabId },
-							func: runScriptInContent
-						}).then(() => {
-							sendResponse({ success: true });
-						}).catch(err => {
-							sendResponse({ success: false, message: err.message });
+						chrome.tabs.sendMessage(tabId, { action: 'showRunningModal' })
+							.then(response => {
+								if (response && response.success) {
+									chrome.scripting.executeScript({
+										target: { tabId: tabId },
+										func: runScriptInContent
+									}).then(() => {
+										sendResponse({ success: true });
+									}).catch(err => {
+										console.error('[openTabAndRunScript] executeScript error:', err);
+										sendResponse({ success: false, message: err.message });
+										chrome.tabs.sendMessage(tabId, { action: 'hideRunningModal' });
+									});
+								} else {
+									console.error('Failed to show running modal:', response.message);
+									sendResponse({ success: false, message: response?.message || 'Failed to show running modal.' });
+								}
+							}).catch(err => {
+							console.error("Error sending showRunningModal:", err);
+							sendResponse({ success: false, message: "Failed to send showRunningModal: " + err.message });
 						});
+						
 						chrome.tabs.onUpdated.removeListener(listener);
 					}
 				});
-	
 			});
 			return true;
 		} else if (request.action === 'updateInputFieldValue') {

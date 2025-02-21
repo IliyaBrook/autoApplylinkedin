@@ -648,14 +648,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		}
 		sendResponse({ success: true })
 	}
-	// running script modal
 	if (message.action === 'showRunningModal') {
-		const modalWrapper = document.getElementById('scriptRunningOverlay');
-		console.log("showRunningModal:", modalWrapper)
-		if (modalWrapper) {
-			modalWrapper.style.display = 'flex';
-			sendResponse({ success: true });
-			const stopButton = document.getElementById('stopScriptButton');
+		sendResponse({ success: true });
+		new Promise((resolve) => {
+			setTimeout(() => {
+				const modalWrapper = document.getElementById('scriptRunningOverlay');
+				if (modalWrapper) {
+					modalWrapper.style.display = 'flex';
+				}
+				resolve(modalWrapper);
+			}, 1000)
+		}).then(modalWrapper => {
+			const stopButton = modalWrapper.querySelector('#stopScriptButton');
 			if (stopButton) {
 				stopButton.addEventListener('click', () => {
 					chrome.runtime.sendMessage({ action: 'stopAutoApply' }, (response) => {
@@ -667,16 +671,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					});
 				});
 			}
-		} else {
-			sendResponse({ success: false, error: 'scriptRunningOverlay not found' });
-		}
+		}).catch(err => {
+			console.error('Error in showRunningModal:', err);
+		})
+		
 	} else if (message.action === 'hideRunningModal') {
 		const modalWrapper = document.getElementById('scriptRunningOverlay');
 		if (modalWrapper) {
 			modalWrapper.style.display = 'none';
 			sendResponse({ success: true });
 		} else {
-			sendResponse({ success: false, error: 'scriptRunningOverlay not found' });
+			sendResponse({ success: false, message: 'scriptRunningOverlay not found' });
 		}
 	}
 })
