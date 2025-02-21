@@ -655,12 +655,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		if (modalWrapper) {
 			modalWrapper.style.display = 'flex';
 			sendResponse({ success: true });
+			const stopButton = document.getElementById('stopScriptButton');
+			if (stopButton) {
+				stopButton.addEventListener('click', () => {
+					chrome.runtime.sendMessage({ action: 'stopAutoApply' }, (response) => {
+						if (response && response.success) {
+							console.log('Script stopped by user.');
+						} else {
+							console.error('Failed to stop script:', response);
+						}
+					});
+				});
+			}
 		} else {
 			sendResponse({ success: false, error: 'scriptRunningOverlay not found' });
 		}
 	} else if (message.action === 'hideRunningModal') {
 		const modalWrapper = document.getElementById('scriptRunningOverlay');
-		console.log("hideRunningModal:", modalWrapper)
 		if (modalWrapper) {
 			modalWrapper.style.display = 'none';
 			sendResponse({ success: true });

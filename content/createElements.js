@@ -86,14 +86,14 @@ async function initElements() {
 		if (formControlAlert) {
 			document.body.appendChild(formControlAlert)
 		}
-		// const scriptRunningModal = await createCustomElement({
-		// 	htmlPath: 'modals/runningModal.html',
-		// 	cssPath: 'modals/modals.css',
-		// 	elementId: 'scriptRunningOverlay'
-		// })
-		// if (scriptRunningModal) {
-		// 	document.body.appendChild(scriptRunningModal)
-		// }
+		const scriptRunningModal = await createCustomElement({
+			htmlPath: 'modals/runningModal.html',
+			cssPath: 'modals/modals.css',
+			elementId: 'scriptRunningOverlay'
+		})
+		if (scriptRunningModal) {
+			document.body.appendChild(scriptRunningModal)
+		}
 	} catch (err) {
 		console.error('❌ Error creating elements:', err)
 	}

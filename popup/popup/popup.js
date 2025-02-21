@@ -42,13 +42,13 @@ document.addEventListener('click', event => {
 		const button = document.getElementById(buttonId)
 		switch (buttonId) {
 			case 'form-control-button':
-				chrome.tabs.create({ url: '/popup/formControl/formControl.html' })
+				chrome.tabs.create({ url: '/components/formControl/formControl.html' })
 				break
 			case 'filter-settings-button':
-				chrome.tabs.create({ url: '/popup/filterSettings/filterSettings.html' })
+				chrome.tabs.create({ url: '/components/filterSettings/filterSettings.html' })
 				break
 			case 'external-apply-button':
-				chrome.tabs.create({ url: '/popup/externalApply/externalApply.html' })
+				chrome.tabs.create({ url: '/components/externalApply/externalApply.html' })
 				break
 			case 'export-button':
 				chrome.storage.local.get(null, function(data) {

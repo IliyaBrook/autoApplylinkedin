@@ -75,11 +75,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			const { jobTitle, currentPageLink, companyName } = request.data
 			saveLinkedInJobData(jobTitle, currentPageLink, companyName)
 			sendResponse({ success: false })
-		}
-		if (request.action === 'openDefaultInputPage') {
+		} else if (request.action === 'openDefaultInputPage') {
 			chrome.tabs.create({ url: 'popup/formControl/formControl.html' })
-		}
-		if (request.action === 'startAutoApply') {
+		} else if (request.action === 'startAutoApply') {
 			try {
 				chrome.tabs.query({ active: true, currentWindow: true })
 					.then(tabs => {
@@ -91,48 +89,62 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 						const currentUrl = tabs?.[0]?.url || ''
 						chrome.storage.local.get('defaultFields', storageResult => {
 							if (storageResult?.defaultFields) {
+								if (!storageResult?.defaultFields) {
+									sendResponse({success: false, message: "Default fields are not set."});
+									return true;
+								}
 								const result = storageResult.defaultFields
 								const isDefaultFieldsEmpty = Object.values(result).some(value => value === '')
 								if (!currentUrl.includes('linkedin.com/jobs')) {
-									void chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
-									sendResponse({ success: false, message: 'You are not on the LinkedIn jobs search page.' })
-									return true
+									chrome.tabs.sendMessage(currentTabId, { action: 'showNotOnJobSearchAlert' })
+										.then(() => sendResponse({
+											success: false,
+											message: 'You are not on the LinkedIn jobs search page.'
+										}))
+										.catch(err => {
+											console.error("Error sending showNotOnJobSearchAlert:", err);
+											sendResponse({
+												success: false,
+												message: 'Error showing alert: ' + err.message
+											});
+										});
+									return true;
 								}
 								if (isDefaultFieldsEmpty) {
 									chrome.tabs.sendMessage(currentTabId, { action: 'showFormControlAlert' })
-									sendResponse({
-										success: false,
-										message: 'Form control fields are empty. Please set them in the extension options.'
-									})
-									return true
+										.then(() => sendResponse({
+											success: false,
+											message: 'Form control fields are empty.  Please set them in the extension options.'
+										}))
+										.catch(err => {
+											console.error("Error sending showFormControlAlert", err);
+											sendResponse({ success: false, message: "Error showing form control alert: " + err.message });
+										});
+									return true;
 								}
 								if (currentUrl.includes('linkedin.com/jobs') && !isDefaultFieldsEmpty) {
-									chrome.scripting.executeScript({
-										target: { tabId: currentTabId }, func: runScriptInContent
-									}).then(() => {
-										sendResponse({ success: true })
-										return true
-									}).catch(err => {
-										console.error('[startAutoApply] in bg error (executeScript): Error:', err)
-										sendResponse({ success: false, message: err.message })
-									})
-									chrome.tabs.sendMessage(currentTabId, { action: 'showRunningModal' }, (response) => {
-										if (response && response.success) {
-											chrome.scripting.executeScript({
-												target: { tabId: currentTabId },
-												func: runScriptInContent
-											}).then(() => {
-												sendResponse({ success: true });
-											}).catch(err => {
-												console.error('[startAutoApply] in bg error (executeScript): Error:', err);
-												sendResponse({ success: false, message: err.message });
-												chrome.tabs.sendMessage(currentTabId, { action: 'hideRunningModal' });
-											});
-										} else {
-											console.error('Failed to show running modal:', response);
-											sendResponse({ success: false, message: 'Failed to show running modal.' });
-										}
+									chrome.tabs.sendMessage(currentTabId, { action: 'showRunningModal' })
+										.then(response => {
+											if (response && response.success) {
+												chrome.scripting.executeScript({
+													target: { tabId: currentTabId },
+													func: runScriptInContent
+												}).then(() => {
+													sendResponse({ success: true });
+												}).catch(err => {
+													console.error('[startAutoApply] in bg error (executeScript): Error:', err);
+													sendResponse({ success: false, message: err.message });
+													chrome.tabs.sendMessage(currentTabId, { action: 'hideRunningModal' });
+												});
+											} else {
+												console.error('Failed to show running modal:', response);
+												sendResponse({ success: false, message: 'Failed to show running modal.' });
+											}
+										}).catch(err => {
+										console.error("Error sending showRunningModal:", err);
+										sendResponse({success: false, message: 'Failed to send showRunningModal: ' + err.message});
 									});
+									return true;
 								}
 							}
 						})
@@ -143,29 +155,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 				console.error('[startAutoApply] in bg error:', err)
 				sendResponse({ success: false, message: err.message })
 			}
-		}
-		if (request.action === 'stopAutoApply') {
+		} else if (request.action === 'stopAutoApply') {
 			chrome.storage.local.set({ 'autoApplyRunning': false }, () => {
 				chrome.tabs.query({ active: true, currentWindow: true })
 					.then(tabs => {
 						if (!tabs?.[0]) {
-							sendResponse({ success: false, message: 'No active tab found.' })
-							return true
+							sendResponse({ success: false, message: 'No active tab found.' });
+							return;
 						}
 						const currentTabId = tabs[0].id;
-						chrome.tabs.sendMessage(currentTabId, { action: 'hideRunningModal' }, (response) => {
-							if(response && response.success){
-								sendResponse({ success: true });
-							} else {
-								sendResponse({success: false, message: 'Failed to hide modal on stop.'})
+						chrome.tabs.get(currentTabId, (tab) => {
+							if (chrome.runtime.lastError) {
+								console.error("Error getting tab info:", chrome.runtime.lastError.message);
+								sendResponse({success: false, message: "Tab error: " + chrome.runtime.lastError.message});
+								return;
 							}
+							
+							if (!tab || !tab.url || !tab.url.includes("linkedin.com/jobs")) {
+								console.warn("Tab is invalid or URL does not match.");
+								sendResponse({success: false, message: "Tab is invalid or not a LinkedIn jobs page."});
+								return;
+							}
+							
+							chrome.tabs.sendMessage(currentTabId, { action: 'hideRunningModal' })
+								.then(response => {
+									if (response && response.success) {
+										sendResponse({ success: true });
+									} else {
+										sendResponse({ success: false, message: 'Failed to hide modal on stop.' });
+									}
+								}).catch(err => {
+								console.error("Error sending hideRunningModal:", err);
+								sendResponse({ success: false, message: "Failed to send hideRunningModal: " + err.message });
+							});
 						});
-					})
-				return true
+					}).catch(err => {
+					console.error("Error querying tabs in stopAutoApply:", err);
+					sendResponse({ success: false, message: "Error querying tabs: " + err.message });
+				});
+				return true;
 			});
 			return true;
-		}
-		if (request.action === 'openTabAndRunScript') {
+		} else if (request.action === 'openTabAndRunScript') {
 			chrome.tabs.create({ url: request.url }, (tab) => {
 				chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
 					if (tabId === tab.id && changeInfo.status === 'complete') {
@@ -180,45 +211,40 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 						chrome.tabs.onUpdated.removeListener(listener);
 					}
 				});
+	
 			});
 			return true;
-		}
-		if (request.action === 'updateInputFieldValue') {
+		} else if (request.action === 'updateInputFieldValue') {
 			const placeholder = request.data.placeholder
 			const value = request.data.value
 			updateOrAddInputFieldValue(placeholder, value)
-		}
-		if (request.action === 'updateInputFieldConfigsInStorage') {
+		}else if (request.action === 'updateInputFieldConfigsInStorage') {
 			const placeholder = request.data
 			updateInputFieldConfigsInStorage(placeholder)
-		}
-		if (request.action === 'deleteInputFieldConfig') {
+		}else if (request.action === 'deleteInputFieldConfig') {
 			const placeholder = request.data
 			deleteInputFieldConfig(placeholder)
-		}
-		if (request.action === 'getInputFieldConfig') {
+		} else if (request.action === 'getInputFieldConfig') {
 			getInputFieldConfig(sendResponse)
 			return true
-		}
-		if (request.action === 'updateRadioButtonValueByPlaceholder') {
+		}else if (request.action === 'updateRadioButtonValueByPlaceholder') {
 			updateRadioButtonValue(request.placeholderIncludes, request.newValue)
-		}
-		if (request.action === 'deleteRadioButtonConfig') {
+		}else if (request.action === 'deleteRadioButtonConfig') {
 			deleteRadioButtonConfig(request.data)
-		}
-		if (request.action === 'updateDropdownConfig') {
+		}else if (request.action === 'updateDropdownConfig') {
 			const { placeholderIncludes, value } = request.data
 			updateDropdownConfig(placeholderIncludes, value)
-		}
-		if (request.action === 'deleteDropdownConfig') {
+		}else if (request.action === 'deleteDropdownConfig') {
 			deleteDropdownValueConfig(request.data)
 		}
-		
+
 	} catch (e) {
 		console.error('[onMessage] error:', e)
 		sendResponse({ success: false, message: e.message })
 	}
 })
+
+
 
 function updateOrAddInputFieldValue(placeholder, value) {
 	chrome.storage.local.get(['inputFieldConfigs'], result => {
