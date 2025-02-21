@@ -9,6 +9,7 @@ let defaultFields = {
 }
 //global flags
 let firstRun = true
+const isDev = true;
 
 async function stopScript() {
 	await chrome.runtime.sendMessage({ action: 'stopAutoApply' })
@@ -122,42 +123,34 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 }
 
 async function performInputFieldChecks() {
-	const result = await chrome.runtime.sendMessage({ action: 'getInputFieldConfig' })
-	
-	const questionContainers = document.querySelectorAll('.fb-dash-form-element')
+	const result = await new Promise(resolve => {
+		chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, resolve);
+	});
+	const questionContainers = document.querySelectorAll('.fb-dash-form-element');
 	
 	for (const container of questionContainers) {
-		
-		const label = container.querySelector('.artdeco-text-input--label')
-		
-		const inputField = container.querySelector('.artdeco-text-input--input')
-		
-		let labelText
+		const label = container.querySelector('.artdeco-text-input--label');
+		const inputField = container.querySelector('.artdeco-text-input--input');
+		let labelText;
 		
 		if (label) {
-			
-			labelText = label.textContent.trim()
-			
-			const foundConfig = result.find(config => config.placeholderIncludes === labelText)
-			
+			labelText = label.textContent.trim();
+			const foundConfig = result.find(config => config.placeholderIncludes === labelText);
 			if (foundConfig) {
-				
 				inputField.value = foundConfig.defaultValue;
-				
 				['keydown', 'keypress', 'input', 'keyup'].forEach(eventType => {
-					inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }))
-				})
-				
-				inputField.dispatchEvent(new Event('change', { bubbles: true }))
-			} else {
+					inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
+				});
+				inputField.dispatchEvent(new Event('change', { bubbles: true }));
+			}
+			else {
 				inputField.value = defaultFields.YearsOfExperience;
 				['keydown', 'keypress', 'input', 'keyup'].forEach(eventType => {
-					inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }))
-				})
-				inputField.dispatchEvent(new Event('change', { bubbles: true }))
+					inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
+				});
+				inputField.dispatchEvent(new Event('change', { bubbles: true }));
 			}
-			
-			void chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText })
+			await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText });
 		}
 	}
 }
@@ -300,10 +293,11 @@ async function runValidations() {
 }
 
 async function uncheckFollowCompany() {
-	const followCheckbox = document.querySelector < HTMLInputElement > ('#follow-company-checkbox')
+	const followCheckbox = document.querySelector('#follow-company-checkbox')
 	if (followCheckbox?.checked) {
 		followCheckbox.checked = false
 		const changeEvent = new Event('change', { bubbles: true, cancelable: true })
+		// noinspection JSCheckFunctionSignatures
 		followCheckbox.dispatchEvent(changeEvent)
 	}
 }
@@ -345,7 +339,18 @@ async function runApplyModel() {
 				await addDelay(600);
 				submitButton?.scrollIntoView({ block: 'center' })
 				await addDelay(300);
-				submitButton.click();
+				
+				if (isDev) {
+					await new Promise(resolve => {
+						setTimeout(() => {
+							console.log("submit button test click")
+							resolve()
+						}, 5000)
+					})
+				}else {
+					submitButton.click();
+				}
+				
 				await addDelay();
 				const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
 				if (modalCloseButton) {
@@ -356,6 +361,7 @@ async function runApplyModel() {
 				}
 				await clickDoneIfExist();
 			}
+			
 			
 			if (nextButton || reviewButton) {
 				const buttonToClick = reviewButton || nextButton;
@@ -372,6 +378,9 @@ async function runApplyModel() {
 					await runApplyModel();
 				}
 			}
+		}
+		if (document?.querySelector('button[data-test-dialog-secondary-btn]')?.innerText.includes('Discard')) {
+			await terminateJobModel();
 		}
 	}catch (e) {
 		console.error('runApplyModel error:', e)
@@ -390,7 +399,6 @@ async function runFindEasyApply(jobTitle, companyName) {
 			})
 		}
 		const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button })
-
 		if (easyApplyElements.length > 0) {
 			const buttonPromises = Array.from(easyApplyElements).map((button) => {
 				return new Promise((resolve) => {
