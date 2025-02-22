@@ -19,6 +19,9 @@ async function stopScript() {
 	]);
 	console.log('Auto apply stopped');
 	isRunning = false;
+	setTimeout(() => {
+		isRunning = true;
+	}, 2000)
 }
 
 async function startScript() {
@@ -690,6 +693,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 						if (response && response.success) {
 							isRunning = false;
 							console.log('Script stopped by user.');
+							setTimeout(() => {
+								isRunning = true;
+							}, 2000)
 						} else {
 							logTrace('Failed to stop script: ', response);
 						}
