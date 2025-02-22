@@ -9,6 +9,7 @@ let defaultFields = {
 }
 //global flags
 let firstRun = true
+let isRunning = true
 const isDev = false;
 
 async function stopScript() {
@@ -17,6 +18,7 @@ async function stopScript() {
 		chrome.storage.local.set({ autoApplyRunning: false })
 	]);
 	console.log('Auto apply stopped');
+	isRunning = false;
 }
 
 async function startScript() {
@@ -29,7 +31,11 @@ async function checkAndPrepareRunState() {
 			if (result.autoApplyRunning) {
 				resolve(true);
 			} else {
-				stopScript().then(() => resolve(false));
+				stopScript().then(
+					() => {
+						resolve(false)
+						isRunning = false;
+					});
 			}
 		});
 	});
@@ -491,10 +497,12 @@ async function closeApplicationSentModal() {
 }
 
 async function runScript() {
+	if (!isRunning) return
 	await startScript()
 	if (firstRun) {
 		console.log('Easy apply linkedin started...')
 		await addDelay(firstRun ? 4000 : 2000);
+		isRunning = true
 	}
 	firstRun = false
 	
@@ -592,6 +600,7 @@ async function runScript() {
 	} catch (error) {
 		logTrace('Error in runScript:', error?.message, 'script stopped')
 		await stopScript()
+		isRunning = false
 	}
 }
 
@@ -679,6 +688,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				stopButton.addEventListener('click', () => {
 					chrome.runtime.sendMessage({ action: 'stopAutoApply' }, (response) => {
 						if (response && response.success) {
+							isRunning = false;
 							console.log('Script stopped by user.');
 						} else {
 							logTrace('Failed to stop script: ', response);
