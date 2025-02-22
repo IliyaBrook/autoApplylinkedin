@@ -2,7 +2,7 @@
   "name": "easy-apply-linkedin",
   "repository": "https://github.com/IliyaBrook/autoApplylinkedin",
   "author": "Iliya Brook <iliyabrook1987@gmail.com>",
-  "version": "1.7",
+  "version": "1.8",
   "description": "Applying for Jobs Made Effortless!",
   "scripts": {
     "pack": "node pack-extension.js"
