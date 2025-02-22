@@ -12,12 +12,12 @@ async function createCustomElement({
                                    } = {}) {
 	try {
 		if (!htmlPath || !elementId) {
-			console.error('Invalid parameters: htmlPath or elementId is missing.')
+			logTrace('Invalid parameters: htmlPath or elementId is missing.')
 		} else {
 			const htmlResponse = await fetch(chrome.runtime.getURL(htmlPath))
 			const html = await htmlResponse.text()
 			if (!htmlResponse.ok) {
-				console.error(`Failed to load ${htmlPath}, status: ${htmlResponse.status}`)
+				logTrace(`Failed to load ${htmlPath}, status: ${htmlResponse.status}`)
 			} else {
 				const tempDiv = document.createElement('div')
 				tempDiv.innerHTML = html.trim()
@@ -53,7 +53,7 @@ async function createCustomElement({
 			}
 		}
 	} catch (err) {
-		console.log(`❌ Error in createCustomElement: ${err.message}`)
+		logTrace('❌ Error in createCustomElement: ', err.message)
 		return null
 	}
 }
@@ -95,6 +95,6 @@ async function initElements() {
 			document.body.appendChild(scriptRunningModal)
 		}
 	} catch (err) {
-		console.error('❌ Error creating elements:', err)
+		console.error('❌ Error creating elements:', err?.message)
 	}
 }

@@ -1,5 +1,3 @@
-console.log("popup script loaded")
-
 function changeAutoApplyButton(isRunning, selector) {
 	const startIcon = document.getElementById('start-icon')
 	const runningIcon = document.getElementById('running-icon')
@@ -82,7 +80,7 @@ document.addEventListener('click', event => {
 								alert('Link saved successfully!')
 							})
 						}).catch(err => {
-							console.error('Error getting current url: ', err)
+							logTrace('Error getting current url: ', err)
 						})
 					} else {
 						getCurrentUrl().then(url => {
@@ -164,7 +162,7 @@ document.addEventListener('click', event => {
 										chrome.runtime.sendMessage(
 											{ action: 'openTabAndRunScript', url: url },
 											(response) => {
-												console.log('Result of opening the tab and executing the script:', response)
+												logTrace('log','Result of opening the tab and executing the script:', response)
 											}
 										);
 									});
@@ -188,20 +186,16 @@ document.addEventListener('click', event => {
 						}
 					}
 				} catch (error) {
-					console.log("show-links popup.js error:", error);
+					logTrace("Cannot show links case 'show-links'", error);
 				}
 				break;
 			case 'start-auto-apply-button':
-				console.log("[START LOG]:start auto apply clicked")
-				console.log("[START LOG]:is auto apply can run:", typeof chrome !== 'undefined' && chrome?.storage && chrome?.storage.local)
 				if (typeof chrome !== 'undefined' && chrome?.storage && chrome?.storage.local) {
 					chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
 						const newState = !autoApplyRunning
 						changeAutoApplyButton(newState, button)
 						chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-							console.log("[START LOG]: @LOG TABs@", tabs)
 							const noActiveTabsText = 'No active tabs found try to go to a LinkedIn job search page or refresh the page.'
-							console.log("[START LOG]: is tabs", tabs && tabs.length > 0)
 							if (tabs && tabs?.length > 0) {
 								const currentTabId = tabs?.[0].id
 								chrome.runtime.sendMessage({
@@ -223,7 +217,6 @@ document.addEventListener('click', event => {
 									}
 								})
 							} else {
-								console.log('[START LOG]:No active tabs alert [2]')
 								alert(noActiveTabsText)
 							}
 						})

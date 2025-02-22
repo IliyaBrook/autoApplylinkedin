@@ -172,7 +172,7 @@ async function addUpdateDropDownGroupEventListener(placeholderIncludes) {
             try {
                 await chrome.runtime.sendMessage({ action: 'updateDropdownConfig', data: { placeholderIncludes, value: newValue } });
             }catch (error) {
-                console.error('Error updating dropdown:', error);
+                console.error('Error updating dropdown in [addUpdateDropDownGroupEventListener (function)]:', error);
             }
         }
     });

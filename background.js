@@ -38,6 +38,36 @@ async function saveLinkedInJobData(jobTitle, jobLink, companyName) {
 	await chrome.storage.local.set({ 'externalApplyData': sortedData })
 }
 
+/**
+ * Logs messages to the console using a specified logging level and outputs a stack trace.
+ *
+ * @param {'log'|'warn'|'error'} [logic='log'] - The logging level to use. Acceptable values are:
+ *   - 'log': Logs the message using `console.log`.
+ *   - 'warn': Logs the message using `console.warn`.
+ *   - 'error': Logs the message using `console.error`.
+ *   If no valid logging level is provided, it defaults to `console.error`.
+ * @param {...any} messages - The messages, objects, or any other data to be logged.
+ *   Multiple arguments can be passed, which will be logged sequentially.
+ * @returns {void}
+ */
+const logTrace = (logic, ...messages) => {
+	console.trace();
+	const log = (func) => messages.forEach(msg => func(msg));
+	switch (logic) {
+		case 'log':
+			log(console.log)
+			break;
+		case 'warn':
+			log(console.warn)
+			break;
+		case 'error':
+			log(console.error)
+			break;
+		default:
+			messages.unshift(logic)
+			log(console.error)
+	}
+};
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	try {
@@ -77,7 +107,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 											message: 'You are not on the LinkedIn jobs search page.'
 										}))
 										.catch(err => {
-											console.error('Error sending showNotOnJobSearchAlert:', err)
+											console.error('Error sending showNotOnJobSearchAlert in [startAutoApply (action)]:', err)
 											sendResponse({
 												success: false,
 												message: 'Error showing alert: ' + err.message
@@ -92,7 +122,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 											message: 'Form control fields are empty.  Please set them in the extension options.'
 										}))
 										.catch(err => {
-											console.error('Error sending showFormControlAlert', err)
+											logTrace('Error sending showFormControlAlert: ', err?.message)
 											sendResponse({ success: false, message: 'Error showing form control alert: ' + err.message })
 										})
 									return true
@@ -107,16 +137,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 												}).then(() => {
 													sendResponse({ success: true })
 												}).catch(err => {
-													console.error('[startAutoApply] in bg error (executeScript): Error:', err)
+													logTrace('startAutoApply Error: ', err?.message)
 													sendResponse({ success: false, message: err.message })
 													chrome.tabs.sendMessage(currentTabId, { action: 'hideRunningModal' })
 												})
 											} else {
-												console.error('Failed to show running modal:', response)
+												logTrace('log','Failed to show running modal: ', response)
 												sendResponse({ success: false, message: 'Failed to show running modal.' })
 											}
 										}).catch(err => {
-										console.error('Error sending showRunningModal:', err)
+										logTrace('Error sending showRunningModal : ', err?.message)
 										sendResponse({ success: false, message: 'Failed to send showRunningModal: ' + err.message })
 									})
 									return true
@@ -127,7 +157,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 					})
 				return true
 			} catch (err) {
-				console.error('[startAutoApply] in bg error:', err)
+				logTrace('startAutoApply Error: ', err?.message)
 				sendResponse({ success: false, message: err.message })
 			}
 		} else if (request.action === 'stopAutoApply') {
@@ -141,13 +171,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 						const currentTabId = tabs[0].id
 						chrome.tabs.get(currentTabId, (tab) => {
 							if (chrome.runtime.lastError) {
-								console.error('Error getting tab info:', chrome.runtime.lastError.message)
+								logTrace('Error getting tab info:', chrome.runtime.lastError.message)
 								sendResponse({ success: false, message: 'Tab error: ' + chrome.runtime.lastError.message })
 								return
 							}
 							
 							if (!tab || !tab.url || !tab.url.includes('linkedin.com/jobs')) {
-								console.warn('Tab is invalid or URL does not match.')
+								logTrace('warn','Tab is invalid or URL does not match.')
 								sendResponse({ success: false, message: 'Tab is invalid or not a LinkedIn jobs page.' })
 								return
 							}
@@ -160,13 +190,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 										sendResponse({ success: false, message: 'Failed to hide modal on stop.' })
 									}
 								}).catch(err => {
-								console.error('Error sending hideRunningModal:', err)
-								sendResponse({ success: false, message: 'Failed to send hideRunningModal: ' + err.message })
+								logTrace('Error sending hideRunningModal:', err?.message)
+								sendResponse({ success: false, message: 'Failed to send hideRunningModal: ' + err?.message })
 							})
 						})
 					}).catch(err => {
-					console.error('Error querying tabs in stopAutoApply:', err)
-					sendResponse({ success: false, message: 'Error querying tabs: ' + err.message })
+					logTrace('Error querying tabs in stopAutoApply:', err?.message)
+					sendResponse({ success: false, message: 'Error querying tabs: ' + err?.message})
 				})
 				return true
 			})
@@ -184,17 +214,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 									}).then(() => {
 										sendResponse({ success: true })
 									}).catch(err => {
-										console.error('[openTabAndRunScript] executeScript error:', err)
+										logTrace('executeScript error:', err)
 										sendResponse({ success: false, message: err.message })
 										chrome.tabs.sendMessage(tabId, { action: 'hideRunningModal' })
 									})
 								} else {
-									console.error('Failed to show running modal:', response.message)
+									logTrace('Failed to show running modal: ', response.message)
 									sendResponse({ success: false, message: response?.message || 'Failed to show running modal.' })
 								}
 							}).catch(err => {
-							console.error('Error sending showRunningModal:', err)
-							sendResponse({ success: false, message: 'Failed to send showRunningModal: ' + err.message })
+							logTrace('Error sending showRunningModal:', err?.message)
+							sendResponse({ success: false, message: 'Failed to send showRunningModal: ' + err?.message })
 						})
 						
 						chrome.tabs.onUpdated.removeListener(listener)
@@ -207,8 +237,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			updateOrAddInputFieldValue(placeholder, value)
 				.then(() => sendResponse({success: true}))
 				.catch(err => {
-					console.error("Error in updateInputFieldValue:", err);
-					sendResponse({success: false, message: err.message});
+					logTrace("Error in updateInputFieldValue:", err?.message);
+					sendResponse({success: false, message: err?.message});
 				});
 			return true;
 		} else if (request.action === 'updateInputFieldConfigsInStorage') {
@@ -216,8 +246,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			updateInputFieldConfigsInStorage(placeholder)
 				.then(() => sendResponse({ success: true }))
 				.catch(err => {
-					console.error('Error in updateInputFieldConfigsInStorage:', err)
-					sendResponse({ success: false, message: err.message })
+					logTrace('Error in updateInputFieldConfigsInStorage:', err?.message)
+					sendResponse({ success: false, message: err?.message })
 				})
 			return true
 		} else if (request.action === 'deleteInputFieldConfig') {
@@ -236,9 +266,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		} else if (request.action === 'deleteDropdownConfig') {
 			deleteDropdownValueConfig(request.data)
 		}
-		
 	} catch (e) {
-		console.error('[onMessage] error:', e)
+		logTrace('onMessage error:', e)
 		sendResponse({ success: false, message: e.message })
 	}
 })
@@ -258,7 +287,7 @@ async function updateOrAddInputFieldValue(placeholder, value) {
 		await chrome.storage.local.set({ inputFieldConfigs });
 		
 	} catch (error) {
-		console.error("Error updating or adding input field value:", error);
+		logTrace("Error updating or adding input field value:", error);
 		throw error;
 	}
 }
@@ -302,7 +331,7 @@ async function updateInputFieldConfigsInStorage(placeholder) {
 		await chrome.storage.local.set({ inputFieldConfigs })
 		
 	} catch (error) {
-		console.error('Error updating input field configs:', error)
+		logTrace('Error updating input field configs:', error)
 		throw error
 	}
 }
@@ -337,7 +366,7 @@ function updateRadioButtonValue(placeholderIncludes, newValue) {
 			chrome.storage.local.set({ 'radioButtons': storedRadioButtons }, () => {
 			})
 		} else {
-			console.error(`Item with placeholderIncludes ${placeholderIncludes} not found`)
+			logTrace(`Item with placeholderIncludes ${placeholderIncludes} not found`)
 		}
 	})
 }

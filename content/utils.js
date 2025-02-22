@@ -1,3 +1,36 @@
+/**
+ * Logs messages to the console using a specified logging level and outputs a stack trace.
+ *
+ * @param {'log'|'warn'|'error'} [logic='log'] - The logging level to use. Acceptable values are:
+ *   - 'log': Logs the message using `console.log`.
+ *   - 'warn': Logs the message using `console.warn`.
+ *   - 'error': Logs the message using `console.error`.
+ *   If no valid logging level is provided, it defaults to `console.error`.
+ * @param {...any} messages - The messages, objects, or any other data to be logged.
+ *   Multiple arguments can be passed, which will be logged sequentially.
+ * @returns {void}
+ */
+
+const logTrace = (logic, ...messages) => {
+	const log = (func) => messages.forEach(msg => func(msg));
+	switch (logic) {
+		case 'log':
+			log(console.log)
+			break;
+		case 'warn':
+			log(console.warn)
+			break;
+		case 'error':
+			log(console.error)
+			break;
+		default:
+			messages.unshift(logic)
+			log(console.error)
+	}
+	
+	console.trace();
+};
+
 async function addDelay(delay = 1000) {
 	return new Promise(resolve => {
 		setTimeout(() => {
@@ -51,7 +84,7 @@ function getElementsByXPath({ xpath, context = document }) {
  * @param {string|Element|HTMLElement|HTMLElement[]|Element[]} options.elementOrSelector - A CSS selector string, a DOM element, or an array of elements.
  * @param {number} [options.timeout=5000] - Maximum waiting time in milliseconds.
  * @param {Document|Element|HTMLElement[]} [options.contextNode=document] - The node (Document, Element, or an array of Elements) to search within.
- * @returns {Promise<HTMLElement[]> | Promise<Element[]>} A promise that resolves with an array of visible elements,
+ * @returns {Promise<HTMLElement[]>} A promise that resolves with an array of visible elements,
  * or an empty array if none are found within the timeout.
  */
 async function waitForElements({ elementOrSelector, timeout = 5000, contextNode = document }) {
@@ -102,7 +135,7 @@ async function waitForElements({ elementOrSelector, timeout = 5000, contextNode 
 				}
 			}, 100)
 		} catch (e) {
-			console.log('Error in waitForElements:', elementOrSelector)
+			logTrace('Error in waitForElements: ', elementOrSelector)
 		}
 	})
 }
@@ -130,19 +163,19 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 				})
 				element = elements[0]
 				if (!element) {
-					console.log('No element found for selector: ', elementOrSelector)
+					logTrace('log','No element found for selector: ', elementOrSelector)
 					return
 				}
 			} else if (elementOrSelector instanceof Element) {
 				element = elementOrSelector
 			} else {
-				console.log('\'[clickElement]: Argument must be a selector string or a DOM Element.\'')
+				logTrace('log', 'Argument must be a selector string or a DOM Element.')
 				return
 			}
 			
 			
 			if (element.offsetParent === null || !element.isConnected) {
-				console.log('[clickElement] Element is not visible or not connected')
+				logTrace('Element is not visible or not connected')
 				return
 			}
 			element?.scrollIntoView({ block: 'center' })
@@ -150,7 +183,7 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 			resolve(element)
 			
 		} catch (error) {
-			console.log('element is not clickable:', error)
+			logTrace('log','Element is not clickable:', error)
 		}
 	})
 }

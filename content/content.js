@@ -9,11 +9,14 @@ let defaultFields = {
 }
 //global flags
 let firstRun = true
-const isDev = true;
+const isDev = false;
 
 async function stopScript() {
-	await chrome.runtime.sendMessage({ action: 'stopAutoApply' })
-	await chrome.storage.local.set({ autoApplyRunning: false })
+	await Promise.all([
+		chrome.runtime.sendMessage({ action: 'stopAutoApply' }),
+		chrome.storage.local.set({ autoApplyRunning: false })
+	]);
+	console.log('Auto apply stopped');
 }
 
 async function startScript() {
@@ -64,7 +67,7 @@ function getJobTitle(jobNameLink) {
 	} else {
 		jobTitle = jobNameLink.getAttribute('aria-label') || ''
 		if (!jobTitle) {
-			console.warn('Job title not found using both selectors')
+			logTrace('warn','Job title not found using both selectors')
 		}
 	}
 	return jobTitle.toLowerCase()
@@ -89,7 +92,7 @@ async function clickDoneIfExist() {
 			}
 		}
 	} catch (error) {
-		console.error('clickDoneIfExist error:', error);
+		logTrace('clickDoneIfExist error:', error?.message);
 	}
 }
 
@@ -110,7 +113,6 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 					}
 				}
 				if (matchedBadWord) {
-					console.log('Bad word found: ' + matchedBadWord);
 					return;
 				}
 			}
@@ -343,7 +345,7 @@ async function runApplyModel() {
 				if (isDev) {
 					await new Promise(resolve => {
 						setTimeout(() => {
-							console.log("submit button test click")
+							console.log("Easy Apply is running in dev mode. Submitting application after 5 seconds.")
 							resolve()
 						}, 5000)
 					})
@@ -382,8 +384,8 @@ async function runApplyModel() {
 		if (document?.querySelector('button[data-test-dialog-secondary-btn]')?.innerText.includes('Discard')) {
 			await terminateJobModel();
 		}
-	}catch (e) {
-		console.error('runApplyModel error:', e)
+	}catch (error) {
+		logTrace('runApplyModel error:', error?.message)
 	}
 }
 
@@ -427,7 +429,7 @@ async function goToNextPage() {
 		}
 	}).then(runScript)
 		.catch(err => {
-			console.error('goToNextPage error:', err)
+			logTrace('goToNextPage error:', err?.message)
 		})
 }
 
@@ -474,8 +476,8 @@ async function checkAndPromptFields() {
 		}
 		const response = await chrome.storage.local.get('defaultFields')
 		return response?.defaultFields
-	} catch (e) {
-		console.error('Error in checkAndPromptFields:', e)
+	} catch (error) {
+		logTrace('Error in checkAndPromptFields:', error?.message)
 		return false
 	}
 }
@@ -489,9 +491,11 @@ async function closeApplicationSentModal() {
 }
 
 async function runScript() {
-	console.log('Easy apply started!')
 	await startScript()
-	await addDelay(firstRun ? 4000 : 2000);
+	if (firstRun) {
+		console.log('Easy apply linkedin started...')
+		await addDelay(firstRun ? 4000 : 2000);
+	}
 	firstRun = false
 	
 	try {
@@ -574,7 +578,7 @@ async function runScript() {
 					canClickToJob = false
 				}
 			} catch (e) {
-				console.log('Failed to find the main job content')
+				logTrace('log','Failed to find the main job content')
 			}
 			if (!(await checkAndPrepareRunState())) return;
 			if (canClickToJob) {
@@ -583,11 +587,10 @@ async function runScript() {
 		}
 		
 		if (await checkAndPrepareRunState()) {
-			console.log('Script is already running.');
 			await goToNextPage();
 		}
 	} catch (error) {
-		console.error('Error in runScript:', error)
+		logTrace('Error in runScript:', error?.message, 'script stopped')
 		await stopScript()
 	}
 }
@@ -635,11 +638,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					goButton.addEventListener('click', () => {
 						if (typeof url === 'string') {
 							window.open(url, '_blank')
-							chrome.runtime.sendMessage({ action: 'openTabAndRunScript', url: url }, (response) => {
-								console.log('Tab open request sent:', response)
-							})
+							void chrome.runtime.sendMessage({ action: 'openTabAndRunScript', url: url })
 						}else {
-							console.error('Invalid url type:', typeof url)
+							logTrace('Invalid url type:', typeof url)
 						}
 					})
 					li.appendChild(goButton)
@@ -680,13 +681,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 						if (response && response.success) {
 							console.log('Script stopped by user.');
 						} else {
-							console.error('Failed to stop script:', response);
+							logTrace('Failed to stop script: ', response);
 						}
 					});
 				});
 			}
 		}).catch(err => {
-			console.error('Error in showRunningModal:', err);
+			logTrace('Error in showRunningModal:', err);
 		})
 		
 	} else if (message.action === 'hideRunningModal') {

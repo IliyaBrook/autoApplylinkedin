@@ -5,7 +5,7 @@
 			await chrome.storage.local.set({ autoApplyRunning: false });
 		}
 	} catch (error) {
-		console.error("Error in content_end.js:", error);
+		logTrace(error);
 	}
 })();
 
