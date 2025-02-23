@@ -51,7 +51,6 @@ async function saveLinkedInJobData(jobTitle, jobLink, companyName) {
  * @returns {void}
  */
 const logTrace = (logic, ...messages) => {
-	console.trace();
 	const log = (func) => messages.forEach(msg => func(msg));
 	switch (logic) {
 		case 'log':
@@ -67,7 +66,11 @@ const logTrace = (logic, ...messages) => {
 			messages.unshift(logic)
 			log(console.error)
 	}
+	const error = new Error();
+	Error.captureStackTrace(error, logTrace);
+	console.trace(error);
 };
+
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	try {

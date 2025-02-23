@@ -13,15 +13,15 @@ let isRunning = true
 const isDev = false;
 
 async function stopScript() {
+	const modalWrapper = document.getElementById('scriptRunningOverlay');
+	if (modalWrapper) {
+		modalWrapper.style.display = 'none';
+	}
 	await Promise.all([
 		chrome.runtime.sendMessage({ action: 'stopAutoApply' }),
 		chrome.storage.local.set({ autoApplyRunning: false })
 	]);
-	console.log('Auto apply stopped');
 	isRunning = false;
-	setTimeout(() => {
-		isRunning = true;
-	}, 2000)
 }
 
 async function startScript() {
@@ -134,35 +134,41 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 }
 
 async function performInputFieldChecks() {
-	const result = await new Promise(resolve => {
-		chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, resolve);
-	});
-	const questionContainers = document.querySelectorAll('.fb-dash-form-element');
-	
-	for (const container of questionContainers) {
-		const label = container.querySelector('.artdeco-text-input--label');
-		const inputField = container.querySelector('.artdeco-text-input--input');
-		let labelText;
+	try {
+		const result = await new Promise(resolve => {
+			chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, resolve);
+		});
+		const questionContainers = document.querySelectorAll('.fb-dash-form-element');
 		
-		if (label) {
-			labelText = label.textContent.trim();
-			const foundConfig = result.find(config => config.placeholderIncludes === labelText);
-			if (foundConfig) {
-				inputField.value = foundConfig.defaultValue;
-				['keydown', 'keypress', 'input', 'keyup'].forEach(eventType => {
-					inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
-				});
-				inputField.dispatchEvent(new Event('change', { bubbles: true }));
+		for (const container of questionContainers) {
+			const label = container?.querySelector('.artdeco-text-input--label');
+			const inputField = container?.querySelector('.artdeco-text-input--input');
+			let labelText;
+			const performFillForm = async (inputField) => {
+				const keyEvents = ['keydown', 'keypress', 'input', 'keyup'];
+				for (const eventType of keyEvents) {
+					await addDelay(200)
+					inputField?.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
+				}
+				await addDelay(200)
+				inputField?.dispatchEvent(new Event('change', { bubbles: true }));
 			}
-			else {
-				inputField.value = defaultFields.YearsOfExperience;
-				['keydown', 'keypress', 'input', 'keyup'].forEach(eventType => {
-					inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
-				});
-				inputField.dispatchEvent(new Event('change', { bubbles: true }));
+			if (label) {
+				labelText = label.textContent.trim();
+				const foundConfig = result.find(config => config.placeholderIncludes === labelText);
+				if (foundConfig) {
+					inputField.value = foundConfig.defaultValue;
+					await performFillForm(inputField);
+				}
+				else {
+					inputField.value = defaultFields.YearsOfExperience;
+					await performFillForm(inputField);
+				}
+				await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText });
 			}
-			await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText });
 		}
+	}catch (error) {
+		logTrace('log', 'performInputField not completed: ', error?.message)
 	}
 }
 
@@ -280,8 +286,8 @@ async function checkForError() {
 	return feedbackMessageElement !== null
 }
 
-async function terminateJobModel() {
-	const dismissButton = document.querySelector('button[aria-label="Dismiss"]')
+async function terminateJobModel(context = document) {
+	const dismissButton = context.querySelector('button[aria-label="Dismiss"]')
 	if (dismissButton) {
 		dismissButton.click()
 		dismissButton.dispatchEvent(new Event('change', { bubbles: true }))
@@ -315,84 +321,94 @@ async function uncheckFollowCompany() {
 
 async function runApplyModel() {
 	try {
-		await addDelay()
-		await performSafetyReminderCheck();
-		const applyModalWait = await waitForElements({
-			elementOrSelector: '.artdeco-modal',
-			timeout: 3000
-		})
-		if (Array.isArray(applyModalWait)) {
-			const applyModal = applyModalWait[0]
-			const continueApplyingButton = applyModal.querySelector('button[aria-label="Continue applying"]');
-			
-			if (continueApplyingButton) {
-				continueApplyingButton?.scrollIntoView({ block: 'center' })
-				await addDelay(300);
-				continueApplyingButton.click();
-				await runApplyModel();
-			}
-			
-			const nextButton = Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Next'));
-			const reviewButtonWait = await waitForElements({
-				elementOrSelector:'button[aria-label="Review your application"]',
-				timeout: 2000
+		return await new Promise( async resolve => {
+			await addDelay()
+			await performSafetyReminderCheck();
+			const applyModalWait = await waitForElements({
+				elementOrSelector: '.artdeco-modal',
+				timeout: 3000
 			})
-			const reviewButton = reviewButtonWait?.[0]
-			const submitButtonWait = await waitForElements({
-				elementOrSelector:'button[aria-label="Submit application"]',
-				timeout: 2000
-			})
-			const submitButton = submitButtonWait?.[0]
-			
-			if (submitButton) {
-				await addDelay(600);
-				await uncheckFollowCompany();
-				await addDelay(600);
-				submitButton?.scrollIntoView({ block: 'center' })
-				await addDelay(300);
+			if (Array.isArray(applyModalWait)) {
+				const applyModal = applyModalWait[0]
+				const continueApplyingButton = applyModal?.querySelector('button[aria-label="Continue applying"]');
 				
-				if (isDev) {
-					await new Promise(resolve => {
+				if (continueApplyingButton) {
+					continueApplyingButton?.scrollIntoView({ block: 'center' })
+					await addDelay(300);
+					continueApplyingButton.click();
+					await runApplyModel();
+				}
+				
+				const nextButton = applyModal?.querySelectorAll && Array.from(applyModal.querySelectorAll('button')).find(button => button.textContent.includes('Next'));
+				const reviewButtonWait = await waitForElements({
+					elementOrSelector:'button[aria-label="Review your application"]',
+					timeout: 2000
+				})
+				const reviewButton = reviewButtonWait?.[0]
+				const submitButtonWait = await waitForElements({
+					elementOrSelector:'button[aria-label="Submit application"]',
+					timeout: 2000
+				})
+				const submitButton = submitButtonWait?.[0]
+				
+				if (submitButton) {
+					await addDelay(600);
+					await uncheckFollowCompany();
+					await addDelay(600);
+					submitButton?.scrollIntoView({ block: 'center' })
+					await addDelay(300);
+					
+					if (isDev) {
 						setTimeout(() => {
 							console.log("Easy Apply is running in dev mode. Submitting application after 5 seconds.")
-							resolve()
 						}, 5000)
-					})
-				}else {
-					submitButton.click();
-				}
-				
-				await addDelay();
-				const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
-				if (modalCloseButton) {
-					modalCloseButton?.scrollIntoView({ block: 'center' })
-					await addDelay(300);
-					modalCloseButton.click();
-					return;
-				}
-				await clickDoneIfExist();
-			}
-			
-			
-			if (nextButton || reviewButton) {
-				const buttonToClick = reviewButton || nextButton;
-				
-				await runValidations();
-				const isError = await checkForError();
-				
-				if (isError) {
-					await terminateJobModel();
-				} else {
-					buttonToClick?.scrollIntoView({ block: 'center' })
+					}else {
+						submitButton.click();
+					}
 					await addDelay();
-					buttonToClick.click();
+					const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
+					if (modalCloseButton) {
+						modalCloseButton?.scrollIntoView({ block: 'center' })
+						await addDelay(300);
+						modalCloseButton.click();
+					}
+					await clickDoneIfExist();
+				}
+				
+				if (nextButton || reviewButton) {
+					const buttonToClick = reviewButton || nextButton;
+					
+					await runValidations();
+					const isError = await checkForError();
+					
+					if (isError) {
+						await terminateJobModel();
+					} else {
+						buttonToClick?.scrollIntoView({ block: 'center' })
+						await addDelay();
+						buttonToClick.click();
+						await runApplyModel();
+					}
+					if (document?.querySelector('button[data-test-dialog-secondary-btn]')?.innerText.includes('Discard')) {
+						await terminateJobModel();
+					}
+				}
+			}
+			if (!document?.querySelector('.artdeco-modal')) {
+				resolve(null);
+			}else {
+				const modalsToClose = Array.from(document.querySelectorAll('.artdeco-modal'))
+				for (const modal of modalsToClose) {
+					await addDelay(1000)
+					await terminateJobModel(modal);
+				}
+				if (!document?.querySelector('.artdeco-modal')) {
+					resolve(null);
+				}else {
 					await runApplyModel();
 				}
 			}
-		}
-		if (document?.querySelector('button[data-test-dialog-secondary-btn]')?.innerText.includes('Discard')) {
-			await terminateJobModel();
-		}
+		})
 	}catch (error) {
 		logTrace('runApplyModel error:', error?.message)
 	}
@@ -411,8 +427,8 @@ async function runFindEasyApply(jobTitle, companyName) {
 		}
 		const easyApplyElements = getElementsByXPath({ xpath: easy_apply_button })
 		if (easyApplyElements.length > 0) {
-			const buttonPromises = Array.from(easyApplyElements).map((button) => {
-				return new Promise((resolve) => {
+			const buttonPromises = Array.from(easyApplyElements).map(async (button) => {
+				return await new Promise((resolve) => {
 					button.click()
 					resolve(runApplyModel())
 				})
@@ -423,23 +439,56 @@ async function runFindEasyApply(jobTitle, companyName) {
 	})
 }
 
+let currentPage = '';
 async function goToNextPage() {
-	let buttons = getElementsByXPath({ xpath: '//button[.//text()[contains(., \'Next\')]]' })
-	const nextButton = buttons?.[0]
-	return new Promise((resolve, reject) => {
-		if (!nextButton) {
-			reject(new Error('No next and show all button found'))
-		}
+	const pagination = document?.querySelector('.jobs-search-pagination')
+	const paginationPage = pagination.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText;
+	const nextButton = pagination.querySelector("button[aria-label*='next']")
+	
+	return new Promise(resolve => {
 		if (nextButton) {
 			setTimeout(() => {
-				nextButton.click()
-				resolve()
-			}, 2000)
+				nextButton.click();
+				resolve();
+			}, 2000);
+		} else {
+			resolve();
 		}
-	}).then(runScript)
-		.catch(err => {
-			logTrace('goToNextPage error:', err?.message)
+	})
+		.then( () => {
+			addDelay(1000)
+				.then(() => {
+					addDelay(1000).then(() => {
+						const scrollElement = document?.querySelector('.scaffold-layout__list > div')
+						scrollElement.scrollTo({
+							top: scrollElement.scrollHeight
+						});
+						if (!nextButton && paginationPage === currentPage) {
+							const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
+							if (showAllLinks.length > 0) {
+								const allShowAllLinkPromises = showAllLinks.map((link) => {
+									return new Promise((resolve) => {
+										link.click();
+										resolve();
+									});
+								});
+								return Promise.all(allShowAllLinkPromises);
+							}else {
+								stopScript()
+							}
+						}else {
+							currentPage = paginationPage;
+						}
+						return Promise.resolve();
+					})
+				})
 		})
+		.then(() => {
+			runScript();
+		})
+		.catch(err => {
+			logTrace('goToNextPage error:', err?.message);
+		});
 }
 
 function toggleBlinkingBorder(element) {

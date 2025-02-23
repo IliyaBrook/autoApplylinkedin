@@ -27,8 +27,9 @@ const logTrace = (logic, ...messages) => {
 			messages.unshift(logic)
 			log(console.error)
 	}
-	
-	console.trace();
+	const error = new Error();
+	Error.captureStackTrace(error, logTrace);
+	console.trace(error);
 };
 
 async function addDelay(delay = 1000) {
