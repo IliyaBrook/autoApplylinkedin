@@ -310,8 +310,12 @@ async function runValidations() {
 }
 
 async function uncheckFollowCompany() {
-	const followCheckbox = document.querySelector('#follow-company-checkbox')
+	const followCheckboxWait = await waitForElements({elementOrSelector: '#follow-company-checkbox', timeout: 3000})
+	
+	const  followCheckbox = followCheckboxWait?.[0]
 	if (followCheckbox?.checked) {
+		followCheckbox?.scrollIntoView({ block: 'center' })
+		await addDelay(500);
 		followCheckbox.checked = false
 		const changeEvent = new Event('change', { bubbles: true, cancelable: true })
 		// noinspection JSCheckFunctionSignatures
@@ -352,9 +356,9 @@ async function runApplyModel() {
 				const submitButton = submitButtonWait?.[0]
 				
 				if (submitButton) {
-					await addDelay(600);
+					// await addDelay(600);
 					await uncheckFollowCompany();
-					await addDelay(600);
+					// await addDelay(600);
 					submitButton?.scrollIntoView({ block: 'center' })
 					await addDelay(300);
 					
@@ -590,6 +594,7 @@ async function runScript() {
 		const listItems = await waitForElements({ elementOrSelector: '.scaffold-layout__list-item'})
 		
 		for (const listItem of listItems) {
+			await addDelay(300)
 			let canClickToJob = true
 			if (!(await checkAndPrepareRunState())) return;
 			await closeApplicationSentModal()
