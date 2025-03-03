@@ -67,7 +67,6 @@ const logTrace = (logic, ...messages) => {
 			log(console.error)
 	}
 	const error = new Error();
-	Error.captureStackTrace(error, logTrace);
 	console.trace(error);
 };
 

@@ -454,56 +454,6 @@ async function runFindEasyApply(jobTitle, companyName) {
 }
 
 let currentPage = '';
-// async function goToNextPage() {
-// 	const pagination = document?.querySelector('.jobs-search-pagination')
-// 	const paginationPage = pagination.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText;
-// 	const nextButton = pagination.querySelector("button[aria-label*='next']")
-//
-// 	return new Promise(resolve => {
-// 		if (nextButton) {
-// 			setTimeout(() => {
-// 				nextButton.click();
-// 				resolve();
-// 			}, 2000);
-// 		} else {
-// 			resolve();
-// 		}
-// 	})
-// 		.then( () => {
-// 			addDelay(1000)
-// 				.then(() => {
-// 					addDelay(1000).then(() => {
-// 						const scrollElement = document?.querySelector('.scaffold-layout__list > div')
-// 						scrollElement.scrollTo({
-// 							top: scrollElement.scrollHeight
-// 						});
-// 						if (!nextButton && paginationPage === currentPage) {
-// 							const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
-// 							if (showAllLinks.length > 0) {
-// 								const allShowAllLinkPromises = showAllLinks.map((link) => {
-// 									return new Promise((resolve) => {
-// 										link.click();
-// 										resolve();
-// 									});
-// 								});
-// 								return Promise.all(allShowAllLinkPromises);
-// 							}else {
-// 								stopScript()
-// 							}
-// 						}else {
-// 							currentPage = paginationPage;
-// 						}
-// 						return Promise.resolve();
-// 					})
-// 				})
-// 		})
-// 		.then(() => {
-// 			runScript();
-// 		})
-// 		.catch(err => {
-// 			logTrace('goToNextPage error:', err?.message);
-// 		});
-// }
 
 async function goToNextPage() {
 	const pagination = document?.querySelector('.jobs-search-pagination');
@@ -525,8 +475,7 @@ async function goToNextPage() {
 		} else {
 			resolve();
 		}
-	})
-		.then(() => {
+	}).then(() => {
 			addDelay(500).then(() => {
 				const scrollElement = document?.querySelector('.scaffold-layout__list > div');
 				scrollElement?.scrollTo({
@@ -541,7 +490,9 @@ async function goToNextPage() {
 								resolve();
 							});
 						});
-						return Promise.all(allShowAllLinkPromises);
+						return Promise.all(allShowAllLinkPromises).then(() => {
+							return addDelay(2000);
+						});
 					} else {
 						stopScript();
 					}
@@ -821,7 +772,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				});
 			}
 		}).catch(err => {
-			logTrace('Error in showRunningModal:', err);
+			console.log('Error in showRunningModal:', err?.message);
 		})
 		
 	} else if (message.action === 'hideRunningModal') {

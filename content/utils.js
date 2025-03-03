@@ -10,7 +10,6 @@
  *   Multiple arguments can be passed, which will be logged sequentially.
  * @returns {void}
  */
-
 const logTrace = (logic, ...messages) => {
 	const log = (func) => messages.forEach(msg => func(msg));
 	switch (logic) {
@@ -28,7 +27,6 @@ const logTrace = (logic, ...messages) => {
 			log(console.error)
 	}
 	const error = new Error();
-	Error.captureStackTrace(error, logTrace);
 	console.trace(error);
 };
 
