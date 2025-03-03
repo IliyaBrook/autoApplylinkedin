@@ -56,10 +56,13 @@ async function performInputFieldCityCheck() {
 		const inputEvent = new Event('input', { bubbles: true })
 		
 		cityInput.dispatchEvent(inputEvent)
+		//Todo check maybe 2000ms is too much
+		const firstOptionWait = await waitForElements({
+			elementOrSelector: '.basic-typeahead__selectable',
+			timeout: 500
+		})
 		
-		await new Promise(resolve => setTimeout(resolve, 500))
-		
-		const firstOption = document.querySelector('.basic-typeahead__selectable')
+		const firstOption = firstOptionWait?.[0]
 		if (firstOption) {
 			firstOption.click()
 		}
@@ -97,7 +100,7 @@ async function clickDoneIfExist() {
 			if (xpathResult && xpathResult.length > 0) {
 				const doneButton = xpathResult[0];
 				await clickElement({elementOrSelector: doneButton})
-				await addDelay();
+				await addDelay(300);
 			}
 		}
 	} catch (error) {
@@ -130,7 +133,8 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 		}
 	}
 	await runFindEasyApply(jobTitle, companyName);
-	await addDelay(2000)
+	// Todo check maybe needed
+	// await addDelay(500)
 }
 
 async function performInputFieldChecks() {
@@ -147,11 +151,12 @@ async function performInputFieldChecks() {
 			const performFillForm = async (inputField) => {
 				const keyEvents = ['keydown', 'keypress', 'input', 'keyup'];
 				for (const eventType of keyEvents) {
-					await addDelay(200)
 					inputField?.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
+					await addDelay(100)
 				}
-				await addDelay(200)
+				
 				inputField?.dispatchEvent(new Event('change', { bubbles: true }));
+				await addDelay(200)
 			}
 			if (label) {
 				labelText = label.textContent.trim();
@@ -194,6 +199,7 @@ async function performRadioButtonChecks() {
 			if (radioButtonWithValue) {
 				radioButtonWithValue.checked = true
 				radioButtonWithValue.dispatchEvent(new Event('change', { bubbles: true }))
+				await addDelay(500)
 			}
 			
 			storedRadioButtonInfo.count++
@@ -202,6 +208,7 @@ async function performRadioButtonChecks() {
 			if (firstRadioButton) {
 				firstRadioButton.checked = true
 				firstRadioButton.dispatchEvent(new Event('change', { bubbles: true }))
+				await addDelay(500)
 				
 				const options = Array.from(fieldset.querySelectorAll('input[type="radio"]')).map(radioButton => {
 					const labelElement = fieldset.querySelector(`label[for="${radioButton.id}"]`)
@@ -232,27 +239,29 @@ async function performRadioButtonChecks() {
 async function performDropdownChecks() {
 	const dropdowns = document.querySelectorAll('.fb-dash-form-element select')
 	
-	dropdowns.forEach(dropdown => {
+	for (const dropdown of dropdowns) {
 		const parentElement = dropdown.closest('.fb-dash-form-element')
 		if (parentElement) {
 			const secondOption = dropdown.options[1]
 			if (secondOption) {
 				secondOption.selected = true
 				dropdown.dispatchEvent(new Event('change', { bubbles: true }))
+				await addDelay(500)
 			}
 		}
-	})
+	}
 }
 
 async function performCheckBoxFieldCityCheck() {
 	const checkboxFieldsets = document.querySelectorAll('fieldset[data-test-checkbox-form-component="true"]');
-	checkboxFieldsets.forEach(fieldset => {
+	for (const fieldset of checkboxFieldsets) {
 		const firstCheckbox = fieldset.querySelector('input[type="checkbox"]');
 		if (firstCheckbox) {
 			firstCheckbox.checked = true;
 			firstCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
+			await addDelay(500);
 		}
-	});
+	}
 }
 
 async function performSafetyReminderCheck() {
@@ -291,11 +300,13 @@ async function terminateJobModel(context = document) {
 	if (dismissButton) {
 		dismissButton.click()
 		dismissButton.dispatchEvent(new Event('change', { bubbles: true }))
+		await addDelay(500)
 		const discardButton = Array.from(document.querySelectorAll('button[data-test-dialog-secondary-btn]'))
 			.find(button => button.textContent.trim() === 'Discard')
 		if (discardButton) {
 			discardButton.click()
 			discardButton.dispatchEvent(new Event('change', { bubbles: true }))
+			await addDelay(500)
 		}
 	}
 }
@@ -315,11 +326,12 @@ async function uncheckFollowCompany() {
 	const  followCheckbox = followCheckboxWait?.[0]
 	if (followCheckbox?.checked) {
 		followCheckbox?.scrollIntoView({ block: 'center' })
-		await addDelay(500);
+		await addDelay(300);
 		followCheckbox.checked = false
 		const changeEvent = new Event('change', { bubbles: true, cancelable: true })
 		// noinspection JSCheckFunctionSignatures
 		followCheckbox.dispatchEvent(changeEvent)
+		await addDelay(200)
 	}
 }
 
@@ -356,9 +368,7 @@ async function runApplyModel() {
 				const submitButton = submitButtonWait?.[0]
 				
 				if (submitButton) {
-					// await addDelay(600);
 					await uncheckFollowCompany();
-					// await addDelay(600);
 					submitButton?.scrollIntoView({ block: 'center' })
 					await addDelay(300);
 					
@@ -444,48 +454,102 @@ async function runFindEasyApply(jobTitle, companyName) {
 }
 
 let currentPage = '';
+// async function goToNextPage() {
+// 	const pagination = document?.querySelector('.jobs-search-pagination')
+// 	const paginationPage = pagination.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText;
+// 	const nextButton = pagination.querySelector("button[aria-label*='next']")
+//
+// 	return new Promise(resolve => {
+// 		if (nextButton) {
+// 			setTimeout(() => {
+// 				nextButton.click();
+// 				resolve();
+// 			}, 2000);
+// 		} else {
+// 			resolve();
+// 		}
+// 	})
+// 		.then( () => {
+// 			addDelay(1000)
+// 				.then(() => {
+// 					addDelay(1000).then(() => {
+// 						const scrollElement = document?.querySelector('.scaffold-layout__list > div')
+// 						scrollElement.scrollTo({
+// 							top: scrollElement.scrollHeight
+// 						});
+// 						if (!nextButton && paginationPage === currentPage) {
+// 							const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
+// 							if (showAllLinks.length > 0) {
+// 								const allShowAllLinkPromises = showAllLinks.map((link) => {
+// 									return new Promise((resolve) => {
+// 										link.click();
+// 										resolve();
+// 									});
+// 								});
+// 								return Promise.all(allShowAllLinkPromises);
+// 							}else {
+// 								stopScript()
+// 							}
+// 						}else {
+// 							currentPage = paginationPage;
+// 						}
+// 						return Promise.resolve();
+// 					})
+// 				})
+// 		})
+// 		.then(() => {
+// 			runScript();
+// 		})
+// 		.catch(err => {
+// 			logTrace('goToNextPage error:', err?.message);
+// 		});
+// }
+
 async function goToNextPage() {
-	const pagination = document?.querySelector('.jobs-search-pagination')
-	const paginationPage = pagination.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText;
-	const nextButton = pagination.querySelector("button[aria-label*='next']")
+	const pagination = document?.querySelector('.jobs-search-pagination');
+	const paginationPage = pagination?.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText;
+	const nextButton = pagination?.querySelector("button[aria-label*='next']");
 	
 	return new Promise(resolve => {
 		if (nextButton) {
-			setTimeout(() => {
-				nextButton.click();
+			nextButton.click();
+			waitForElements({
+				elementOrSelector: '.scaffold-layout__list-item',
+				timeout: 5000
+			}).then(() => {
 				resolve();
-			}, 2000);
+			}).catch(error => {
+				logTrace('goToNextPage waitForElements error:', error?.message);
+				resolve();
+			});
 		} else {
 			resolve();
 		}
 	})
-		.then( () => {
-			addDelay(1000)
-				.then(() => {
-					addDelay(1000).then(() => {
-						const scrollElement = document?.querySelector('.scaffold-layout__list > div')
-						scrollElement.scrollTo({
-							top: scrollElement.scrollHeight
+		.then(() => {
+			addDelay(500).then(() => {
+				const scrollElement = document?.querySelector('.scaffold-layout__list > div');
+				scrollElement?.scrollTo({
+					top: scrollElement.scrollHeight
+				});
+				if (!nextButton && paginationPage === currentPage) {
+					const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'));
+					if (showAllLinks.length > 0) {
+						const allShowAllLinkPromises = showAllLinks.map((link) => {
+							return new Promise((resolve) => {
+								link.click();
+								resolve();
+							});
 						});
-						if (!nextButton && paginationPage === currentPage) {
-							const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
-							if (showAllLinks.length > 0) {
-								const allShowAllLinkPromises = showAllLinks.map((link) => {
-									return new Promise((resolve) => {
-										link.click();
-										resolve();
-									});
-								});
-								return Promise.all(allShowAllLinkPromises);
-							}else {
-								stopScript()
-							}
-						}else {
-							currentPage = paginationPage;
-						}
-						return Promise.resolve();
-					})
-				})
+						return Promise.all(allShowAllLinkPromises);
+					} else {
+						stopScript();
+					}
+				} else {
+					currentPage = paginationPage;
+				}
+				return Promise.resolve();
+			});
 		})
 		.then(() => {
 			runScript();
