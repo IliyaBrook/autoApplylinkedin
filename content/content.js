@@ -56,7 +56,6 @@ async function performInputFieldCityCheck() {
 		const inputEvent = new Event('input', { bubbles: true })
 		
 		cityInput.dispatchEvent(inputEvent)
-		//Todo check maybe 2000ms is too much
 		const firstOptionWait = await waitForElements({
 			elementOrSelector: '.basic-typeahead__selectable',
 			timeout: 500
@@ -137,44 +136,101 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 	// await addDelay(500)
 }
 
+// async function performInputFieldChecks() {
+// 	try {
+// 		const result = await new Promise(resolve => {
+// 			chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, resolve);
+// 		});
+// 		const questionContainers = document.querySelectorAll('.fb-dash-form-element');
+//
+// 		for (const container of questionContainers) {
+// 			const label = container?.querySelector('.artdeco-text-input--label');
+// 			const inputField = container?.querySelector('.artdeco-text-input--input');
+// 			if (!label || !inputField) {
+// 				continue;
+// 			}
+// 			let labelText;
+// 			const performFillForm = async (inputField) => {
+// 				const keyEvents = ['keydown', 'keypress', 'input', 'keyup'];
+// 				for (const eventType of keyEvents) {
+// 					inputField?.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
+// 					await addDelay(100)
+// 				}
+//
+// 				inputField?.dispatchEvent(new Event('change', { bubbles: true }));
+// 				await addDelay(200)
+// 			}
+// 			if (label) {
+// 				labelText = label.textContent.trim();
+// 				const foundConfig = result.find(config => config.placeholderIncludes === labelText);
+// 				if (foundConfig) {
+// 					inputField.value = foundConfig.defaultValue;
+// 					await performFillForm(inputField);
+// 				}
+// 				else {
+// 					inputField.value = defaultFields.YearsOfExperience;
+// 					await performFillForm(inputField);
+// 				}
+// 				await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText });
+// 			}
+// 		}
+// 	}catch (error) {
+// 		logTrace('log', 'performInputField not completed: ', error?.message)
+// 	}
+// }
+
+
 async function performInputFieldChecks() {
 	try {
 		const result = await new Promise(resolve => {
 			chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, resolve);
 		});
+		
 		const questionContainers = document.querySelectorAll('.fb-dash-form-element');
 		
 		for (const container of questionContainers) {
-			const label = container?.querySelector('.artdeco-text-input--label');
-			const inputField = container?.querySelector('.artdeco-text-input--input');
-			let labelText;
-			const performFillForm = async (inputField) => {
-				const keyEvents = ['keydown', 'keypress', 'input', 'keyup'];
-				for (const eventType of keyEvents) {
-					inputField?.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
-					await addDelay(100)
-				}
-				
-				inputField?.dispatchEvent(new Event('change', { bubbles: true }));
-				await addDelay(200)
+			const label = container.querySelector('.artdeco-text-input--label');
+			const inputField = container.querySelector('input:not([type="hidden"]), textarea');
+			
+			if (!label || !inputField) {
+				console.error("Missing label or input field in container:", container);
+				continue;
 			}
-			if (label) {
-				labelText = label.textContent.trim();
-				const foundConfig = result.find(config => config.placeholderIncludes === labelText);
-				if (foundConfig) {
-					inputField.value = foundConfig.defaultValue;
-					await performFillForm(inputField);
-				}
-				else {
-					inputField.value = defaultFields.YearsOfExperience;
-					await performFillForm(inputField);
-				}
-				await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText });
+			
+			let labelText = label.textContent.trim();
+			const foundConfig = result.find(config => config.placeholderIncludes === labelText);
+			
+			if (inputField.value.trim() !== "") {
+				console.log(`Field with label "${labelText}" is already filled. Skipping.`);
+				continue;
 			}
+			
+			
+			if (foundConfig) {
+				inputField.value = foundConfig.defaultValue;
+				await performFillForm(inputField);
+			} else {
+				inputField.value = defaultFields.YearsOfExperience;
+				await performFillForm(inputField);
+			}
+			
+			await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText });
 		}
-	}catch (error) {
-		logTrace('log', 'performInputField not completed: ', error?.message)
+	} catch (error) {
+		logTrace('log', 'performInputField not completed: ', error.message);
 	}
+}
+
+
+async function performFillForm(inputField) {
+	const keyEvents = ['keydown', 'keypress', 'input', 'keyup'];
+	for (const eventType of keyEvents) {
+		inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
+		await addDelay(100); // Небольшая задержка между событиями
+	}
+	
+	inputField.dispatchEvent(new Event('change', { bubbles: true })); // 'change' - важное событие
+	await addDelay(200);
 }
 
 async function performRadioButtonChecks() {
@@ -236,21 +292,91 @@ async function performRadioButtonChecks() {
 	await chrome.storage.local.set({ 'radioButtons': storedRadioButtons })
 }
 
+// async function performDropdownChecks() {
+// 	const dropdowns = document.querySelectorAll('.fb-dash-form-element select')
+//
+// 	for (const dropdown of dropdowns) {
+// 		const parentElement = dropdown.closest('.fb-dash-form-element')
+// 		if (parentElement) {
+// 			const secondOption = dropdown.options[1]
+// 			if (secondOption) {
+// 				secondOption.selected = true
+// 				dropdown.dispatchEvent(new Event('change', { bubbles: true }))
+// 				await addDelay(500)
+// 			}
+// 		}
+// 	}
+// }
 async function performDropdownChecks() {
-	const dropdowns = document.querySelectorAll('.fb-dash-form-element select')
+	const storedDropdowns = await new Promise((resolve) => {
+		chrome.storage.local.get('dropdowns', (result) => {
+			resolve(result.dropdowns || []);
+		});
+	});
 	
-	for (const dropdown of dropdowns) {
-		const parentElement = dropdown.closest('.fb-dash-form-element')
+	const dropdowns = document.querySelectorAll('.fb-dash-form-element select');
+	dropdowns.forEach((dropdown, index) => {
+		const parentElement = dropdown.closest('.fb-dash-form-element');
 		if (parentElement) {
-			const secondOption = dropdown.options[1]
-			if (secondOption) {
-				secondOption.selected = true
-				dropdown.dispatchEvent(new Event('change', { bubbles: true }))
-				await addDelay(500)
+			const labelElement = parentElement.querySelector('label');
+			let labelText = null;
+			
+			if (labelElement) {
+				const ariaHiddenSpan = labelElement.querySelector('span[aria-hidden="true"]');
+				labelText = ariaHiddenSpan?.textContent.trim();
+				
+				if (!labelText) {
+					labelText = labelElement.innerText.trim();
+				}
 			}
+			
+			labelText = labelText || `Dropdown ${index}`;
+			
+			const secondOption = dropdown.options[1];
+			if (secondOption && dropdown.selectedIndex < 1) {
+				secondOption.selected = true;
+				dropdown.dispatchEvent(new Event('change', { bubbles: true }));
+			}
+			
+			const options = Array.from(dropdown.options).map(option => ({
+				value: option.value,
+				text: option.textContent.trim(),
+				selected: option.selected,
+			}));
+			
+			const storedDropdownInfo = storedDropdowns.find(info => info.placeholderIncludes === labelText);
+			
+			if (storedDropdownInfo) {
+				const selectedValue = storedDropdownInfo.options.find(option => option.selected)?.value;
+				
+				Array.from(dropdown.options).forEach(option => {
+					option.selected = option.value === selectedValue;
+				});
+				
+				dropdown.dispatchEvent(new Event('change', { bubbles: true }));
+				
+				storedDropdownInfo.count++;
+			} else {
+				const newDropdownInfo = {
+					placeholderIncludes: labelText,
+					count: 1,
+					options: options.map(option => ({
+						value: option.value,
+						text: option.text,
+						selected: option.selected,
+					})),
+				};
+				
+				storedDropdowns.push(newDropdownInfo);
+			}
+		} else {
+		
 		}
-	}
+	});
+	
+	void chrome.storage.local.set({ dropdowns: storedDropdowns });
 }
+
 
 async function performCheckBoxFieldCityCheck() {
 	const checkboxFieldsets = document.querySelectorAll('fieldset[data-test-checkbox-form-component="true"]');
