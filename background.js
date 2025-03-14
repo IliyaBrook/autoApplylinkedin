@@ -263,8 +263,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 		} else if (request.action === 'deleteRadioButtonConfig') {
 			deleteRadioButtonConfig(request.data)
 		} else if (request.action === 'updateDropdownConfig') {
-			const { placeholderIncludes, value } = request.data
-			updateDropdownConfig(placeholderIncludes, value)
+			updateDropdownConfig(request.data)
 		} else if (request.action === 'deleteDropdownConfig') {
 			deleteDropdownValueConfig(request.data)
 		}
@@ -382,6 +381,8 @@ function deleteRadioButtonConfig(placeholder) {
 }
 
 function updateDropdownConfig(dropdownData) {
+	console.log("background dropdown data:", dropdownData)
+	
 	if (!dropdownData || !dropdownData.placeholderIncludes || !dropdownData.value || !dropdownData.options) {
 		return
 	}

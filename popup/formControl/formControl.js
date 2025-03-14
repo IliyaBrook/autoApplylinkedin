@@ -70,6 +70,7 @@ function displayRadioButtonConfigs(radioButtons) {
             radioButton.value = option.value;
             radioButton.checked = option.selected;
             const label = document.createElement('label');
+            
             label.textContent = option.value;
             radioContainer.appendChild(radioButton);
             radioContainer.appendChild(label);
@@ -166,13 +167,24 @@ function displayDropdownConfigs(dropdowns) {
 async function addUpdateDropDownGroupEventListener(placeholderIncludes) {
     const select = document.getElementById(`dropdown-config-${placeholderIncludes}-container`).querySelector('select');
     select.addEventListener('change', async () => {
-        const select = document.getElementById(`dropdown-config-${placeholderIncludes}-container`).querySelector('select');
         const newValue = select.value;
+        
         if (newValue !== '') {
             try {
-                await chrome.runtime.sendMessage({ action: 'updateDropdownConfig', data: { placeholderIncludes, value: newValue } });
-            }catch (error) {
-                console.error('Error updating dropdown in [addUpdateDropDownGroupEventListener (function)]:', error);
+                const { dropdowns } = await chrome.storage.local.get('dropdowns');
+                const currentDropdownConfig = dropdowns.find(config => config.placeholderIncludes === placeholderIncludes);
+                const toSendData = {
+                    action: 'updateDropdownConfig',
+                    data: {
+                        placeholderIncludes: placeholderIncludes,
+                        options:currentDropdownConfig.options,
+                        value: newValue,
+                    }
+                }
+                
+                await chrome.runtime.sendMessage(toSendData);
+            } catch (error) {
+                console.error('Error updating dropdown:', error)
             }
         }
     });

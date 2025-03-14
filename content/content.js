@@ -132,52 +132,7 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 		}
 	}
 	await runFindEasyApply(jobTitle, companyName);
-	// Todo check maybe needed
-	// await addDelay(500)
 }
-
-// async function performInputFieldChecks() {
-// 	try {
-// 		const result = await new Promise(resolve => {
-// 			chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, resolve);
-// 		});
-// 		const questionContainers = document.querySelectorAll('.fb-dash-form-element');
-//
-// 		for (const container of questionContainers) {
-// 			const label = container?.querySelector('.artdeco-text-input--label');
-// 			const inputField = container?.querySelector('.artdeco-text-input--input');
-// 			if (!label || !inputField) {
-// 				continue;
-// 			}
-// 			let labelText;
-// 			const performFillForm = async (inputField) => {
-// 				const keyEvents = ['keydown', 'keypress', 'input', 'keyup'];
-// 				for (const eventType of keyEvents) {
-// 					inputField?.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
-// 					await addDelay(100)
-// 				}
-//
-// 				inputField?.dispatchEvent(new Event('change', { bubbles: true }));
-// 				await addDelay(200)
-// 			}
-// 			if (label) {
-// 				labelText = label.textContent.trim();
-// 				const foundConfig = result.find(config => config.placeholderIncludes === labelText);
-// 				if (foundConfig) {
-// 					inputField.value = foundConfig.defaultValue;
-// 					await performFillForm(inputField);
-// 				}
-// 				else {
-// 					inputField.value = defaultFields.YearsOfExperience;
-// 					await performFillForm(inputField);
-// 				}
-// 				await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText });
-// 			}
-// 		}
-// 	}catch (error) {
-// 		logTrace('log', 'performInputField not completed: ', error?.message)
-// 	}
-// }
 
 
 async function performInputFieldChecks() {
@@ -193,7 +148,6 @@ async function performInputFieldChecks() {
 			const inputField = container.querySelector('input:not([type="hidden"]), textarea');
 			
 			if (!label || !inputField) {
-				console.error("Missing label or input field in container:", container);
 				continue;
 			}
 			
@@ -292,21 +246,6 @@ async function performRadioButtonChecks() {
 	await chrome.storage.local.set({ 'radioButtons': storedRadioButtons })
 }
 
-// async function performDropdownChecks() {
-// 	const dropdowns = document.querySelectorAll('.fb-dash-form-element select')
-//
-// 	for (const dropdown of dropdowns) {
-// 		const parentElement = dropdown.closest('.fb-dash-form-element')
-// 		if (parentElement) {
-// 			const secondOption = dropdown.options[1]
-// 			if (secondOption) {
-// 				secondOption.selected = true
-// 				dropdown.dispatchEvent(new Event('change', { bubbles: true }))
-// 				await addDelay(500)
-// 			}
-// 		}
-// 	}
-// }
 async function performDropdownChecks() {
 	const storedDropdowns = await new Promise((resolve) => {
 		chrome.storage.local.get('dropdowns', (result) => {
