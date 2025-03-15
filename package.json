@@ -9,6 +9,7 @@
   },
   "private": true,
   "devDependencies": {
+    "@types/chrome": "^0.0.309",
     "archiver": "^7.0.1",
     "fs-extra": "^11.2.0"
   }
