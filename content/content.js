@@ -1,3 +1,5 @@
+
+
 // noinspection JSCheckFunctionSignatures
 let defaultFields = {
 	YearsOfExperience: '',
@@ -134,41 +136,69 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNam
 	await runFindEasyApply(jobTitle, companyName);
 }
 
-
 async function performInputFieldChecks() {
 	try {
 		const result = await new Promise(resolve => {
 			chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, resolve);
 		});
-		
 		const questionContainers = document.querySelectorAll('.fb-dash-form-element');
-		
 		for (const container of questionContainers) {
-			const label = container.querySelector('.artdeco-text-input--label');
+			let label = container.querySelector('.artdeco-text-input--label');
+			if (!label) {
+				label = getElementsByXPath({ context: container, xpath: './/label' })?.[0]
+			}
 			const inputField = container.querySelector('input:not([type="hidden"]), textarea');
 			
 			if (!label || !inputField) {
 				continue;
 			}
-			
 			let labelText = label.textContent.trim();
 			const foundConfig = result.find(config => config.placeholderIncludes === labelText);
-			
-			if (inputField.value.trim() !== "") {
-				console.log(`Field with label "${labelText}" is already filled. Skipping.`);
-				continue;
-			}
-			
-			
 			if (foundConfig) {
-				inputField.value = foundConfig.defaultValue;
+				// inputField.value = foundConfig.defaultValue;
+				setNativeValue(inputField, foundConfig.defaultValue);
 				await performFillForm(inputField);
 			} else {
-				inputField.value = defaultFields.YearsOfExperience;
-				await performFillForm(inputField);
+				// try to find closed value in defaultFields
+				const defaultFields = (await chrome.storage.local.get('defaultFields'))?.defaultFields
+				if (defaultFields && Object.keys(defaultFields).length > 0) {
+					// inputField.value = findClosestField(defaultFields, labelText)
+					const valueFromDefault = findClosestField(defaultFields, labelText);
+					setNativeValue(inputField, valueFromDefault ?? "");
+					if (!valueFromDefault) {
+						// try to find closed value in inputFieldConfigs
+						const inputFieldConfigsArray = (await chrome.storage.local.get('inputFieldConfigs'))?.inputFieldConfigs
+						if (inputFieldConfigsArray && Array.isArray(inputFieldConfigsArray) && inputFieldConfigsArray.length > 0) {
+							const inputFieldConfigsObj = inputFieldConfigsArray.reduce((acc, {placeholderIncludes, defaultValue}) => {
+								return {
+									...acc,
+									[placeholderIncludes]: defaultValue
+								}
+							}, {})
+							const valueFromConfigs = findClosestField(inputFieldConfigsObj, labelText);
+							setNativeValue(inputField, valueFromConfigs ?? "");
+						}
+					}
+				}
+				if (!inputField.value) {
+					await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText });
+					const isStopScript = Boolean((await chrome.storage.local.get('stopIfNotExistInFormControl'))?.stopIfNotExistInFormControl)
+					if (!isStopScript) {
+						if (!foundConfig && inputField.value.trim() !== "") {
+							console.log(`Field with label "${labelText}" is already filled. Skipping.`);
+							continue;
+						}
+						setNativeValue(inputField, "");
+						await performFillForm(inputField);
+					}else {
+						await stopScript()
+						alert(
+							`Field with label "${labelText}" is not filled. Please fill it in the form control settings.`
+						);
+						return
+					}
+				}
 			}
-			
-			await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText });
 		}
 	} catch (error) {
 		logTrace('log', 'performInputField not completed: ', error.message);
@@ -180,10 +210,10 @@ async function performFillForm(inputField) {
 	const keyEvents = ['keydown', 'keypress', 'input', 'keyup'];
 	for (const eventType of keyEvents) {
 		inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
-		await addDelay(100); // Небольшая задержка между событиями
+		await addDelay(100);
 	}
 	
-	inputField.dispatchEvent(new Event('change', { bubbles: true })); // 'change' - важное событие
+	inputField.dispatchEvent(new Event('change', { bubbles: true }));
 	await addDelay(200);
 }
 
@@ -233,7 +263,8 @@ async function performRadioButtonChecks() {
 					placeholderIncludes: placeholderText,
 					defaultValue: firstRadioButton.value,
 					count: 1,
-					options: options
+					options: options,
+					createdAt: Date.now()
 				}
 				
 				storedRadioButtons.push(newRadioButtonInfo)
@@ -308,8 +339,6 @@ async function performDropdownChecks() {
 				
 				storedDropdowns.push(newDropdownInfo);
 			}
-		} else {
-		
 		}
 	});
 	
@@ -431,7 +460,6 @@ async function runApplyModel() {
 					timeout: 2000
 				})
 				const submitButton = submitButtonWait?.[0]
-				
 				if (submitButton) {
 					await uncheckFollowCompany();
 					submitButton?.scrollIntoView({ block: 'center' })
@@ -453,10 +481,8 @@ async function runApplyModel() {
 					}
 					await clickDoneIfExist();
 				}
-				
 				if (nextButton || reviewButton) {
 					const buttonToClick = reviewButton || nextButton;
-					
 					await runValidations();
 					const isError = await checkForError();
 					
@@ -480,11 +506,6 @@ async function runApplyModel() {
 				for (const modal of modalsToClose) {
 					await addDelay(1000)
 					await terminateJobModel(modal);
-				}
-				if (!document?.querySelector('.artdeco-modal')) {
-					resolve(null);
-				}else {
-					await runApplyModel();
 				}
 			}
 		})

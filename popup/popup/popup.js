@@ -94,8 +94,7 @@ document.addEventListener('click', event => {
 							} else {
 								chrome.storage.local.set({
 									savedLinks: {
-										...savedLinks,
-										[linkName]: url
+										...savedLinks, [linkName]: url
 									}
 								}, () => {
 									alert('Link saved successfully!')
@@ -107,88 +106,85 @@ document.addEventListener('click', event => {
 				break
 			case 'show-links':
 				try {
-					let accordion = document.getElementById('linksAccordion');
+					let accordion = document.getElementById('linksAccordion')
 					// data set toggle
-					const dataset = button.dataset;
-					if (dataset.open === "true") {
+					const dataset = button.dataset
+					if (dataset.open === 'true') {
 						button.textContent = 'Show job search links'
 						button.style.backgroundColor = 'rgb(9, 2, 214, 0.8)'
-						button.dataset.open = "false";
+						button.dataset.open = 'false'
 						if (accordion) {
-							accordion.style.display = "none";
+							accordion.style.display = 'none'
 						}
-					}else {
-						button.dataset.open = "true";
+					} else {
+						button.dataset.open = 'true'
 						button.textContent = 'Hide job search link'
 						button.style.backgroundColor = 'rgb(220,53,69)'
-
+						
 						if (accordion) {
-							accordion.style.display = "block";
+							accordion.style.display = 'block'
 						}
 					}
 					if (!accordion) {
-						if (dataset.open === "true") {
-							accordion = document.createElement('div');
-							accordion.id = 'linksAccordion';
-							accordion.style.border = '1px solid #ccc';
-							accordion.style.marginTop = '10px';
-							accordion.style.padding = '10px';
-							accordion.style.background = '#f9f9f9';
-							accordion.style.borderRadius = '4px';
-							const content = document.createElement('div');
-							content.className = 'accordion-content';
-							content.style.display = 'block';
-							accordion.appendChild(content);
-							document.getElementById('show-links').parentElement.appendChild(accordion);
+						if (dataset.open === 'true') {
+							accordion = document.createElement('div')
+							accordion.id = 'linksAccordion'
+							accordion.style.border = '1px solid #ccc'
+							accordion.style.marginTop = '10px'
+							accordion.style.padding = '10px'
+							accordion.style.background = '#f9f9f9'
+							accordion.style.borderRadius = '4px'
+							const content = document.createElement('div')
+							content.className = 'accordion-content'
+							content.style.display = 'block'
+							accordion.appendChild(content)
+							document.getElementById('show-links').parentElement.appendChild(accordion)
 							chrome.storage.local.get('savedLinks', (result) => {
-								const savedLinks = result.savedLinks || {};
-								content.innerHTML = "";
+								const savedLinks = result.savedLinks || {}
+								content.innerHTML = ''
 								if (Object.keys(savedLinks).length === 0) {
-									const emptyMsg = document.createElement('div');
+									const emptyMsg = document.createElement('div')
 									emptyMsg.textContent = 'No saved links available.'
-									content.appendChild(emptyMsg);
-									return;
+									content.appendChild(emptyMsg)
+									return
 								}
 								Object.entries(savedLinks).forEach(([name, url]) => {
-									const item = document.createElement('div');
-									item.className = 'saved-link-item';
-									const nameEl = document.createElement('span');
-									nameEl.textContent = name;
-									item.appendChild(nameEl);
-									const goButton = document.createElement('button');
-									goButton.className = 'modal-button primary go-button';
-									goButton.textContent = 'Go';
+									const item = document.createElement('div')
+									item.className = 'saved-link-item'
+									const nameEl = document.createElement('span')
+									nameEl.textContent = name
+									item.appendChild(nameEl)
+									const goButton = document.createElement('button')
+									goButton.className = 'modal-button primary go-button'
+									goButton.textContent = 'Go'
 									goButton.addEventListener('click', () => {
-										chrome.runtime.sendMessage(
-											{ action: 'openTabAndRunScript', url: url },
-											(response) => {
-												logTrace('log','Result of opening the tab and executing the script:', response)
-											}
-										);
-									});
-									item.appendChild(goButton);
-									const deleteButton = document.createElement('button');
-									deleteButton.className = 'modal-button danger delete-button';
-									deleteButton.textContent = 'Delete';
+										chrome.runtime.sendMessage({ action: 'openTabAndRunScript', url: url }, (response) => {
+											logTrace('log', 'Result of opening the tab and executing the script:', response)
+										})
+									})
+									item.appendChild(goButton)
+									const deleteButton = document.createElement('button')
+									deleteButton.className = 'modal-button danger delete-button'
+									deleteButton.textContent = 'Delete'
 									deleteButton.addEventListener('click', () => {
 										chrome.storage.local.get('savedLinks', (res) => {
-											const links = res.savedLinks || {};
-											delete links[name];
+											const links = res.savedLinks || {}
+											delete links[name]
 											chrome.storage.local.set({ savedLinks: links }, () => {
-												item.remove();
-											});
-										});
-									});
-									item.appendChild(deleteButton);
-									content.appendChild(item);
-								});
-							});
+												item.remove()
+											})
+										})
+									})
+									item.appendChild(deleteButton)
+									content.appendChild(item)
+								})
+							})
 						}
 					}
 				} catch (error) {
-					logTrace("Cannot show links case 'show-links'", error);
+					logTrace('Cannot show links case \'show-links\'', error)
 				}
-				break;
+				break
 			case 'start-auto-apply-button':
 				if (typeof chrome !== 'undefined' && chrome?.storage && chrome?.storage.local) {
 					chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
@@ -199,8 +195,7 @@ document.addEventListener('click', event => {
 							if (tabs && tabs?.length > 0) {
 								const currentTabId = tabs?.[0].id
 								chrome.runtime.sendMessage({
-									action: newState ? 'startAutoApply' : 'stopAutoApply',
-									tabId: currentTabId
+									action: newState ? 'startAutoApply' : 'stopAutoApply', tabId: currentTabId
 								}, response => {
 									if (response?.success) {
 										chrome.storage.local.set({ autoApplyRunning: newState }, () => {
@@ -210,7 +205,6 @@ document.addEventListener('click', event => {
 										chrome.storage.local.set({ autoApplyRunning: false }, () => {
 											changeAutoApplyButton(false, button)
 											if (response?.message === 'No active tab found.') {
-												console.log('[START LOG]:No active tabs alert [1]')
 												alert(noActiveTabsText)
 											}
 										})
@@ -222,7 +216,6 @@ document.addEventListener('click', event => {
 						})
 					})
 				}
-				break
 		}
 	}
 })
@@ -234,12 +227,12 @@ document.getElementById('import-file').addEventListener('change', function(event
 	const reader = new FileReader()
 	reader.onload = function(e) {
 		try {
-			if (e?.target?.result && typeof e.target.result === 'string'){
+			if (e?.target?.result && typeof e.target.result === 'string') {
 				const importedData = JSON.parse(e.target.result)
 				chrome.storage.local.set(importedData, function() {
 					alert('Settings imported successfully!')
 				})
-			}else {
+			} else {
 				alert('Error reading file.')
 			}
 		} catch (err) {
@@ -254,4 +247,16 @@ document.addEventListener('DOMContentLoaded', () => {
 	chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
 		changeAutoApplyButton(autoApplyRunning, autoApplyButton)
 	})
+	
+	const switchInput = document.getElementById('stop-if-not-exist-in-form-control');
+	
+	chrome.storage.local.get('stopIfNotExistInFormControl', ({ stopIfNotExistInFormControl }) => {
+		switchInput.checked = Boolean(stopIfNotExistInFormControl);
+	});
+	
+	switchInput.addEventListener('change', () => {
+		chrome.storage.local.set({ stopIfNotExistInFormControl: switchInput.checked }, () => {
+			console.log('stopIfNotExistInFormControl updated:', switchInput.checked);
+		});
+	});
 })

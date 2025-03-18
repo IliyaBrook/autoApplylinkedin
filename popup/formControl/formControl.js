@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', function () {
 function fetchRadioButtonConfigs(callback) {
     chrome.storage.local.get('radioButtons', result => {
         const radioButtons = result?.radioButtons || [];
+        console.log("radioButtons: ", radioButtons)
         callback(radioButtons);
     });
 }
@@ -31,6 +32,8 @@ function fetchRadioButtonConfigs(callback) {
 function fetchDropdownConfigs(callback) {
     chrome.storage.local.get('dropdowns', result => {
         const dropdowns = result.dropdowns || [];
+        console.log("dropdowns: ", dropdowns)
+        
         callback(dropdowns);
     });
 }
@@ -38,6 +41,8 @@ function fetchDropdownConfigs(callback) {
 function fetchInputFieldConfigs(callback) {
     chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, result => {
         const inputFieldConfigs = result || [];
+        console.log("inputFieldConfigs: ", inputFieldConfigs)
+        
         callback(inputFieldConfigs);
     });
 }

@@ -27,7 +27,7 @@ We improved the “External Apply” feature to store only unique job postings. 
 
 - **Job Title Must Skip**: Excludes jobs whose titles include specified keywords (takes priority over "Must Contain").
 
-- **Job Text Content Bad Words**: Filters out jobs with unwanted keywords in the job description.
+- **About the job bad words**: Filters out jobs with unwanted keywords in the job description.
 
 - Users can customize these filters for a more tailored job search.
 

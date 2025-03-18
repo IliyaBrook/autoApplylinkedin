@@ -5,6 +5,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<title>AutoApply form control configurations</title>
 	<link rel="stylesheet" type="text/css" href='popup.css' />
+	<link rel="stylesheet" type="text/css" href='../global.css' />
 </head>
 <body>
 <div class="popup-container">
@@ -59,6 +60,15 @@
 		<button id="show-links" class="button button-links" data-open="false">
 			Show job search links
 		</button>
+	</div>
+	<div class="column stop-if-not-exist-in-form-control">
+		<p>
+			Stop if a question is not found in Form Control
+		</p>
+			<label class="switch">
+				<input type="checkbox" id="stop-if-not-exist-in-form-control">
+				<span class="slider round"></span>
+			</label>
 	</div>
 </div>
 <div class="column start-button-column">

@@ -294,48 +294,28 @@ async function updateOrAddInputFieldValue(placeholder, value) {
 }
 
 async function updateInputFieldConfigsInStorage(placeholder) {
-	const result = await chrome.storage.local.get(['inputFieldConfigs'])
-	const inputFieldConfigs = result.inputFieldConfigs || []
-	const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder)
-	if (foundConfig) {
-		foundConfig.count++
-		chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
-			currentInputFieldConfigs = inputFieldConfigs
-		})
-	} else {
-		chrome.storage.local.get('defaultFields', function(result) {
-			const defaultFields = result.defaultFields || {}
-			const newConfig = { placeholderIncludes: placeholder, defaultValue: defaultFields.YearsOfExperience, count: 1 }
+	try {
+		const result = await chrome.storage.local.get('inputFieldConfigs')
+		const inputFieldConfigs = result?.inputFieldConfigs || []
+		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder)
+		if (foundConfig) {
+			foundConfig.count++
+			chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
+				currentInputFieldConfigs = inputFieldConfigs
+			})
+		}else {
+			const newConfig = { placeholderIncludes: placeholder, defaultValue: '', count: 1, createdAt: Date.now() }
 			inputFieldConfigs.push(newConfig)
 			chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
 				currentInputFieldConfigs = inputFieldConfigs
 			})
-		})
-	}
-	
-	try {
-		const { inputFieldConfigs = [] } = await chrome.storage.local.get('inputFieldConfigs')
-		const foundConfig = inputFieldConfigs.find(config => config.placeholderIncludes === placeholder)
-		
-		if (foundConfig) {
-			foundConfig.count++
-		} else {
-			const { defaultFields = {} } = await chrome.storage.local.get('defaultFields')
-			const newConfig = {
-				placeholderIncludes: placeholder,
-				defaultValue: defaultFields?.YearsOfExperience,
-				count: 1
-			}
-			inputFieldConfigs.push(newConfig)
 		}
-		
-		await chrome.storage.local.set({ inputFieldConfigs })
-		
 	} catch (error) {
 		logTrace('Error updating input field configs:', error)
 		throw error
 	}
 }
+
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 	if (request.action === 'deleteInputFieldConfig') {
@@ -364,8 +344,7 @@ function updateRadioButtonValue(placeholderIncludes, newValue) {
 			storedRadioButtonInfo.options.forEach(option => {
 				option.selected = option.value === newValue
 			})
-			chrome.storage.local.set({ 'radioButtons': storedRadioButtons }, () => {
-			})
+			chrome.storage.local.set({ 'radioButtons': storedRadioButtons })
 		} else {
 			logTrace(`Item with placeholderIncludes ${placeholderIncludes} not found`)
 		}
@@ -381,8 +360,6 @@ function deleteRadioButtonConfig(placeholder) {
 }
 
 function updateDropdownConfig(dropdownData) {
-	console.log("background dropdown data:", dropdownData)
-	
 	if (!dropdownData || !dropdownData.placeholderIncludes || !dropdownData.value || !dropdownData.options) {
 		return
 	}
@@ -401,6 +378,7 @@ function updateDropdownConfig(dropdownData) {
 			dropdowns.push({
 				placeholderIncludes: dropdownData.placeholderIncludes,
 				value: dropdownData.value,
+				createdAt: Date.now(),
 				options: dropdownData.options.map(option => ({
 					value: option.value,
 					text: option.text || '',

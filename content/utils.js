@@ -1,3 +1,5 @@
+// noinspection DuplicatedCode
+
 /**
  * Logs messages to the console using a specified logging level and outputs a stack trace.
  *
@@ -185,4 +187,93 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 			logTrace('log','Element is not clickable:', error)
 		}
 	})
+}
+
+function normalizeString(str) {
+	return str.toLowerCase().replace(/[\s-_]+/g, '');
+}
+
+function setNativeValue(element, value) {
+	const valueSetter = Object.getOwnPropertyDescriptor(element, "value")?.set;
+	const prototype = Object.getPrototypeOf(element);
+	const prototypeValueSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+	if (prototypeValueSetter && valueSetter !== prototypeValueSetter) {
+		prototypeValueSetter.call(element, value);
+	} else if (valueSetter) {
+		valueSetter.call(element, value);
+	} else {
+		throw new Error("Невозможно установить значение");
+	}
+	element.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+//Levenshtein distance
+function levenshteinDistance(a, b) {
+	if (a.length === 0) return b.length;
+	if (b.length === 0) return a.length;
+	
+	const matrix = [];
+	for (let i = 0; i <= b.length; i++) {
+		matrix[i] = [i];
+	}
+	for (let j = 0; j <= a.length; j++) {
+		matrix[0][j] = j;
+	}
+	for (let i = 1; i <= b.length; i++) {
+		for (let j = 1; j <= a.length; j++) {
+			if (b.charAt(i - 1) === a.charAt(j - 1)) {
+				matrix[i][j] = matrix[i - 1][j - 1];
+			} else {
+				matrix[i][j] = Math.min(
+					matrix[i - 1][j - 1] + 1, // замена
+					matrix[i][j - 1] + 1,     // вставка
+					matrix[i - 1][j] + 1      // удаление
+				);
+			}
+		}
+	}
+	return matrix[b.length][a.length];
+}
+
+function findClosestField(defaultFields, inputString) {
+	const normalizedInput = normalizeString(inputString);
+	let substringMatches = [];
+	
+	for (const key in defaultFields) {
+		const normalizedKey = normalizeString(key);
+		if (normalizedKey.includes(normalizedInput) || normalizedInput.includes(normalizedKey)) {
+			substringMatches.push(key);
+		}
+	}
+	
+	if (substringMatches.length === 1) {
+		return defaultFields[substringMatches[0]];
+	}
+	if (substringMatches.length > 1) {
+		let bestKey = null;
+		let bestScore = Infinity;
+		for (const key of substringMatches) {
+			const normalizedKey = normalizeString(key);
+			const distance = levenshteinDistance(normalizedInput, normalizedKey);
+			const score = distance / Math.max(normalizedInput.length, normalizedKey.length);
+			if (score < bestScore) {
+				bestScore = score;
+				bestKey = key;
+			}
+		}
+		return bestScore <= 0.4 ? defaultFields[bestKey] : undefined;
+	}
+	
+	let bestKey = null;
+	let bestScore = Infinity;
+	for (const key in defaultFields) {
+		const normalizedKey = normalizeString(key);
+		const distance = levenshteinDistance(normalizedInput, normalizedKey);
+		const score = distance / Math.max(normalizedInput.length, normalizedKey.length);
+		if (score < bestScore) {
+			bestScore = score;
+			bestKey = key;
+		}
+	}
+	return bestScore <= 0.4 ? defaultFields[bestKey] : undefined;
 }
