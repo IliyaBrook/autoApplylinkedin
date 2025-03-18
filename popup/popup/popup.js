@@ -255,8 +255,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 	
 	switchInput.addEventListener('change', () => {
-		chrome.storage.local.set({ stopIfNotExistInFormControl: switchInput.checked }, () => {
-			console.log('stopIfNotExistInFormControl updated:', switchInput.checked);
-		});
+		void chrome.storage.local.set({ stopIfNotExistInFormControl: switchInput.checked });
 	});
 })

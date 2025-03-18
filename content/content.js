@@ -243,6 +243,9 @@ async function performRadioButtonChecks() {
 			}
 			
 			storedRadioButtonInfo.count++
+			if (!('createdAt' in storedRadioButtonInfo) || !storedRadioButtonInfo.createdAt) {
+				storedRadioButtonInfo.createdAt = Date.now();
+			}
 		} else {
 			const firstRadioButton = fieldset.querySelector('input[type="radio"]')
 			if (firstRadioButton) {

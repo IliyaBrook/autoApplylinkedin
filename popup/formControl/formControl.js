@@ -1,3 +1,15 @@
+function sortData(data) {
+    return data.sort((a, b) => {
+        const countA = a.count === undefined ? -Infinity : a.count;
+        const countB = b.count === undefined ? -Infinity : b.count;
+        return countB - countA;
+    }).sort((a, b) => {
+        const timeA = a.createdAt === undefined ? -Infinity : a.createdAt;
+        const timeB = b.createdAt === undefined ? -Infinity : b.createdAt;
+        return timeB - timeA;
+    })
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     
     fetchInputFieldConfigs(displayAndUpdateInputFieldConfig);
@@ -21,10 +33,10 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
+
 function fetchRadioButtonConfigs(callback) {
     chrome.storage.local.get('radioButtons', result => {
         const radioButtons = result?.radioButtons || [];
-        console.log("radioButtons: ", radioButtons)
         callback(radioButtons);
     });
 }
@@ -32,8 +44,6 @@ function fetchRadioButtonConfigs(callback) {
 function fetchDropdownConfigs(callback) {
     chrome.storage.local.get('dropdowns', result => {
         const dropdowns = result.dropdowns || [];
-        console.log("dropdowns: ", dropdowns)
-        
         callback(dropdowns);
     });
 }
@@ -41,8 +51,6 @@ function fetchDropdownConfigs(callback) {
 function fetchInputFieldConfigs(callback) {
     chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, result => {
         const inputFieldConfigs = result || [];
-        console.log("inputFieldConfigs: ", inputFieldConfigs)
-        
         callback(inputFieldConfigs);
     });
 }
@@ -50,7 +58,7 @@ function fetchInputFieldConfigs(callback) {
 function displayRadioButtonConfigs(radioButtons) {
     const configurationsDiv = document.getElementById('radio');
     configurationsDiv.innerHTML = '';
-    const sortedRadioButtons = radioButtons.sort((a, b) => b.count - a.count);
+    const sortedRadioButtons = sortData(radioButtons)
     sortedRadioButtons.forEach(config => {
         const configContainer = document.createElement('div');
         configContainer.className = 'config-container';
@@ -115,7 +123,7 @@ function displayDropdownConfigs(dropdowns) {
     const configurationsDiv = document.getElementById('dropdown');
     configurationsDiv.innerHTML = '';
     
-    const sortedDropdowns = dropdowns.sort((a, b) => b.count - a.count);
+    const sortedDropdowns = sortData(dropdowns)
     sortedDropdowns.forEach(config => {
         const configContainer = document.createElement('div');
         configContainer.className = 'config-container';
@@ -213,7 +221,7 @@ function displayAndUpdateInputFieldConfig(configurations) {
     const configurationsDiv = document.getElementById('configurations');
     configurationsDiv.innerHTML = '';
     if (configurations && configurations.length > 0) {
-        const sortedConfigurations = configurations.sort((a, b) => b.count - a.count);
+        const sortedConfigurations = sortData(configurations)
         sortedConfigurations.forEach(config => {
             const configContainer = document.createElement('div');
             configContainer.id = `config-${config.placeholderIncludes}-container`;

@@ -19,7 +19,6 @@ async function saveLinkedInJobData(jobTitle, jobLink, companyName) {
 	const storageResult = await chrome.storage.local.get('externalApplyData')
 	const storedData = storageResult?.externalApplyData || []
 	storedData.push({ title: jobTitle, link: jobLink, companyName, time: Date.now() })
-	
 	const uniqData = []
 	const seenLinks = new Set()
 	const seenTitleAndCompany = new Set()
@@ -303,6 +302,9 @@ async function updateInputFieldConfigsInStorage(placeholder) {
 			chrome.storage.local.set({ 'inputFieldConfigs': inputFieldConfigs }, () => {
 				currentInputFieldConfigs = inputFieldConfigs
 			})
+			if (!('createdAt' in foundConfig) || !foundConfig.createdAt) {
+				foundConfig.createdAt = Date.now();
+			}
 		}else {
 			const newConfig = { placeholderIncludes: placeholder, defaultValue: '', count: 1, createdAt: Date.now() }
 			inputFieldConfigs.push(newConfig)
@@ -374,6 +376,10 @@ function updateDropdownConfig(dropdownData) {
 				text: option.text || '',
 				selected: option.value === dropdownData.value
 			}))
+			// check if storedDropdownInfo has  createdAt key
+			if (!('createdAt' in storedDropdownInfo) || !storedDropdownInfo.createdAt) {
+				storedDropdownInfo.createdAt = Date.now();
+			}
 		} else {
 			dropdowns.push({
 				placeholderIncludes: dropdownData.placeholderIncludes,
