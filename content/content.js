@@ -255,13 +255,21 @@ async function performRadioButtonChecks() {
 				await addDelay(500)
 				
 				const options = Array.from(fieldset.querySelectorAll('input[type="radio"]')).map(radioButton => {
-					const labelElement = fieldset.querySelector(`label[for="${radioButton.id}"]`)
+					const labelElement = fieldset.querySelector(`label[for="${radioButton.id}"]`);
+					let text = labelElement?.textContent.trim();
+					
+					if (!text) {
+						const parentElement = radioButton.parentElement;
+						const textElement = parentElement?.querySelector('span') || parentElement?.querySelector('div');
+						text = textElement?.textContent?.trim() || radioButton.value;
+					}
+					
 					return {
 						value: radioButton.value,
-						text: labelElement?.textContent.trim() || radioButton.value,
+						text: text,
 						selected: radioButton.checked
-					}
-				})
+					};
+				});
 				
 				const newRadioButtonInfo = {
 					placeholderIncludes: placeholderText,
@@ -274,6 +282,14 @@ async function performRadioButtonChecks() {
 				storedRadioButtons.push(newRadioButtonInfo)
 				
 				await chrome.storage.local.set({ 'radioButtons': storedRadioButtons })
+			}
+			const isStopScript = Boolean((await chrome.storage.local.get('stopIfNotExistInFormControl'))?.stopIfNotExistInFormControl)
+			if (isStopScript) {
+				await stopScript()
+				alert(
+					`Field with label "${placeholderText}" is not filled. Please fill it in the form control settings.`
+				);
+				return
 			}
 		}
 	}
@@ -552,8 +568,8 @@ async function runFindEasyApply(jobTitle, companyName) {
 }
 
 let currentPage = '';
-
 async function goToNextPage() {
+	await addDelay()
 	const pagination = document?.querySelector('.jobs-search-pagination');
 	const paginationPage = pagination?.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText;
 	const nextButton = pagination?.querySelector("button[aria-label*='next']");

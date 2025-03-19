@@ -10,6 +10,10 @@ function sortData(data) {
     })
 }
 
+function isNumeric(str) {
+    return /^\d+$/.test(str);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     
     fetchInputFieldConfigs(displayAndUpdateInputFieldConfig);
@@ -59,6 +63,8 @@ function displayRadioButtonConfigs(radioButtons) {
     const configurationsDiv = document.getElementById('radio');
     configurationsDiv.innerHTML = '';
     const sortedRadioButtons = sortData(radioButtons)
+    console.log("sortedRadioButtons:", sortedRadioButtons)
+    
     sortedRadioButtons.forEach(config => {
         const configContainer = document.createElement('div');
         configContainer.className = 'config-container';
@@ -75,6 +81,8 @@ function displayRadioButtonConfigs(radioButtons) {
         `;
         configContainer.appendChild(configDetails);
         config.options.forEach(option => {
+            console.log("config:", config)
+            console.log("option:", option)
             const radioContainer = document.createElement('div');
             radioContainer.className = 'radio-container';
             const radioButton = document.createElement('input');
@@ -84,7 +92,8 @@ function displayRadioButtonConfigs(radioButtons) {
             radioButton.checked = option.selected;
             const label = document.createElement('label');
             
-            label.textContent = option.value;
+            // label.textContent = option.value;
+            label.textContent = isNumeric(option.value) ? option?.text : option.value;
             radioContainer.appendChild(radioButton);
             radioContainer.appendChild(label);
             configContainer.appendChild(radioContainer);
