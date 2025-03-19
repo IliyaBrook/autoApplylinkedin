@@ -11,7 +11,6 @@ let defaultFields = {
 }
 //global flags
 let firstRun = true
-let isRunning = true
 const isDev = false;
 
 async function stopScript() {
@@ -19,28 +18,22 @@ async function stopScript() {
 	if (modalWrapper) {
 		modalWrapper.style.display = 'none';
 	}
-	await Promise.all([
-		chrome.runtime.sendMessage({ action: 'stopAutoApply' }),
-		chrome.storage.local.set({ autoApplyRunning: false })
-	]);
-	isRunning = false;
+	await chrome.runtime.sendMessage({ action: 'stopAutoApply' })
+	await	chrome.storage.local.set({ autoApplyRunning: false })
 }
 
 async function startScript() {
+	await chrome.runtime.sendMessage({ action: 'autoApplyRunning' });
 	await chrome.storage.local.set({ autoApplyRunning: true })
 }
 
 async function checkAndPrepareRunState() {
 	return new Promise(resolve => {
 		chrome.storage.local.get('autoApplyRunning', (result) => {
-			if (result.autoApplyRunning) {
+			if (result && result.autoApplyRunning) {
 				resolve(true);
 			} else {
-				stopScript().then(
-					() => {
-						resolve(false)
-						isRunning = false;
-					});
+				resolve(false);
 			}
 		});
 	});
@@ -110,6 +103,7 @@ async function clickDoneIfExist() {
 }
 
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink) {
+	if (!(await checkAndPrepareRunState())) return;
 	if (badWordsEnabled) {
 		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]');
 		if (jobDetailsElement) {
@@ -153,16 +147,23 @@ async function performInputFieldChecks() {
 				continue;
 			}
 			let labelText = label.textContent.trim();
+			if (inputField.type === 'checkbox') {
+				const checkboxLabel = labelText.toLowerCase();
+				if (checkboxLabel.includes('terms')) {
+					setNativeValue(inputField, true);
+					inputField.checked = true;
+					inputField.dispatchEvent(new Event('change', { bubbles: true }));
+				}
+				continue;
+			}
 			const foundConfig = result.find(config => config.placeholderIncludes === labelText);
 			if (foundConfig) {
-				// inputField.value = foundConfig.defaultValue;
 				setNativeValue(inputField, foundConfig.defaultValue);
 				await performFillForm(inputField);
 			} else {
 				// try to find closed value in defaultFields
 				const defaultFields = (await chrome.storage.local.get('defaultFields'))?.defaultFields
 				if (defaultFields && Object.keys(defaultFields).length > 0) {
-					// inputField.value = findClosestField(defaultFields, labelText)
 					const valueFromDefault = findClosestField(defaultFields, labelText);
 					setNativeValue(inputField, valueFromDefault ?? "");
 					if (!valueFromDefault) {
@@ -467,7 +468,7 @@ async function runApplyModel() {
 					await uncheckFollowCompany();
 					submitButton?.scrollIntoView({ block: 'center' })
 					await addDelay(300);
-					
+					if (!(await checkAndPrepareRunState())) return;
 					if (isDev) {
 						setTimeout(() => {
 							console.log("Easy Apply is running in dev mode. Submitting application after 5 seconds.")
@@ -476,6 +477,7 @@ async function runApplyModel() {
 						submitButton.click();
 					}
 					await addDelay();
+					if (!(await checkAndPrepareRunState())) return;
 					const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
 					if (modalCloseButton) {
 						modalCloseButton?.scrollIntoView({ block: 'center' })
@@ -532,8 +534,15 @@ async function runFindEasyApply(jobTitle, companyName) {
 		if (easyApplyElements.length > 0) {
 			const buttonPromises = Array.from(easyApplyElements).map(async (button) => {
 				return await new Promise((resolve) => {
-					button.click()
-					resolve(runApplyModel())
+					checkAndPrepareRunState()
+						.then(result => {
+							if (!result) {
+								resolve(null)
+								return
+							}
+							button.click()
+							resolve(runApplyModel())
+						})
 				})
 			})
 			await Promise.race(buttonPromises)
@@ -657,15 +666,13 @@ async function closeApplicationSentModal() {
 }
 
 async function runScript() {
-	if (!isRunning) return
 	await startScript()
+	if (!(await checkAndPrepareRunState())) return;
 	if (firstRun) {
 		console.log('Easy apply linkedin started...')
 		await addDelay(firstRun ? 4000 : 2000);
-		isRunning = true
 	}
 	firstRun = false
-	
 	try {
 		await chrome.storage.local.set({ autoApplyRunning: true })
 		const fieldsComplete = await checkAndPromptFields()
@@ -698,6 +705,7 @@ async function runScript() {
 		const listItems = await waitForElements({ elementOrSelector: '.scaffold-layout__list-item'})
 		
 		for (const listItem of listItems) {
+			if (!(await checkAndPrepareRunState())) return;
 			await addDelay(300)
 			let canClickToJob = true
 			if (!(await checkAndPrepareRunState())) return;
@@ -737,8 +745,10 @@ async function runScript() {
 					canClickToJob = false;
 				}
 			}
+			if (!(await checkAndPrepareRunState())) return;
 			if (canClickToJob) {
 				await clickElement({elementOrSelector: jobNameLink})
+				if (!(await checkAndPrepareRunState())) return;
 			}
 			try {
 				const mainContentElementWait = await waitForElements({elementOrSelector: '.jobs-details__main-content'})
@@ -761,13 +771,10 @@ async function runScript() {
 	} catch (error) {
 		logTrace('Error in runScript:', error?.message, 'script stopped')
 		await stopScript()
-		isRunning = false
 	}
 }
 
-// content script listeners
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	// modals listeners
 	if (message.action === 'showNotOnJobSearchAlert') {
 		const modalWrapper = document.getElementById('notOnJobSearchOverlay')
 		if (modalWrapper) {
@@ -784,7 +791,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			sendResponse({ success: false, error: 'formControlOverlay not found' })
 		}
 	}
-	// get current url listener provider
 	if (message.action === 'getCurrentUrl') {
 		sendResponse({ url: window.location.href })
 	}
@@ -847,17 +853,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			const stopButton = modalWrapper.querySelector('#stopScriptButton');
 			if (stopButton) {
 				stopButton.addEventListener('click', () => {
-					chrome.runtime.sendMessage({ action: 'stopAutoApply' }, (response) => {
-						if (response && response.success) {
-							isRunning = false;
-							console.log('Script stopped by user.');
-							setTimeout(() => {
-								isRunning = true;
-							}, 2000)
-						} else {
-							logTrace('Failed to stop script: ', response);
-						}
-					});
+					void chrome.runtime.sendMessage({ action: 'stopAutoApply' });
 				});
 			}
 		}).catch(err => {

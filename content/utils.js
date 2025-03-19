@@ -202,7 +202,7 @@ function setNativeValue(element, value) {
 	} else if (valueSetter) {
 		valueSetter.call(element, value);
 	} else {
-		throw new Error("Невозможно установить значение");
+		throw new Error('Unable to set value')
 	}
 	element.dispatchEvent(new Event("input", { bubbles: true }));
 }
