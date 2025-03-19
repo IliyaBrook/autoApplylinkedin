@@ -122,7 +122,6 @@ async function deleteRadioButtonConfig(placeholder) {
 function displayDropdownConfigs(dropdowns) {
     const configurationsDiv = document.getElementById('dropdown');
     configurationsDiv.innerHTML = '';
-    
     const sortedDropdowns = sortData(dropdowns)
     sortedDropdowns.forEach(config => {
         const configContainer = document.createElement('div');
@@ -172,7 +171,7 @@ function displayDropdownConfigs(dropdowns) {
         configurationsDiv.appendChild(document.createElement("br"));
         configurationsDiv.appendChild(document.createElement("br"));
         
-        addUpdateDropDownGroupEventListener(config.placeholderIncludes);
+        void addUpdateDropDownGroupEventListener(config.placeholderIncludes);
     });
 }
 

@@ -26,13 +26,6 @@
       "matches": ["*://www.linkedin.com/*"],
       "js": ["content/utils.js", "content/createElements.js", "content/content.js", "content/xpaths.js"],
       "run_at": "document_idle"
-    },
-    {
-      "matches": ["*://www.linkedin.com/*"],
-      "js": [
-        "content/content_end.js"
-      ],
-      "run_at": "document_end"
     }
   ],
   "permissions": [
