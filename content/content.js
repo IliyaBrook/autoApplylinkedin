@@ -103,46 +103,39 @@ async function clickDoneIfExist() {
 }
 
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
-	return await Promise.race([
-		new Promise(async (resolve) => {
-			if (!(await checkAndPrepareRunState())) {
-				resolve(null);
-				return;
-			}
-			if (badWordsEnabled) {
-				const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]');
-				if (jobDetailsElement) {
-					const jobContentText = jobDetailsElement.textContent.toLowerCase().trim();
-					const response = await chrome.storage.local.get(['badWords']);
-					const badWords = response?.badWords;
-					if (badWords?.length > 0) {
-						let matchedBadWord = null;
-						for (const badWord of badWords) {
-							const regex = new RegExp('\\b' + badWord.trim().replace(/\+/g, '\\+') + '\\b', 'i');
-							if (regex.test(jobContentText)) {
-								matchedBadWord = badWord;
-								break;
-							}
-						}
-						if (matchedBadWord) {
-							resolve(null);
-							return;
-						}
-					}
-					await runFindEasyApply(jobTitle, companyName);
-					resolve(null);
-					return;
-				}
-			}
-			await runFindEasyApply(jobTitle, companyName);
-			resolve(null);
-		}),
-		new Promise((resolve) => {
-			setTimeout(() => {
-				resolve(null);
-			}, 30000);
-		})
-	])
+  return new Promise(async (resolve) => {
+    if (!(await checkAndPrepareRunState())) {
+      resolve(null);
+      return;
+    }
+    if (badWordsEnabled) {
+      const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]');
+      if (jobDetailsElement) {
+        const jobContentText = jobDetailsElement.textContent.toLowerCase().trim();
+        const response = await chrome.storage.local.get(['badWords']);
+        const badWords = response?.badWords;
+        if (badWords?.length > 0) {
+          let matchedBadWord = null;
+          for (const badWord of badWords) {
+            const regex = new RegExp('\\b' + badWord.trim().replace(/\+/g, '\\+') + '\\b', 'i');
+            if (regex.test(jobContentText)) {
+              matchedBadWord = badWord;
+              break;
+            }
+          }
+          if (matchedBadWord) {
+            resolve(null);
+            return;
+          }
+        }
+        await runFindEasyApply(jobTitle, companyName);
+        resolve(null);
+        return;
+      }
+    }
+    await runFindEasyApply(jobTitle, companyName);
+    resolve(null);
+  });
 }
 
 async function performInputFieldChecks() {
@@ -466,108 +459,114 @@ async function uncheckFollowCompany() {
 
 async function runApplyModel() {
 	try {
-		await new Promise( async resolve => {
-			await addDelay()
-			await performSafetyReminderCheck();
-			const applyModalWait = await waitForElements({
-				elementOrSelector: '.artdeco-modal',
-				timeout: 3000
-			})
-			if (Array.isArray(applyModalWait)) {
-				const applyModal = applyModalWait[0]
-				const continueApplyingButton = applyModal?.querySelector('button[aria-label="Continue applying"]');
-				
-				if (continueApplyingButton) {
-					continueApplyingButton?.scrollIntoView({ block: 'center' })
-					await addDelay(300);
-					continueApplyingButton.click();
-					await runApplyModel();
-				}
-				
-				const nextButton = applyModal?.querySelectorAll && Array.from(applyModal.querySelectorAll('button')).find(button => button.textContent.includes('Next'));
-				const reviewButtonWait = await waitForElements({
-					elementOrSelector:'button[aria-label="Review your application"]',
-					timeout: 2000
+		return await Promise.race([
+			new Promise( async resolve => {
+				await addDelay()
+				await performSafetyReminderCheck();
+				const applyModalWait = await waitForElements({
+					elementOrSelector: '.artdeco-modal',
+					timeout: 3000
 				})
-				const reviewButton = reviewButtonWait?.[0]
-				const submitButtonWait = await waitForElements({
-					elementOrSelector:'button[aria-label="Submit application"]',
-					timeout: 2000
-				})
-				const submitButton = submitButtonWait?.[0]
-				if (submitButton) {
-					await uncheckFollowCompany();
-					submitButton?.scrollIntoView({ block: 'center' })
-					await addDelay(300);
-					if (!(await checkAndPrepareRunState())) return;
-					if (isDev) {
-						setTimeout(() => {
-							console.log("Easy Apply is running in dev mode. Submitting application after 5 seconds.")
-						}, 5000)
-					}else {
-						submitButton.click();
-					}
-					await addDelay();
-					if (!(await checkAndPrepareRunState())) return;
-					const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
-					if (modalCloseButton) {
-						modalCloseButton?.scrollIntoView({ block: 'center' })
-						await addDelay(300);
-						modalCloseButton.click();
-					}
-					await clickDoneIfExist();
-				}
-				if (nextButton || reviewButton) {
-					const buttonToClick = reviewButton || nextButton;
-					await runValidations();
-					const isError = await checkForError();
+				if (Array.isArray(applyModalWait)) {
+					const applyModal = applyModalWait[0]
+					const continueApplyingButton = applyModal?.querySelector('button[aria-label="Continue applying"]');
 					
-					if (isError) {
-						await terminateJobModel();
-					} else {
-						buttonToClick?.scrollIntoView({ block: 'center' })
-						await addDelay();
-						buttonToClick.click();
+					if (continueApplyingButton) {
+						continueApplyingButton?.scrollIntoView({ block: 'center' })
+						await addDelay(300);
+						continueApplyingButton.click();
 						await runApplyModel();
 					}
-					if (document?.querySelector('button[data-test-dialog-secondary-btn]')?.innerText.includes('Discard')) {
-						await terminateJobModel();
-						resolve(null);
+					
+					const nextButton = applyModal?.querySelectorAll && Array.from(applyModal.querySelectorAll('button')).find(button => button.textContent.includes('Next'));
+					const reviewButtonWait = await waitForElements({
+						elementOrSelector:'button[aria-label="Review your application"]',
+						timeout: 2000
+					})
+					const reviewButton = reviewButtonWait?.[0]
+					const submitButtonWait = await waitForElements({
+						elementOrSelector:'button[aria-label="Submit application"]',
+						timeout: 2000
+					})
+					const submitButton = submitButtonWait?.[0]
+					if (submitButton) {
+						await uncheckFollowCompany();
+						submitButton?.scrollIntoView({ block: 'center' })
+						await addDelay(300);
+						if (!(await checkAndPrepareRunState())) return;
+						if (isDev) {
+							setTimeout(() => {
+								console.log("Easy Apply is running in dev mode. Submitting application after 5 seconds.")
+							}, 5000)
+						}else {
+							submitButton.click();
+						}
+						await addDelay();
+						if (!(await checkAndPrepareRunState())) return;
+						const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
+						if (modalCloseButton) {
+							modalCloseButton?.scrollIntoView({ block: 'center' })
+							await addDelay(300);
+							modalCloseButton.click();
+						}
+						await clickDoneIfExist();
 					}
-				}
-			}
-			if (!document?.querySelector('.artdeco-modal')) {
-				resolve(null);
-			}else {
-				const modalsToClose = Array.from(document.querySelectorAll('.artdeco-modal'))
-				for (const modal of modalsToClose) {
-					await addDelay(1000)
-					await terminateJobModel(modal);
-				}
-			}
-			await addDelay(1000)
-			return new Promise(resolve => {
-				const artdecoModal = document.querySelector('[class*="artdeco-modal"]');
-				if (artdecoModal) {
-					const buttons = artdecoModal.querySelectorAll('button')
-					for (const button of buttons) {
-						if ('textContent' in button && button?.textContent?.trim()?.includes('No thanks')) {
-							button.click()
+					if (nextButton || reviewButton) {
+						const buttonToClick = reviewButton || nextButton;
+						await runValidations();
+						const isError = await checkForError();
+						
+						if (isError) {
+							await terminateJobModel();
+						} else {
+							buttonToClick?.scrollIntoView({ block: 'center' })
+							await addDelay();
+							buttonToClick.click();
+							await runApplyModel();
+						}
+						if (document?.querySelector('button[data-test-dialog-secondary-btn]')?.innerText.includes('Discard')) {
+							await terminateJobModel();
 							resolve(null);
-							break
 						}
 					}
-					resolve(null);
 				}
-			}).catch(() => resolve(null))
-		})
+				if (!document?.querySelector('.artdeco-modal')) {
+					resolve(null);
+				}else {
+					const modalsToClose = Array.from(document.querySelectorAll('.artdeco-modal'))
+					for (const modal of modalsToClose) {
+						await addDelay(1000)
+						await terminateJobModel(modal);
+					}
+				}
+				await addDelay(1000)
+				return new Promise(resolve => {
+					const artdecoModal = document.querySelector('[class*="artdeco-modal"]');
+					if (artdecoModal) {
+						const buttons = artdecoModal.querySelectorAll('button')
+						for (const button of buttons) {
+							if ('textContent' in button && button?.textContent?.trim()?.includes('No thanks')) {
+								button.click()
+								resolve(null);
+								break
+							}
+						}
+						resolve(null);
+					}
+				}).catch(() => resolve(null))
+			}),
+			new Promise((resolve) => {
+				setTimeout(() => {
+					resolve(null);
+				}, 30000);
+			})
+		])
 	}catch (error) {
 		logTrace('runApplyModel error:', error?.message)
 	}
 }
 
 async function runFindEasyApply(jobTitle, companyName) {
-	
 	return new Promise(async resolve => {
 		await addDelay(1000)
 		const currentPageLink = window.location.href
