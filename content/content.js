@@ -102,32 +102,47 @@ async function clickDoneIfExist() {
 	}
 }
 
-async function clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink) {
-	if (!(await checkAndPrepareRunState())) return;
-	if (badWordsEnabled) {
-		const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]');
-		if (jobDetailsElement) {
-			const jobContentText = jobDetailsElement.textContent.toLowerCase().trim();
-			const response = await chrome.storage.local.get(['badWords']);
-			const badWords = response?.badWords;
-			if (badWords?.length > 0) {
-				let matchedBadWord = null;
-				for (const badWord of badWords) {
-					const regex = new RegExp('\\b' + badWord.trim().replace(/\+/g, '\\+') + '\\b', 'i');
-					if (regex.test(jobContentText)) {
-						matchedBadWord = badWord;
-						break;
+async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
+	return await Promise.race([
+		new Promise(async (resolve) => {
+			if (!(await checkAndPrepareRunState())) {
+				resolve(null);
+				return;
+			}
+			if (badWordsEnabled) {
+				const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]');
+				if (jobDetailsElement) {
+					const jobContentText = jobDetailsElement.textContent.toLowerCase().trim();
+					const response = await chrome.storage.local.get(['badWords']);
+					const badWords = response?.badWords;
+					if (badWords?.length > 0) {
+						let matchedBadWord = null;
+						for (const badWord of badWords) {
+							const regex = new RegExp('\\b' + badWord.trim().replace(/\+/g, '\\+') + '\\b', 'i');
+							if (regex.test(jobContentText)) {
+								matchedBadWord = badWord;
+								break;
+							}
+						}
+						if (matchedBadWord) {
+							resolve(null);
+							return;
+						}
 					}
-				}
-				if (matchedBadWord) {
+					await runFindEasyApply(jobTitle, companyName);
+					resolve(null);
 					return;
 				}
 			}
 			await runFindEasyApply(jobTitle, companyName);
-			return;
-		}
-	}
-	await runFindEasyApply(jobTitle, companyName);
+			resolve(null);
+		}),
+		new Promise((resolve) => {
+			setTimeout(() => {
+				resolve(null);
+			}, 30000);
+		})
+	])
 }
 
 async function performInputFieldChecks() {
@@ -451,7 +466,7 @@ async function uncheckFollowCompany() {
 
 async function runApplyModel() {
 	try {
-		return await new Promise( async resolve => {
+		await new Promise( async resolve => {
 			await addDelay()
 			await performSafetyReminderCheck();
 			const applyModalWait = await waitForElements({
@@ -517,6 +532,7 @@ async function runApplyModel() {
 					}
 					if (document?.querySelector('button[data-test-dialog-secondary-btn]')?.innerText.includes('Discard')) {
 						await terminateJobModel();
+						resolve(null);
 					}
 				}
 			}
@@ -529,6 +545,21 @@ async function runApplyModel() {
 					await terminateJobModel(modal);
 				}
 			}
+			await addDelay(1000)
+			return new Promise(resolve => {
+				const artdecoModal = document.querySelector('[class*="artdeco-modal"]');
+				if (artdecoModal) {
+					const buttons = artdecoModal.querySelectorAll('button')
+					for (const button of buttons) {
+						if ('textContent' in button && button?.textContent?.trim()?.includes('No thanks')) {
+							button.click()
+							resolve(null);
+							break
+						}
+					}
+					resolve(null);
+				}
+			}).catch(() => resolve(null))
 		})
 	}catch (error) {
 		logTrace('runApplyModel error:', error?.message)
@@ -536,6 +567,7 @@ async function runApplyModel() {
 }
 
 async function runFindEasyApply(jobTitle, companyName) {
+	
 	return new Promise(async resolve => {
 		await addDelay(1000)
 		const currentPageLink = window.location.href
@@ -777,7 +809,7 @@ async function runScript() {
 			}
 			if (!(await checkAndPrepareRunState())) return;
 			if (canClickToJob) {
-				await clickJob(listItem, companyName, jobTitle, badWordsEnabled, jobNameLink)
+				await clickJob(listItem, companyName, jobTitle, badWordsEnabled)
 			}
 		}
 		
