@@ -1,5 +1,3 @@
-
-
 // noinspection JSCheckFunctionSignatures
 let defaultFields = {
 	YearsOfExperience: '',
@@ -11,32 +9,42 @@ let defaultFields = {
 }
 //global flags
 let firstRun = true
-const isDev = false;
+const isDev = false
+let prevSearchValue = ''
 
 async function stopScript() {
-	const modalWrapper = document.getElementById('scriptRunningOverlay');
+	const modalWrapper = document.getElementById('scriptRunningOverlay')
 	if (modalWrapper) {
-		modalWrapper.style.display = 'none';
+		modalWrapper.style.display = 'none'
 	}
 	await chrome.runtime.sendMessage({ action: 'stopAutoApply' })
-	await	chrome.storage.local.set({ autoApplyRunning: false })
+	await chrome.storage.local.set({ autoApplyRunning: false })
+	prevSearchValue = ''
 }
 
 async function startScript() {
-	await chrome.runtime.sendMessage({ action: 'autoApplyRunning' });
+	await chrome.runtime.sendMessage({ action: 'autoApplyRunning' })
 	await chrome.storage.local.set({ autoApplyRunning: true })
+	try {
+		const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
+		if (inputElement && inputElement.value.trim()) {
+			prevSearchValue = inputElement.value.trim()
+		}
+	} catch {
+	}
 }
 
 async function checkAndPrepareRunState() {
 	return new Promise(resolve => {
 		chrome.storage.local.get('autoApplyRunning', (result) => {
 			if (result && result.autoApplyRunning) {
-				resolve(true);
+				resolve(true)
 			} else {
-				resolve(false);
+				resolve(false)
+				prevSearchValue = ''
 			}
-		});
-	});
+		})
+	})
 }
 
 async function performInputFieldCityCheck() {
@@ -73,7 +81,7 @@ function getJobTitle(jobNameLink) {
 	} else {
 		jobTitle = jobNameLink.getAttribute('aria-label') || ''
 		if (!jobTitle) {
-			logTrace('warn','Job title not found using both selectors')
+			logTrace('warn', 'Job title not found using both selectors')
 		}
 	}
 	return jobTitle.toLowerCase()
@@ -90,140 +98,143 @@ async function clickDoneIfExist() {
 			const xpathResult = getElementsByXPath({
 				context: modal,
 				xpath: '//button[.//*[contains(text(), "Done")] or contains(normalize-space(.), "Done")]'
-			});
+			})
 			if (xpathResult && xpathResult.length > 0) {
-				const doneButton = xpathResult[0];
-				await clickElement({elementOrSelector: doneButton})
-				await addDelay(300);
+				const doneButton = xpathResult[0]
+				await clickElement({ elementOrSelector: doneButton })
+				await addDelay(300)
 			}
 		}
 	} catch (error) {
-		logTrace('clickDoneIfExist error:', error?.message);
+		logTrace('clickDoneIfExist error:', error?.message)
 	}
 }
 
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
-  return new Promise(async (resolve) => {
-    if (!(await checkAndPrepareRunState())) {
-      resolve(null);
-      return;
-    }
-    if (badWordsEnabled) {
-      const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]');
-      if (jobDetailsElement) {
-        const jobContentText = jobDetailsElement.textContent.toLowerCase().trim();
-        const response = await chrome.storage.local.get(['badWords']);
-        const badWords = response?.badWords;
-        if (badWords?.length > 0) {
-          let matchedBadWord = null;
-          for (const badWord of badWords) {
-            const regex = new RegExp('\\b' + badWord.trim().replace(/\+/g, '\\+') + '\\b', 'i');
-            if (regex.test(jobContentText)) {
-              matchedBadWord = badWord;
-              break;
-            }
-          }
-          if (matchedBadWord) {
-            resolve(null);
-            return;
-          }
-        }
-        await runFindEasyApply(jobTitle, companyName);
-        resolve(null);
-        return;
-      }
-    }
-    await runFindEasyApply(jobTitle, companyName);
-    resolve(null);
-  });
+	return new Promise(async (resolve) => {
+		if (!(await checkAndPrepareRunState())) {
+			resolve(null)
+			return
+		}
+		if (badWordsEnabled) {
+			const jobDetailsElement = document.querySelector('[class*="jobs-box__html-content"]')
+			if (jobDetailsElement) {
+				const jobContentText = jobDetailsElement.textContent.toLowerCase().trim()
+				const response = await chrome.storage.local.get(['badWords'])
+				const badWords = response?.badWords
+				if (badWords?.length > 0) {
+					let matchedBadWord = null
+					for (const badWord of badWords) {
+						const regex = new RegExp('\\b' + badWord.trim().replace(/\+/g, '\\+') + '\\b', 'i')
+						if (regex.test(jobContentText)) {
+							matchedBadWord = badWord
+							break
+						}
+					}
+					if (matchedBadWord) {
+						resolve(null)
+						return
+					}
+				}
+				await runFindEasyApply(jobTitle, companyName)
+				resolve(null)
+				return
+			}
+		}
+		await runFindEasyApply(jobTitle, companyName)
+		resolve(null)
+	})
 }
 
 async function performInputFieldChecks() {
 	try {
 		const result = await new Promise(resolve => {
-			chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, resolve);
-		});
-		const questionContainers = document.querySelectorAll('.fb-dash-form-element');
+			chrome.runtime.sendMessage({ action: 'getInputFieldConfig' }, resolve)
+		})
+		const questionContainers = document.querySelectorAll('.fb-dash-form-element')
 		for (const container of questionContainers) {
-			let label = container.querySelector('.artdeco-text-input--label');
+			let label = container.querySelector('.artdeco-text-input--label')
 			if (!label) {
 				label = getElementsByXPath({ context: container, xpath: './/label' })?.[0]
 			}
-			const inputField = container.querySelector('input:not([type="hidden"]), textarea');
+			const inputField = container.querySelector('input:not([type="hidden"]), textarea')
 			
 			if (!label || !inputField) {
-				continue;
+				continue
 			}
-			let labelText = label.textContent.trim();
+			let labelText = label.textContent.trim()
 			if (inputField.type === 'checkbox') {
-				const checkboxLabel = labelText.toLowerCase();
+				const checkboxLabel = labelText.toLowerCase()
 				if (checkboxLabel.includes('terms')) {
-					setNativeValue(inputField, true);
-					inputField.checked = true;
-					inputField.dispatchEvent(new Event('change', { bubbles: true }));
+					setNativeValue(inputField, true)
+					inputField.checked = true
+					inputField.dispatchEvent(new Event('change', { bubbles: true }))
 				}
-				continue;
+				continue
 			}
-			const foundConfig = result.find(config => config.placeholderIncludes === labelText);
+			const foundConfig = result.find(config => config.placeholderIncludes === labelText)
 			if (foundConfig) {
-				setNativeValue(inputField, foundConfig.defaultValue);
-				await performFillForm(inputField);
+				setNativeValue(inputField, foundConfig.defaultValue)
+				await performFillForm(inputField)
 			} else {
 				// try to find closed value in defaultFields
 				const defaultFields = (await chrome.storage.local.get('defaultFields'))?.defaultFields
 				if (defaultFields && Object.keys(defaultFields).length > 0) {
-					const valueFromDefault = findClosestField(defaultFields, labelText);
-					setNativeValue(inputField, valueFromDefault ?? "");
+					const valueFromDefault = findClosestField(defaultFields, labelText)
+					setNativeValue(inputField, valueFromDefault ?? '')
 					if (!valueFromDefault) {
 						// try to find closed value in inputFieldConfigs
 						const inputFieldConfigsArray = (await chrome.storage.local.get('inputFieldConfigs'))?.inputFieldConfigs
 						if (inputFieldConfigsArray && Array.isArray(inputFieldConfigsArray) && inputFieldConfigsArray.length > 0) {
-							const inputFieldConfigsObj = inputFieldConfigsArray.reduce((acc, {placeholderIncludes, defaultValue}) => {
+							const inputFieldConfigsObj = inputFieldConfigsArray.reduce((acc, {
+								placeholderIncludes,
+								defaultValue
+							}) => {
 								return {
 									...acc,
 									[placeholderIncludes]: defaultValue
 								}
 							}, {})
-							const valueFromConfigs = findClosestField(inputFieldConfigsObj, labelText);
-							setNativeValue(inputField, valueFromConfigs ?? "");
+							const valueFromConfigs = findClosestField(inputFieldConfigsObj, labelText)
+							setNativeValue(inputField, valueFromConfigs ?? '')
 						}
 					}
 				}
 				if (!inputField.value) {
-					await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText });
+					await chrome.runtime.sendMessage({ action: 'updateInputFieldConfigsInStorage', data: labelText })
 					const isStopScript = Boolean((await chrome.storage.local.get('stopIfNotExistInFormControl'))?.stopIfNotExistInFormControl)
 					if (!isStopScript) {
-						if (!foundConfig && inputField.value.trim() !== "") {
-							console.log(`Field with label "${labelText}" is already filled. Skipping.`);
-							continue;
+						if (!foundConfig && inputField.value.trim() !== '') {
+							console.log(`Field with label "${labelText}" is already filled. Skipping.`)
+							continue
 						}
-						setNativeValue(inputField, "");
-						await performFillForm(inputField);
-					}else {
+						setNativeValue(inputField, '')
+						await performFillForm(inputField)
+					} else {
 						await stopScript()
 						alert(
 							`Field with label "${labelText}" is not filled. Please fill it in the form control settings.`
-						);
+						)
 						return
 					}
 				}
 			}
 		}
 	} catch (error) {
-		logTrace('log', 'performInputField not completed: ', error.message);
+		logTrace('log', 'performInputField not completed: ', error.message)
 	}
 }
 
 
 async function performFillForm(inputField) {
-	const keyEvents = ['keydown', 'keypress', 'input', 'keyup'];
+	const keyEvents = ['keydown', 'keypress', 'input', 'keyup']
 	for (const eventType of keyEvents) {
-		inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }));
-		await addDelay(100);
+		inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }))
+		await addDelay(100)
 	}
 	
-	inputField.dispatchEvent(new Event('change', { bubbles: true }));
-	await addDelay(200);
+	inputField.dispatchEvent(new Event('change', { bubbles: true }))
+	await addDelay(200)
 }
 
 async function performRadioButtonChecks() {
@@ -253,7 +264,7 @@ async function performRadioButtonChecks() {
 			
 			storedRadioButtonInfo.count++
 			if (!('createdAt' in storedRadioButtonInfo) || !storedRadioButtonInfo.createdAt) {
-				storedRadioButtonInfo.createdAt = Date.now();
+				storedRadioButtonInfo.createdAt = Date.now()
 			}
 		} else {
 			const firstRadioButton = fieldset.querySelector('input[type="radio"]')
@@ -263,21 +274,21 @@ async function performRadioButtonChecks() {
 				await addDelay(500)
 				
 				const options = Array.from(fieldset.querySelectorAll('input[type="radio"]')).map(radioButton => {
-					const labelElement = fieldset.querySelector(`label[for="${radioButton.id}"]`);
-					let text = labelElement?.textContent.trim();
+					const labelElement = fieldset.querySelector(`label[for="${radioButton.id}"]`)
+					let text = labelElement?.textContent.trim()
 					
 					if (!text) {
-						const parentElement = radioButton.parentElement;
-						const textElement = parentElement?.querySelector('span') || parentElement?.querySelector('div');
-						text = textElement?.textContent?.trim() || radioButton.value;
+						const parentElement = radioButton.parentElement
+						const textElement = parentElement?.querySelector('span') || parentElement?.querySelector('div')
+						text = textElement?.textContent?.trim() || radioButton.value
 					}
 					
 					return {
 						value: radioButton.value,
 						text: text,
 						selected: radioButton.checked
-					};
-				});
+					}
+				})
 				
 				const newRadioButtonInfo = {
 					placeholderIncludes: placeholderText,
@@ -296,7 +307,7 @@ async function performRadioButtonChecks() {
 				await stopScript()
 				alert(
 					`Field with label "${placeholderText}" is not filled. Please fill it in the form control settings.`
-				);
+				)
 				return
 			}
 		}
@@ -308,52 +319,52 @@ async function performRadioButtonChecks() {
 async function performDropdownChecks() {
 	const storedDropdowns = await new Promise((resolve) => {
 		chrome.storage.local.get('dropdowns', (result) => {
-			resolve(result.dropdowns || []);
-		});
-	});
+			resolve(result.dropdowns || [])
+		})
+	})
 	
-	const dropdowns = document.querySelectorAll('.fb-dash-form-element select');
+	const dropdowns = document.querySelectorAll('.fb-dash-form-element select')
 	dropdowns.forEach((dropdown, index) => {
-		const parentElement = dropdown.closest('.fb-dash-form-element');
+		const parentElement = dropdown.closest('.fb-dash-form-element')
 		if (parentElement) {
-			const labelElement = parentElement.querySelector('label');
-			let labelText = null;
+			const labelElement = parentElement.querySelector('label')
+			let labelText = null
 			
 			if (labelElement) {
-				const ariaHiddenSpan = labelElement.querySelector('span[aria-hidden="true"]');
-				labelText = ariaHiddenSpan?.textContent.trim();
+				const ariaHiddenSpan = labelElement.querySelector('span[aria-hidden="true"]')
+				labelText = ariaHiddenSpan?.textContent.trim()
 				
 				if (!labelText) {
-					labelText = labelElement.innerText.trim();
+					labelText = labelElement.innerText.trim()
 				}
 			}
 			
-			labelText = labelText || `Dropdown ${index}`;
+			labelText = labelText || `Dropdown ${index}`
 			
-			const secondOption = dropdown.options[1];
+			const secondOption = dropdown.options[1]
 			if (secondOption && dropdown.selectedIndex < 1) {
-				secondOption.selected = true;
-				dropdown.dispatchEvent(new Event('change', { bubbles: true }));
+				secondOption.selected = true
+				dropdown.dispatchEvent(new Event('change', { bubbles: true }))
 			}
 			
 			const options = Array.from(dropdown.options).map(option => ({
 				value: option.value,
 				text: option.textContent.trim(),
-				selected: option.selected,
-			}));
+				selected: option.selected
+			}))
 			
-			const storedDropdownInfo = storedDropdowns.find(info => info.placeholderIncludes === labelText);
+			const storedDropdownInfo = storedDropdowns.find(info => info.placeholderIncludes === labelText)
 			
 			if (storedDropdownInfo) {
-				const selectedValue = storedDropdownInfo.options.find(option => option.selected)?.value;
+				const selectedValue = storedDropdownInfo.options.find(option => option.selected)?.value
 				
 				Array.from(dropdown.options).forEach(option => {
-					option.selected = option.value === selectedValue;
-				});
+					option.selected = option.value === selectedValue
+				})
 				
-				dropdown.dispatchEvent(new Event('change', { bubbles: true }));
+				dropdown.dispatchEvent(new Event('change', { bubbles: true }))
 				
-				storedDropdownInfo.count++;
+				storedDropdownInfo.count++
 			} else {
 				const newDropdownInfo = {
 					placeholderIncludes: labelText,
@@ -361,39 +372,39 @@ async function performDropdownChecks() {
 					options: options.map(option => ({
 						value: option.value,
 						text: option.text,
-						selected: option.selected,
-					})),
-				};
+						selected: option.selected
+					}))
+				}
 				
-				storedDropdowns.push(newDropdownInfo);
+				storedDropdowns.push(newDropdownInfo)
 			}
 		}
-	});
+	})
 	
-	void chrome.storage.local.set({ dropdowns: storedDropdowns });
+	void chrome.storage.local.set({ dropdowns: storedDropdowns })
 }
 
 
 async function performCheckBoxFieldCityCheck() {
-	const checkboxFieldsets = document.querySelectorAll('fieldset[data-test-checkbox-form-component="true"]');
+	const checkboxFieldsets = document.querySelectorAll('fieldset[data-test-checkbox-form-component="true"]')
 	for (const fieldset of checkboxFieldsets) {
-		const firstCheckbox = fieldset.querySelector('input[type="checkbox"]');
+		const firstCheckbox = fieldset.querySelector('input[type="checkbox"]')
 		if (firstCheckbox) {
-			firstCheckbox.checked = true;
-			firstCheckbox.dispatchEvent(new Event('change', { bubbles: true }));
-			await addDelay(500);
+			firstCheckbox.checked = true
+			firstCheckbox.dispatchEvent(new Event('change', { bubbles: true }))
+			await addDelay(500)
 		}
 	}
 }
 
 async function performSafetyReminderCheck() {
-	const modal = document.querySelector('.artdeco-modal');
+	const modal = document.querySelector('.artdeco-modal')
 	if (modal) {
-		const modalHeader = modal.querySelector('.artdeco-modal__header');
+		const modalHeader = modal.querySelector('.artdeco-modal__header')
 		if (modalHeader && modalHeader.textContent.includes('Job search safety reminder')) {
-			const dismissButton = modal.querySelector('.artdeco-modal__dismiss');
+			const dismissButton = modal.querySelector('.artdeco-modal__dismiss')
 			if (dismissButton) {
-				dismissButton.click();
+				dismissButton.click()
 			}
 		}
 	}
@@ -443,12 +454,12 @@ async function runValidations() {
 }
 
 async function uncheckFollowCompany() {
-	const followCheckboxWait = await waitForElements({elementOrSelector: '#follow-company-checkbox', timeout: 3000})
+	const followCheckboxWait = await waitForElements({ elementOrSelector: '#follow-company-checkbox', timeout: 3000 })
 	
-	const  followCheckbox = followCheckboxWait?.[0]
+	const followCheckbox = followCheckboxWait?.[0]
 	if (followCheckbox?.checked) {
 		followCheckbox?.scrollIntoView({ block: 'center' })
-		await addDelay(300);
+		await addDelay(300)
 		followCheckbox.checked = false
 		const changeEvent = new Event('change', { bubbles: true, cancelable: true })
 		// noinspection JSCheckFunctionSignatures
@@ -460,108 +471,108 @@ async function uncheckFollowCompany() {
 async function runApplyModel() {
 	try {
 		return await Promise.race([
-			new Promise( async resolve => {
+			new Promise(async resolve => {
 				await addDelay()
-				await performSafetyReminderCheck();
+				await performSafetyReminderCheck()
 				const applyModalWait = await waitForElements({
 					elementOrSelector: '.artdeco-modal',
 					timeout: 3000
 				})
 				if (Array.isArray(applyModalWait)) {
 					const applyModal = applyModalWait[0]
-					const continueApplyingButton = applyModal?.querySelector('button[aria-label="Continue applying"]');
+					const continueApplyingButton = applyModal?.querySelector('button[aria-label="Continue applying"]')
 					
 					if (continueApplyingButton) {
 						continueApplyingButton?.scrollIntoView({ block: 'center' })
-						await addDelay(300);
-						continueApplyingButton.click();
-						await runApplyModel();
+						await addDelay(300)
+						continueApplyingButton.click()
+						await runApplyModel()
 					}
 					
-					const nextButton = applyModal?.querySelectorAll && Array.from(applyModal.querySelectorAll('button')).find(button => button.textContent.includes('Next'));
+					const nextButton = applyModal?.querySelectorAll && Array.from(applyModal.querySelectorAll('button')).find(button => button.textContent.includes('Next'))
 					const reviewButtonWait = await waitForElements({
-						elementOrSelector:'button[aria-label="Review your application"]',
+						elementOrSelector: 'button[aria-label="Review your application"]',
 						timeout: 2000
 					})
 					const reviewButton = reviewButtonWait?.[0]
 					const submitButtonWait = await waitForElements({
-						elementOrSelector:'button[aria-label="Submit application"]',
+						elementOrSelector: 'button[aria-label="Submit application"]',
 						timeout: 2000
 					})
 					const submitButton = submitButtonWait?.[0]
 					if (submitButton) {
-						await uncheckFollowCompany();
+						await uncheckFollowCompany()
 						submitButton?.scrollIntoView({ block: 'center' })
-						await addDelay(300);
-						if (!(await checkAndPrepareRunState())) return;
+						await addDelay(300)
+						if (!(await checkAndPrepareRunState())) return
 						if (isDev) {
 							setTimeout(() => {
-								console.log("Easy Apply is running in dev mode. Submitting application after 5 seconds.")
+								console.log('Easy Apply is running in dev mode. Submitting application after 5 seconds.')
 							}, 5000)
-						}else {
-							submitButton.click();
+						} else {
+							submitButton.click()
 						}
-						await addDelay();
-						if (!(await checkAndPrepareRunState())) return;
-						const modalCloseButton = document.querySelector('.artdeco-modal__dismiss');
+						await addDelay()
+						if (!(await checkAndPrepareRunState())) return
+						const modalCloseButton = document.querySelector('.artdeco-modal__dismiss')
 						if (modalCloseButton) {
 							modalCloseButton?.scrollIntoView({ block: 'center' })
-							await addDelay(300);
-							modalCloseButton.click();
+							await addDelay(300)
+							modalCloseButton.click()
 						}
-						await clickDoneIfExist();
+						await clickDoneIfExist()
 					}
 					if (nextButton || reviewButton) {
-						const buttonToClick = reviewButton || nextButton;
-						await runValidations();
-						const isError = await checkForError();
+						const buttonToClick = reviewButton || nextButton
+						await runValidations()
+						const isError = await checkForError()
 						
 						if (isError) {
-							await terminateJobModel();
+							await terminateJobModel()
 						} else {
 							buttonToClick?.scrollIntoView({ block: 'center' })
-							await addDelay();
-							buttonToClick.click();
-							await runApplyModel();
+							await addDelay()
+							buttonToClick.click()
+							await runApplyModel()
 						}
 						if (document?.querySelector('button[data-test-dialog-secondary-btn]')?.innerText.includes('Discard')) {
-							await terminateJobModel();
-							resolve(null);
+							await terminateJobModel()
+							resolve(null)
 						}
 					}
 				}
 				if (!document?.querySelector('.artdeco-modal')) {
-					resolve(null);
-				}else {
+					resolve(null)
+				} else {
 					const modalsToClose = Array.from(document.querySelectorAll('.artdeco-modal'))
 					for (const modal of modalsToClose) {
 						await addDelay(1000)
-						await terminateJobModel(modal);
+						await terminateJobModel(modal)
 					}
 				}
 				await addDelay(1000)
 				return new Promise(resolve => {
-					const artdecoModal = document.querySelector('[class*="artdeco-modal"]');
+					const artdecoModal = document.querySelector('[class*="artdeco-modal"]')
 					if (artdecoModal) {
 						const buttons = artdecoModal.querySelectorAll('button')
 						for (const button of buttons) {
 							if ('textContent' in button && button?.textContent?.trim()?.includes('No thanks')) {
 								button.click()
-								resolve(null);
+								resolve(null)
 								break
 							}
 						}
-						resolve(null);
+						resolve(null)
 					}
 				}).catch(() => resolve(null))
 			}),
 			new Promise((resolve) => {
 				setTimeout(() => {
-					resolve(null);
-				}, 30000);
+					resolve(null)
+				}, 30000)
 			})
 		])
-	}catch (error) {
+	} catch (error) {
 		logTrace('runApplyModel error:', error?.message)
 	}
 }
@@ -598,61 +609,62 @@ async function runFindEasyApply(jobTitle, companyName) {
 	})
 }
 
-let currentPage = '';
+let currentPage = ''
+
 async function goToNextPage() {
 	await addDelay()
-	const pagination = document?.querySelector('.jobs-search-pagination');
-	const paginationPage = pagination?.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText;
-	const nextButton = pagination?.querySelector("button[aria-label*='next']");
-	
+	const pagination = document?.querySelector('.jobs-search-pagination')
+	const paginationPage = pagination?.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText
+	const nextButton = pagination?.querySelector('button[aria-label*=\'next\']')
+
 	return new Promise(resolve => {
 		if (nextButton) {
-			nextButton.click();
+			nextButton.click()
 			waitForElements({
 				elementOrSelector: '.scaffold-layout__list-item',
 				timeout: 5000
 			}).then(() => {
-				resolve();
+				resolve()
 			}).catch(error => {
-				logTrace('goToNextPage waitForElements error:', error?.message);
-				resolve();
-			});
+				logTrace('goToNextPage waitForElements error:', error?.message)
+				resolve()
+			})
 		} else {
-			resolve();
+			resolve()
 		}
 	}).then(() => {
-			addDelay(500).then(() => {
-				const scrollElement = document?.querySelector('.scaffold-layout__list > div');
-				scrollElement?.scrollTo({
-					top: scrollElement.scrollHeight
-				});
-				if (!nextButton && paginationPage === currentPage) {
-					const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'));
-					if (showAllLinks.length > 0) {
-						const allShowAllLinkPromises = showAllLinks.map((link) => {
-							return new Promise((resolve) => {
-								link.click();
-								resolve();
-							});
-						});
-						return Promise.all(allShowAllLinkPromises).then(() => {
-							return addDelay(2000);
-						});
-					} else {
-						stopScript();
-					}
+		addDelay(500).then(() => {
+			const scrollElement = document?.querySelector('.scaffold-layout__list > div')
+			scrollElement?.scrollTo({
+				top: scrollElement.scrollHeight
+			})
+			if (!nextButton && paginationPage === currentPage) {
+				const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
+				if (showAllLinks.length > 0) {
+					const allShowAllLinkPromises = showAllLinks.map((link) => {
+						return new Promise((resolve) => {
+							link.click()
+							resolve()
+						})
+					})
+					return Promise.all(allShowAllLinkPromises).then(() => {
+						return addDelay(2000)
+					})
 				} else {
-					currentPage = paginationPage;
+					stopScript()
 				}
-				return Promise.resolve();
-			});
+			} else {
+				currentPage = paginationPage
+			}
+			return Promise.resolve()
 		})
+	})
 		.then(() => {
-			runScript();
+			runScript()
 		})
 		.catch(err => {
-			logTrace('goToNextPage error:', err?.message);
-		});
+			logTrace('goToNextPage error:', err?.message)
+		})
 }
 
 function toggleBlinkingBorder(element) {
@@ -704,6 +716,39 @@ async function checkAndPromptFields() {
 	}
 }
 
+async function clickFirstDropdownSearchField(firstLi) {
+	await addDelay(1000)
+	if (firstLi) {
+		const clickEvent = new Event('click', { bubbles: true, cancelable: true })
+		firstLi.dispatchEvent(clickEvent)
+		await addDelay(2000)
+	}
+}
+
+async function fillSearchFieldIfEmpty() {
+	try {
+		if (!(await checkAndPrepareRunState())) return
+		const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
+		if (prevSearchValue && inputElement) {
+			if (!inputElement.value.trim()) {
+				inputElement.click()
+				inputElement.value = prevSearchValue
+				const inputEvent = new Event('input', { bubbles: true, cancelable: true })
+				inputElement.dispatchEvent(inputEvent)
+				const changeEvent = new Event('change', { bubbles: true })
+				inputElement.dispatchEvent(changeEvent)
+				const firstLi = document?.querySelector('[class*="typeahead-results"] > li')
+				await clickFirstDropdownSearchField(firstLi)
+				if (!firstLi) {
+					await clickFirstDropdownSearchField(firstLi)
+					await addDelay(1000)
+				}
+			}
+		}
+	} catch {
+	}
+}
+
 async function closeApplicationSentModal() {
 	const modal = document.querySelector('.artdeco-modal')
 	
@@ -714,21 +759,23 @@ async function closeApplicationSentModal() {
 
 async function runScript() {
 	await startScript()
-	if (!(await checkAndPrepareRunState())) return;
+	if (!(await checkAndPrepareRunState())) return
 	if (firstRun) {
 		console.log('Easy apply linkedin started...')
-		await addDelay(firstRun ? 4000 : 2000);
+		await addDelay(firstRun ? 4000 : 2000)
 	}
 	firstRun = false
+	
 	try {
 		await chrome.storage.local.set({ autoApplyRunning: true })
+		// show form control if the user has not even filled in the default fields of user data
 		const fieldsComplete = await checkAndPromptFields()
 		if (!fieldsComplete) {
 			await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
 			return
 		}
 		const limitReached = await checkLimitReached()
-		
+		await fillSearchFieldIfEmpty()
 		if (limitReached) {
 			const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
 			toggleBlinkingBorder(feedbackMessageElement)
@@ -749,13 +796,13 @@ async function runScript() {
 			'titleSkipWords'
 		])
 		
-		const listItems = await waitForElements({ elementOrSelector: '.scaffold-layout__list-item'})
+		const listItems = await waitForElements({ elementOrSelector: '.scaffold-layout__list-item' })
 		
 		for (const listItem of listItems) {
-			if (!(await checkAndPrepareRunState())) return;
+			if (!(await checkAndPrepareRunState())) return
 			await addDelay(300)
 			let canClickToJob = true
-			if (!(await checkAndPrepareRunState())) return;
+			if (!(await checkAndPrepareRunState())) return
 			await closeApplicationSentModal()
 			const linksElements = await waitForElements({
 				elementOrSelector: '.artdeco-entity-lockup__title .job-card-container__link',
@@ -765,7 +812,7 @@ async function runScript() {
 			const jobNameLink = linksElements?.[0]
 			if (!jobNameLink) {
 				canClickToJob = false
-			}else {
+			} else {
 				jobNameLink?.scrollIntoView({ block: 'center' })
 			}
 			const jobFooter = listItem.querySelector('[class*="footer"]')
@@ -784,36 +831,36 @@ async function runScript() {
 			
 			if (titleSkipEnabled) {
 				if (titleSkipWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))) {
-					canClickToJob = false;
+					canClickToJob = false
 				}
 			}
 			if (titleFilterEnabled) {
 				if (!titleFilterWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))) {
-					canClickToJob = false;
+					canClickToJob = false
 				}
 			}
-			if (!(await checkAndPrepareRunState())) return;
+			if (!(await checkAndPrepareRunState())) return
 			if (canClickToJob) {
-				await clickElement({elementOrSelector: jobNameLink})
-				if (!(await checkAndPrepareRunState())) return;
+				await clickElement({ elementOrSelector: jobNameLink })
+				if (!(await checkAndPrepareRunState())) return
 			}
 			try {
-				const mainContentElementWait = await waitForElements({elementOrSelector: '.jobs-details__main-content'})
+				const mainContentElementWait = await waitForElements({ elementOrSelector: '.jobs-details__main-content' })
 				const mainContentElement = mainContentElementWait?.[0]
 				if (!mainContentElement) {
 					canClickToJob = false
 				}
 			} catch (e) {
-				logTrace('log','Failed to find the main job content')
+				logTrace('log', 'Failed to find the main job content')
 			}
-			if (!(await checkAndPrepareRunState())) return;
+			if (!(await checkAndPrepareRunState())) return
 			if (canClickToJob) {
 				await clickJob(listItem, companyName, jobTitle, badWordsEnabled)
 			}
 		}
 		
 		if (await checkAndPrepareRunState()) {
-			await goToNextPage();
+			await goToNextPage()
 		}
 	} catch (error) {
 		logTrace('Error in runScript:', error?.message, 'script stopped')
@@ -862,7 +909,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 						if (typeof url === 'string') {
 							window.open(url, '_blank')
 							void chrome.runtime.sendMessage({ action: 'openTabAndRunScript', url: url })
-						}else {
+						} else {
 							logTrace('Invalid url type:', typeof url)
 						}
 					})
@@ -887,33 +934,33 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		sendResponse({ success: true })
 	}
 	if (message.action === 'showRunningModal') {
-		sendResponse({ success: true });
+		sendResponse({ success: true })
 		new Promise((resolve) => {
 			setTimeout(() => {
-				const modalWrapper = document.getElementById('scriptRunningOverlay');
+				const modalWrapper = document.getElementById('scriptRunningOverlay')
 				if (modalWrapper) {
-					modalWrapper.style.display = 'flex';
+					modalWrapper.style.display = 'flex'
 				}
-				resolve(modalWrapper);
+				resolve(modalWrapper)
 			}, 1000)
 		}).then(modalWrapper => {
-			const stopButton = modalWrapper.querySelector('#stopScriptButton');
+			const stopButton = modalWrapper.querySelector('#stopScriptButton')
 			if (stopButton) {
 				stopButton.addEventListener('click', () => {
-					void chrome.runtime.sendMessage({ action: 'stopAutoApply' });
-				});
+					void chrome.runtime.sendMessage({ action: 'stopAutoApply' })
+				})
 			}
 		}).catch(err => {
-			console.log('Error in showRunningModal:', err?.message);
+			console.log('Error in showRunningModal:', err?.message)
 		})
 		
 	} else if (message.action === 'hideRunningModal') {
-		const modalWrapper = document.getElementById('scriptRunningOverlay');
+		const modalWrapper = document.getElementById('scriptRunningOverlay')
 		if (modalWrapper) {
-			modalWrapper.style.display = 'none';
-			sendResponse({ success: true });
+			modalWrapper.style.display = 'none'
+			sendResponse({ success: true })
 		} else {
-			sendResponse({ success: false, message: 'scriptRunningOverlay not found' });
+			sendResponse({ success: false, message: 'scriptRunningOverlay not found' })
 		}
 	}
 })
