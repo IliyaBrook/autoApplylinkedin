@@ -81,7 +81,7 @@ function getJobTitle(jobNameLink) {
 	} else {
 		jobTitle = jobNameLink.getAttribute('aria-label') || ''
 		if (!jobTitle) {
-			logTrace('warn', 'Job title not found using both selectors')
+			console.trace('Job title not found using both selectors')
 		}
 	}
 	return jobTitle.toLowerCase()
@@ -106,7 +106,7 @@ async function clickDoneIfExist() {
 			}
 		}
 	} catch (error) {
-		logTrace('clickDoneIfExist error:', error?.message)
+		console.trace('clickDoneIfExist error:' + error?.message)
 	}
 }
 
@@ -221,7 +221,7 @@ async function performInputFieldChecks() {
 			}
 		}
 	} catch (error) {
-		logTrace('log', 'performInputField not completed: ', error.message)
+		console.trace('performInputField not completed: ' + error?.message)
 	}
 }
 
@@ -573,7 +573,9 @@ async function runApplyModel() {
 			})
 		])
 	} catch (error) {
-		logTrace('runApplyModel error:', error?.message)
+		const message = 'runApplyModel error:' + error?.message
+		console.trace(message)
+		console.error(message)
 	}
 }
 
@@ -626,7 +628,7 @@ async function goToNextPage() {
 			}).then(() => {
 				resolve()
 			}).catch(error => {
-				logTrace('goToNextPage waitForElements error:', error?.message)
+				console.trace('goToNextPage waitForElements error:' + error?.message)
 				resolve()
 			})
 		} else {
@@ -641,15 +643,22 @@ async function goToNextPage() {
 			if (!nextButton && paginationPage === currentPage) {
 				const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
 				if (showAllLinks.length > 0) {
-					const allShowAllLinkPromises = showAllLinks.map((link) => {
-						return new Promise((resolve) => {
+					// const allShowAllLinkPromises = showAllLinks.map((link) => {
+					// 	return new Promise((resolve) => {
+					// 		link.click()
+					// 		resolve()
+					// 	})
+					// })
+					// return Promise.all(allShowAllLinkPromises).then(() => {
+					// 	return addDelay(2000)
+					// })
+					
+					for (const link of showAllLinks) {
+						if ('click' in link) {
 							link.click()
-							resolve()
-						})
-					})
-					return Promise.all(allShowAllLinkPromises).then(() => {
-						return addDelay(2000)
-					})
+							break
+						}
+					}
 				} else {
 					stopScript()
 				}
@@ -658,12 +667,10 @@ async function goToNextPage() {
 			}
 			return Promise.resolve()
 		})
-	})
-		.then(() => {
+	}).then(() => {
 			runScript()
-		})
-		.catch(err => {
-			logTrace('goToNextPage error:', err?.message)
+		}).catch(err => {
+		console.trace('goToNextPage error:' + err?.message)
 		})
 }
 
@@ -711,41 +718,36 @@ async function checkAndPromptFields() {
 		const response = await chrome.storage.local.get('defaultFields')
 		return response?.defaultFields
 	} catch (error) {
-		logTrace('Error in checkAndPromptFields:', error?.message)
+		console.trace('Error in checkAndPromptFields: ' + error?.message)
 		return false
 	}
 }
 
-async function clickFirstDropdownSearchField(firstLi) {
-	await addDelay(1000)
-	if (firstLi) {
-		const clickEvent = new Event('click', { bubbles: true, cancelable: true })
-		firstLi.dispatchEvent(clickEvent)
-		await addDelay(2000)
-	}
-}
-
 async function fillSearchFieldIfEmpty() {
-	try {
-		if (!(await checkAndPrepareRunState())) return
-		const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
-		if (prevSearchValue && inputElement) {
-			if (!inputElement.value.trim()) {
-				inputElement.click()
-				inputElement.value = prevSearchValue
-				const inputEvent = new Event('input', { bubbles: true, cancelable: true })
-				inputElement.dispatchEvent(inputEvent)
-				const changeEvent = new Event('change', { bubbles: true })
-				inputElement.dispatchEvent(changeEvent)
-				const firstLi = document?.querySelector('[class*="typeahead-results"] > li')
-				await clickFirstDropdownSearchField(firstLi)
-				if (!firstLi) {
-					await clickFirstDropdownSearchField(firstLi)
-					await addDelay(1000)
+	if (!(await checkAndPrepareRunState())) return
+	const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
+	if (prevSearchValue && inputElement) {
+		if (!inputElement.value.trim()) {
+			inputElement.focus()
+			await addDelay(2000)
+			inputElement.value = prevSearchValue
+			const inputEvent = new Event('input', { bubbles: true })
+			await addDelay(100)
+			inputElement.dispatchEvent(inputEvent)
+			await addDelay(100)
+			const changeEvent = new Event('change', { bubbles: true })
+			await addDelay(100)
+			inputElement.dispatchEvent(changeEvent)
+			await addDelay(100)
+			const lists = document?.querySelectorAll('[class*="typeahead-results"] > li')
+			if (lists) {
+				for (const list of lists) {
+					if ('click' in list) {
+						list.click()
+					}
 				}
 			}
 		}
-	} catch {
 	}
 }
 
@@ -756,7 +758,6 @@ async function closeApplicationSentModal() {
 		modal.querySelector('.artdeco-modal__dismiss')?.click()
 	}
 }
-
 async function runScript() {
 	await startScript()
 	if (!(await checkAndPrepareRunState())) return
@@ -765,7 +766,7 @@ async function runScript() {
 		await addDelay(firstRun ? 4000 : 2000)
 	}
 	firstRun = false
-	
+
 	try {
 		await chrome.storage.local.set({ autoApplyRunning: true })
 		// show form control if the user has not even filled in the default fields of user data
@@ -781,7 +782,7 @@ async function runScript() {
 			toggleBlinkingBorder(feedbackMessageElement)
 			return
 		}
-		
+
 		const {
 			titleSkipEnabled,
 			titleFilterEnabled,
@@ -795,9 +796,9 @@ async function runScript() {
 			'titleFilterWords',
 			'titleSkipWords'
 		])
-		
+
 		const listItems = await waitForElements({ elementOrSelector: '.scaffold-layout__list-item' })
-		
+
 		for (const listItem of listItems) {
 			if (!(await checkAndPrepareRunState())) return
 			await addDelay(300)
@@ -822,13 +823,13 @@ async function runScript() {
 			const companyNames = listItem.querySelectorAll('[class*="subtitle"]')
 			const companyNamesArray = Array.from(companyNames).map(el => el.textContent.trim())
 			const companyName = companyNamesArray?.[0] ?? ''
-			
+
 			const jobTitle = getJobTitle(jobNameLink)
-			
+
 			if (!jobTitle) {
 				canClickToJob = false
 			}
-			
+
 			if (titleSkipEnabled) {
 				if (titleSkipWords.some(word => jobTitle.toLowerCase().includes(word.toLowerCase()))) {
 					canClickToJob = false
@@ -851,19 +852,21 @@ async function runScript() {
 					canClickToJob = false
 				}
 			} catch (e) {
-				logTrace('log', 'Failed to find the main job content')
+				console.trace('Failed to find the main job content')
 			}
 			if (!(await checkAndPrepareRunState())) return
 			if (canClickToJob) {
 				await clickJob(listItem, companyName, jobTitle, badWordsEnabled)
 			}
 		}
-		
+
 		if (await checkAndPrepareRunState()) {
 			await goToNextPage()
 		}
 	} catch (error) {
-		logTrace('Error in runScript:', error?.message, 'script stopped')
+		const message = 'Error in runScript: ' + error?.message + 'script stopped'
+		console.error(message)
+		console.trace(message)
 		await stopScript()
 	}
 }
@@ -910,7 +913,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 							window.open(url, '_blank')
 							void chrome.runtime.sendMessage({ action: 'openTabAndRunScript', url: url })
 						} else {
-							logTrace('Invalid url type:', typeof url)
+							console.trace(('Invalid url type:' + String(typeof url)))
 						}
 					})
 					li.appendChild(goButton)

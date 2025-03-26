@@ -1,37 +1,4 @@
 // noinspection DuplicatedCode
-
-/**
- * Logs messages to the console using a specified logging level and outputs a stack trace.
- *
- * @param {'log'|'warn'|'error'} [logic='log'] - The logging level to use. Acceptable values are:
- *   - 'log': Logs the message using `console.log`.
- *   - 'warn': Logs the message using `console.warn`.
- *   - 'error': Logs the message using `console.error`.
- *   If no valid logging level is provided, it defaults to `console.error`.
- * @param {...any} messages - The messages, objects, or any other data to be logged.
- *   Multiple arguments can be passed, which will be logged sequentially.
- * @returns {void}
- */
-const logTrace = (logic, ...messages) => {
-	const log = (func) => messages.forEach(msg => func(msg));
-	switch (logic) {
-		case 'log':
-			log(console.log)
-			break;
-		case 'warn':
-			log(console.warn)
-			break;
-		case 'error':
-			log(console.error)
-			break;
-		default:
-			messages.unshift(logic)
-			log(console.error)
-	}
-	const error = new Error();
-	console.trace(error);
-};
-
 async function addDelay(delay = 1000) {
 	return new Promise(resolve => {
 		setTimeout(() => {
@@ -136,7 +103,7 @@ async function waitForElements({ elementOrSelector, timeout = 5000, contextNode 
 				}
 			}, 100)
 		} catch (e) {
-			logTrace('Error in waitForElements: ', elementOrSelector)
+			console.trace('Error in waitForElements: ' + elementOrSelector)
 		}
 	})
 }
@@ -164,19 +131,19 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 				})
 				element = elements[0]
 				if (!element) {
-					logTrace('log','No element found for selector: ', elementOrSelector)
+					console.trace('log','No element found for selector: ' + elementOrSelector)
 					return
 				}
 			} else if (elementOrSelector instanceof Element) {
 				element = elementOrSelector
 			} else {
-				logTrace('log', 'Argument must be a selector string or a DOM Element.')
+				console.trace('log', 'Argument must be a selector string or a DOM Element.')
 				return
 			}
 			
 			
 			if (element.offsetParent === null || !element.isConnected) {
-				logTrace('Element is not visible or not connected')
+				console.trace('Element is not visible or not connected')
 				return
 			}
 			element?.scrollIntoView({ block: 'center' })
@@ -184,7 +151,7 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 			resolve(element)
 			
 		} catch (error) {
-			logTrace('log','Element is not clickable:', error)
+			console.trace('Element is not clickable:' + error?.message)
 		}
 	})
 }

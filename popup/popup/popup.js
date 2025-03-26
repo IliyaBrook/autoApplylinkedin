@@ -80,7 +80,7 @@ document.addEventListener('click', event => {
 								alert('Link saved successfully!')
 							})
 						}).catch(err => {
-							logTrace('Error getting current url: ', err)
+							console.trace('Error getting current url: ' + err?.message)
 						})
 					} else {
 						getCurrentUrl().then(url => {
@@ -159,7 +159,7 @@ document.addEventListener('click', event => {
 									goButton.textContent = 'Go'
 									goButton.addEventListener('click', () => {
 										chrome.runtime.sendMessage({ action: 'openTabAndRunScript', url: url }, (response) => {
-											logTrace('log', 'Result of opening the tab and executing the script:', response)
+											console.trace('Result of opening the tab and executing the script:' + response)
 										})
 									})
 									item.appendChild(goButton)
@@ -182,7 +182,7 @@ document.addEventListener('click', event => {
 						}
 					}
 				} catch (error) {
-					logTrace('Cannot show links case \'show-links\'', error)
+					console.trace('Cannot show links case \'show-links\'' + error?.message)
 				}
 				break
 			case 'start-auto-apply-button':
