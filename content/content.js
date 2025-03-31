@@ -173,15 +173,19 @@ async function performInputFieldChecks() {
 				continue
 			}
 			const foundConfig = result.find(config => config.placeholderIncludes === labelText)
-			if (foundConfig) {
+			console.log("is foundConfig.defaultValue:", foundConfig && foundConfig.defaultValue)
+			
+			if (foundConfig && foundConfig.defaultValue) {
 				setNativeValue(inputField, foundConfig.defaultValue)
+				console.log("fill value step 1:", foundConfig.defaultValue)
 				await performFillForm(inputField)
 			} else {
 				// try to find closed value in defaultFields
 				const defaultFields = (await chrome.storage.local.get('defaultFields'))?.defaultFields
 				if (defaultFields && Object.keys(defaultFields).length > 0) {
 					const valueFromDefault = findClosestField(defaultFields, labelText)
-					setNativeValue(inputField, valueFromDefault ?? '')
+					console.log("valueFromDefault:", valueFromDefault)
+					
 					if (!valueFromDefault) {
 						// try to find closed value in inputFieldConfigs
 						const inputFieldConfigsArray = (await chrome.storage.local.get('inputFieldConfigs'))?.inputFieldConfigs
@@ -196,7 +200,25 @@ async function performInputFieldChecks() {
 								}
 							}, {})
 							const valueFromConfigs = findClosestField(inputFieldConfigsObj, labelText)
-							setNativeValue(inputField, valueFromConfigs ?? '')
+							console.trace("valueFromConfigs: ", valueFromConfigs)
+							if (valueFromConfigs) {
+								if (inputField.matches('[role="combobox"]')){
+									await fillAutocompleteField(inputField, valueFromConfigs)
+									console.log("fill value step 2 [autocomplete]:", valueFromConfigs)
+								}else {
+									setNativeValue(inputField, valueFromConfigs)
+									console.log("fill value step 3:", valueFromConfigs)
+								}
+							}
+						}
+					}else {
+						// check if inputField is autocomplete input
+						if (inputField.matches('[role="combobox"]')){
+							await fillAutocompleteField(inputField, valueFromDefault)
+							console.log("fill value step 4 [autocomplete]:", valueFromDefault)
+						}else {
+							setNativeValue(inputField, valueFromDefault)
+							console.log("fill value step 5:", valueFromDefault)
 						}
 					}
 				}

@@ -17,13 +17,6 @@ function getTime() {
 	return { day, month, year, hour, minute }
 }
 
-/**
- * Finds elements by XPath.
- *
- * @param {string} xpath - The XPath expression to evaluate.
- * @param {Document | HTMLElement | Element} [context=document | Element] - The context node to search within.
- * @returns {HTMLElement[]} - An array of found elements.
- */
 function getElementsByXPath({ xpath, context = document }) {
 	const result = document.evaluate(
 		xpath,
@@ -45,16 +38,6 @@ function getElementsByXPath({ xpath, context = document }) {
 	return elements
 }
 
-/**
- * Waits for visible elements to appear in the DOM.
- *
- * @param {Object} options - Options for the wait operation.
- * @param {string|Element|HTMLElement|HTMLElement[]|Element[]} options.elementOrSelector - A CSS selector string, a DOM element, or an array of elements.
- * @param {number} [options.timeout=5000] - Maximum waiting time in milliseconds.
- * @param {Document|Element|HTMLElement[]} [options.contextNode=document] - The node (Document, Element, or an array of Elements) to search within.
- * @returns {Promise<HTMLElement[]>} A promise that resolves with an array of visible elements,
- * or an empty array if none are found within the timeout.
- */
 async function waitForElements({ elementOrSelector, timeout = 5000, contextNode = document }) {
 	return new Promise(resolve => {
 		try {
@@ -108,17 +91,6 @@ async function waitForElements({ elementOrSelector, timeout = 5000, contextNode 
 	})
 }
 
-
-/**
- * Waits for visible elements to appear in the DOM.
- *
- * @param {Object} options - Options for the wait operation.
- * @param {string|Element|HTMLElement} options.elementOrSelector - A CSS selector string or a DOM element.
- * @param {number} [options.timeout=5000] - Maximum waiting time in milliseconds.
- * @param {ParentNode} [options.contextNode=document] - The node to search within.
- * @returns {Promise<Element[]>} A promise that resolves with an array of visible elements,
- * or an empty array if none are found within the timeout.
- */
 async function clickElement({ elementOrSelector, timeout = 5000, contextNode = document }) {
 	return new Promise(async resolve => {
 		try {
@@ -154,6 +126,30 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 			console.trace('Element is not clickable:' + error?.message)
 		}
 	})
+}
+
+async function fillAutocompleteField(element, value) {
+	element.focus();
+	await addDelay(100)
+	setNativeValue(element, value);
+	await addDelay(300)
+	const dropdownId = element.getAttribute('aria-controls') || element.getAttribute('aria-owns');
+	const dropdownContainer = dropdownId ? document.getElementById(dropdownId) : null;
+	if (dropdownContainer && dropdownContainer.offsetHeight > 0) {
+		const firstOption = dropdownContainer.querySelector('[role="option"]');
+		if (firstOption) {
+			try {
+				firstOption.click();
+				await addDelay(300)
+			} catch (e) {
+				console.error(`Error clicking on option for ${element.id}:`, e)
+			}
+		}
+	}
+	element.dispatchEvent(new Event('change', { bubbles: true }));
+	await addDelay(100)
+	element.blur();
+	await addDelay(100)
 }
 
 function normalizeString(str) {
