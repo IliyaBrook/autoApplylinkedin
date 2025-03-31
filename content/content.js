@@ -9,7 +9,6 @@ let defaultFields = {
 }
 //global flags
 let firstRun = true
-const isDev = false
 let prevSearchValue = ''
 
 async function stopScript() {
@@ -34,13 +33,6 @@ async function stopScript() {
 async function startScript() {
 	await chrome.runtime.sendMessage({ action: 'autoApplyRunning' })
 	await chrome.storage.local.set({ autoApplyRunning: true })
-	try {
-		const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
-		if (inputElement && inputElement.value.trim()) {
-			prevSearchValue = inputElement.value.trim()
-		}
-	} catch {
-	}
 }
 
 async function checkAndPrepareRunState() {
@@ -55,30 +47,6 @@ async function checkAndPrepareRunState() {
 		})
 	})
 }
-
-// async function performInputFieldCityCheck() {
-// 	const cityInput = document.querySelector('.search-vertical-typeahead input')
-//
-// 	if (cityInput) {
-//
-// 		cityInput.click()
-//
-// 		cityInput.value = defaultFields.City
-//
-// 		const inputEvent = new Event('input', { bubbles: true })
-//
-// 		cityInput.dispatchEvent(inputEvent)
-// 		const firstOptionWait = await waitForElements({
-// 			elementOrSelector: '.basic-typeahead__selectable',
-// 			timeout: 500
-// 		})
-//
-// 		const firstOption = firstOptionWait?.[0]
-// 		if (firstOption) {
-// 			firstOption.click()
-// 		}
-// 	}
-// }
 
 function getJobTitle(jobNameLink) {
 	if (!jobNameLink) return ''
@@ -204,7 +172,6 @@ async function performInputFieldChecks() {
 								}
 							}, {})
 							const valueFromConfigs = findClosestField(inputFieldConfigsObj, labelText)
-							console.trace("valueFromConfigs: ", valueFromConfigs)
 							if (valueFromConfigs) {
 								if (inputField.matches('[role="combobox"]')){
 									await fillAutocompleteField(inputField, valueFromConfigs)
@@ -471,7 +438,6 @@ async function runValidations() {
 	await performInputFieldChecks()
 	await performRadioButtonChecks()
 	await performDropdownChecks()
-	// await performInputFieldCityCheck()
 	await performCheckBoxFieldCityCheck()
 }
 
@@ -527,13 +493,7 @@ async function runApplyModel() {
 						submitButton?.scrollIntoView({ block: 'center' })
 						await addDelay(300)
 						if (!(await checkAndPrepareRunState())) return
-						if (isDev) {
-							setTimeout(() => {
-								console.log('Easy Apply is running in dev mode. Submitting application after 5 seconds.')
-							}, 5000)
-						} else {
-							submitButton.click()
-						}
+						submitButton.click()
 						await addDelay()
 						if (!(await checkAndPrepareRunState())) return
 						const modalCloseButton = document.querySelector('.artdeco-modal__dismiss')
@@ -665,18 +625,12 @@ async function goToNextPage() {
 			if (!nextButton && paginationPage === currentPage) {
 				const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
 				if (showAllLinks.length > 0) {
-					// const allShowAllLinkPromises = showAllLinks.map((link) => {
-					// 	return new Promise((resolve) => {
-					// 		link.click()
-					// 		resolve()
-					// 	})
-					// })
-					// return Promise.all(allShowAllLinkPromises).then(() => {
-					// 	return addDelay(2000)
-					// })
-					
 					for (const link of showAllLinks) {
 						if ('click' in link) {
+							const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
+							if (inputElement && inputElement.value.trim()) {
+								prevSearchValue = inputElement.value.trim()
+							}
 							link.click()
 							break
 						}
@@ -782,6 +736,7 @@ async function closeApplicationSentModal() {
 }
 async function runScript() {
 	await startScript()
+	await fillSearchFieldIfEmpty()
 	if (!(await checkAndPrepareRunState())) return
 	if (firstRun) {
 		console.log('Easy apply linkedin started...')
@@ -798,7 +753,7 @@ async function runScript() {
 			return
 		}
 		const limitReached = await checkLimitReached()
-		await fillSearchFieldIfEmpty()
+		
 		if (limitReached) {
 			const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
 			toggleBlinkingBorder(feedbackMessageElement)
