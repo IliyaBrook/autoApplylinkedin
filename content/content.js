@@ -17,8 +17,17 @@ async function stopScript() {
 	if (modalWrapper) {
 		modalWrapper.style.display = 'none'
 	}
-	await chrome.runtime.sendMessage({ action: 'stopAutoApply' })
-	await chrome.storage.local.set({ autoApplyRunning: false })
+	const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
+	if (tabs && tabs?.length > 0) {
+		const currentTabId = tabs?.[0].id
+		const response = await chrome.runtime.sendMessage({
+			action: "stopAutoApply",
+			tabId: currentTabId
+		})
+		if (response?.success) {
+			await chrome.storage.local.set({ autoApplyRunning: false })
+		}
+	}
 	prevSearchValue = ''
 }
 
@@ -969,7 +978,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		}).catch(err => {
 			console.log('Error in showRunningModal:', err?.message)
 		})
-		
 	} else if (message.action === 'hideRunningModal') {
 		const modalWrapper = document.getElementById('scriptRunningOverlay')
 		if (modalWrapper) {
