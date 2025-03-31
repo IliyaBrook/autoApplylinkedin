@@ -47,29 +47,29 @@ async function checkAndPrepareRunState() {
 	})
 }
 
-async function performInputFieldCityCheck() {
-	const cityInput = document.querySelector('.search-vertical-typeahead input')
-	
-	if (cityInput) {
-		
-		cityInput.click()
-		
-		cityInput.value = defaultFields.City
-		
-		const inputEvent = new Event('input', { bubbles: true })
-		
-		cityInput.dispatchEvent(inputEvent)
-		const firstOptionWait = await waitForElements({
-			elementOrSelector: '.basic-typeahead__selectable',
-			timeout: 500
-		})
-		
-		const firstOption = firstOptionWait?.[0]
-		if (firstOption) {
-			firstOption.click()
-		}
-	}
-}
+// async function performInputFieldCityCheck() {
+// 	const cityInput = document.querySelector('.search-vertical-typeahead input')
+//
+// 	if (cityInput) {
+//
+// 		cityInput.click()
+//
+// 		cityInput.value = defaultFields.City
+//
+// 		const inputEvent = new Event('input', { bubbles: true })
+//
+// 		cityInput.dispatchEvent(inputEvent)
+// 		const firstOptionWait = await waitForElements({
+// 			elementOrSelector: '.basic-typeahead__selectable',
+// 			timeout: 500
+// 		})
+//
+// 		const firstOption = firstOptionWait?.[0]
+// 		if (firstOption) {
+// 			firstOption.click()
+// 		}
+// 	}
+// }
 
 function getJobTitle(jobNameLink) {
 	if (!jobNameLink) return ''
@@ -173,19 +173,14 @@ async function performInputFieldChecks() {
 				continue
 			}
 			const foundConfig = result.find(config => config.placeholderIncludes === labelText)
-			console.log("is foundConfig.defaultValue:", foundConfig && foundConfig.defaultValue)
-			
 			if (foundConfig && foundConfig.defaultValue) {
 				setNativeValue(inputField, foundConfig.defaultValue)
-				console.log("fill value step 1:", foundConfig.defaultValue)
 				await performFillForm(inputField)
 			} else {
 				// try to find closed value in defaultFields
 				const defaultFields = (await chrome.storage.local.get('defaultFields'))?.defaultFields
 				if (defaultFields && Object.keys(defaultFields).length > 0) {
 					const valueFromDefault = findClosestField(defaultFields, labelText)
-					console.log("valueFromDefault:", valueFromDefault)
-					
 					if (!valueFromDefault) {
 						// try to find closed value in inputFieldConfigs
 						const inputFieldConfigsArray = (await chrome.storage.local.get('inputFieldConfigs'))?.inputFieldConfigs
@@ -204,10 +199,8 @@ async function performInputFieldChecks() {
 							if (valueFromConfigs) {
 								if (inputField.matches('[role="combobox"]')){
 									await fillAutocompleteField(inputField, valueFromConfigs)
-									console.log("fill value step 2 [autocomplete]:", valueFromConfigs)
 								}else {
 									setNativeValue(inputField, valueFromConfigs)
-									console.log("fill value step 3:", valueFromConfigs)
 								}
 							}
 						}
@@ -215,10 +208,8 @@ async function performInputFieldChecks() {
 						// check if inputField is autocomplete input
 						if (inputField.matches('[role="combobox"]')){
 							await fillAutocompleteField(inputField, valueFromDefault)
-							console.log("fill value step 4 [autocomplete]:", valueFromDefault)
 						}else {
 							setNativeValue(inputField, valueFromDefault)
-							console.log("fill value step 5:", valueFromDefault)
 						}
 					}
 				}
@@ -471,7 +462,7 @@ async function runValidations() {
 	await performInputFieldChecks()
 	await performRadioButtonChecks()
 	await performDropdownChecks()
-	await performInputFieldCityCheck()
+	// await performInputFieldCityCheck()
 	await performCheckBoxFieldCityCheck()
 }
 
