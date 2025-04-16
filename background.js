@@ -96,28 +96,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 									return true
 								}
 								if (currentUrl.includes('linkedin.com/jobs') && !isDefaultFieldsEmpty) {
-									chrome.tabs.sendMessage(currentTabId, { action: 'showRunningModal' })
-										.then(response => {
-											if (response && response.success) {
-												chrome.scripting.executeScript({
-													target: { tabId: currentTabId },
-													func: runScriptInContent
-												}).then(() => {
-													sendResponse({ success: true })
-												}).catch(err => {
-													console.trace('startAutoApply Error: ' + err?.message)
-													sendResponse({ success: false, message: err.message })
-													chrome.tabs.sendMessage(currentTabId, { action: 'hideRunningModal' })
-												})
-											} else {
-												console.trace('Failed to show running modal: ' + response)
-												sendResponse({ success: false, message: 'Failed to show running modal.' })
-											}
-										}).catch(err => {
-										console.trace('Error sending showRunningModal : ' + err?.message)
-										sendResponse({ success: false, message: 'Failed to send showRunningModal: ' + err.message })
+									chrome.scripting.executeScript({
+										target: { tabId: currentTabId },
+										func: runScriptInContent
+									}).then(() => {
+										sendResponse({ success: true })
+									}).catch(err => {
+										console.trace('startAutoApply Error: ' + err?.message)
+										sendResponse({ success: false, message: err.message })
+										// chrome.tabs.sendMessage(currentTabId, { action: 'hideRunningModal' })
 									})
-									return true
+									// } else {
+									// 	console.trace('Failed to show running modal: ' + response)
+									// 	sendResponse({ success: false, message: 'Failed to show running modal.' })
+									// }
 								}
 							}
 						})

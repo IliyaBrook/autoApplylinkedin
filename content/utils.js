@@ -66,7 +66,6 @@ async function waitForElements({ elementOrSelector, timeout = 5000, contextNode 
 					return
 				}
 				
-				// const visibleElements = elements.filter(el => el.offsetParent !== null && el.isConnected);
 				const visibleElements = []
 				for (let i = 0; i < elements.length; i++) {
 					if (elements[i].offsetParent !== null && elements[i].isConnected) {
@@ -188,9 +187,9 @@ function levenshteinDistance(a, b) {
 				matrix[i][j] = matrix[i - 1][j - 1];
 			} else {
 				matrix[i][j] = Math.min(
-					matrix[i - 1][j - 1] + 1, // замена
-					matrix[i][j - 1] + 1,     // вставка
-					matrix[i - 1][j] + 1      // удаление
+					matrix[i - 1][j - 1] + 1,
+					matrix[i][j - 1] + 1,
+					matrix[i - 1][j] + 1
 				);
 			}
 		}

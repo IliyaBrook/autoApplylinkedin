@@ -154,12 +154,10 @@ async function performInputFieldChecks() {
 				setNativeValue(inputField, foundConfig.defaultValue)
 				await performFillForm(inputField)
 			} else {
-				// try to find closed value in defaultFields
 				const defaultFields = (await chrome.storage.local.get('defaultFields'))?.defaultFields
 				if (defaultFields && Object.keys(defaultFields).length > 0) {
 					const valueFromDefault = findClosestField(defaultFields, labelText)
 					if (!valueFromDefault) {
-						// try to find closed value in inputFieldConfigs
 						const inputFieldConfigsArray = (await chrome.storage.local.get('inputFieldConfigs'))?.inputFieldConfigs
 						if (inputFieldConfigsArray && Array.isArray(inputFieldConfigsArray) && inputFieldConfigsArray.length > 0) {
 							const inputFieldConfigsObj = inputFieldConfigsArray.reduce((acc, {
@@ -181,7 +179,6 @@ async function performInputFieldChecks() {
 							}
 						}
 					}else {
-						// check if inputField is autocomplete input
 						if (inputField.matches('[role="combobox"]')){
 							await fillAutocompleteField(inputField, valueFromDefault)
 						}else {
@@ -667,13 +664,13 @@ async function checkLimitReached() {
 		const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
 		
 		if (feedbackMessageElement) {
-			const textContent = feedbackMessageElement.textContent
+			const textContent = feedbackMessageElement.textContent;
 			
-			const searchString = 'You’ve exceeded the daily application limit'
+			const searchString = 'You\'ve exceeded the daily application limit';
 			
-			resolve(textContent.includes(searchString))
+			resolve(textContent.includes(searchString));
 		} else {
-			resolve(false)
+			resolve(false);
 		}
 	})
 }
@@ -914,25 +911,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		sendResponse({ success: true })
 	}
 	if (message.action === 'showRunningModal') {
+		// sendResponse({ success: true })
+		// new Promise((resolve) => {
+		// 	setTimeout(() => {
+		// 		const modalWrapper = document.getElementById('scriptRunningOverlay')
+		// 		if (modalWrapper) {
+		// 			modalWrapper.style.display = 'flex'
+		// 		}
+		// 		resolve(modalWrapper)
+		// 	}, 1000)
+		// }).then(modalWrapper => {
+		// 	const stopButton = modalWrapper.querySelector('#stopScriptButton')
+		// 	if (stopButton) {
+		// 		stopButton.addEventListener('click', () => {
+		// 			void chrome.runtime.sendMessage({ action: 'stopAutoApply' })
+		// 		})
+		// 	}
+		// }).catch(err => {
+		// 	console.log('Error in showRunningModal:', err?.message)
+		// })
 		sendResponse({ success: true })
-		new Promise((resolve) => {
-			setTimeout(() => {
-				const modalWrapper = document.getElementById('scriptRunningOverlay')
-				if (modalWrapper) {
-					modalWrapper.style.display = 'flex'
-				}
-				resolve(modalWrapper)
-			}, 1000)
-		}).then(modalWrapper => {
-			const stopButton = modalWrapper.querySelector('#stopScriptButton')
-			if (stopButton) {
-				stopButton.addEventListener('click', () => {
-					void chrome.runtime.sendMessage({ action: 'stopAutoApply' })
-				})
-			}
-		}).catch(err => {
-			console.log('Error in showRunningModal:', err?.message)
-		})
 	} else if (message.action === 'hideRunningModal') {
 		const modalWrapper = document.getElementById('scriptRunningOverlay')
 		if (modalWrapper) {
