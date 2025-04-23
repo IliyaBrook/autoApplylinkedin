@@ -16,16 +16,25 @@ async function stopScript() {
 	if (modalWrapper) {
 		modalWrapper.style.display = 'none'
 	}
-	const tabs = await chrome.tabs.query({ active: true, currentWindow: true })
-	if (tabs && tabs?.length > 0) {
-		const currentTabId = tabs?.[0].id
-		const response = await chrome.runtime.sendMessage({
-			action: "stopAutoApply",
-			tabId: currentTabId
-		})
-		if (response?.success) {
-			await chrome.storage.local.set({ autoApplyRunning: false })
+	try {
+		if (!chrome || !chrome.tabs || typeof chrome.tabs.query !== 'function') {
+			console.error('Chrome tabs API not available');
+			prevSearchValue = '';
+			return;
 		}
+		const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+		if (tabs && tabs?.length > 0) {
+			const currentTabId = tabs?.[0].id
+			const response = await chrome.runtime.sendMessage({
+				action: "stopAutoApply",
+				tabId: currentTabId
+			})
+			if (response?.success) {
+				await chrome.storage.local.set({ autoApplyRunning: false })
+			}
+		}
+	} catch (error) {
+		console.error('Error in stopScript:', error);
 	}
 	prevSearchValue = ''
 }
@@ -51,7 +60,7 @@ async function checkAndPrepareRunState() {
 function getJobTitle(jobNameLink) {
 	if (!jobNameLink) return ''
 	let jobTitle = ''
-	
+
 	const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]')
 	if (visibleSpan && visibleSpan.textContent.trim().length > 0) {
 		jobTitle = visibleSpan.textContent.trim()
@@ -135,7 +144,7 @@ async function performInputFieldChecks() {
 				label = getElementsByXPath({ context: container, xpath: './/label' })?.[0]
 			}
 			const inputField = container.querySelector('input:not([type="hidden"]), textarea')
-			
+
 			if (!label || !inputField) {
 				continue
 			}
@@ -218,7 +227,7 @@ async function performFillForm(inputField) {
 		inputField.dispatchEvent(new Event(eventType, { bubbles: true, cancelable: true }))
 		await addDelay(100)
 	}
-	
+
 	inputField.dispatchEvent(new Event('change', { bubbles: true }))
 	await addDelay(200)
 }
@@ -229,25 +238,25 @@ async function performRadioButtonChecks() {
 			resolve(result.radioButtons || [])
 		})
 	})
-	
+
 	const radioFieldsets = document.querySelectorAll('fieldset[data-test-form-builder-radio-button-form-component="true"]')
-	
+
 	for (const fieldset of radioFieldsets) {
 		const legendElement = fieldset.querySelector('legend')
 		const questionTextElement = legendElement.querySelector('span[aria-hidden="true"]')
 		const placeholderText = questionTextElement?.textContent.trim() || legendElement.textContent.trim()
-		
+
 		const storedRadioButtonInfo = storedRadioButtons.find(info => info.placeholderIncludes === placeholderText)
-		
+
 		if (storedRadioButtonInfo) {
 			const radioButtonWithValue = fieldset.querySelector(`input[type="radio"][value="${storedRadioButtonInfo.defaultValue}"]`)
-			
+
 			if (radioButtonWithValue) {
 				radioButtonWithValue.checked = true
 				radioButtonWithValue.dispatchEvent(new Event('change', { bubbles: true }))
 				await addDelay(500)
 			}
-			
+
 			storedRadioButtonInfo.count++
 			if (!('createdAt' in storedRadioButtonInfo) || !storedRadioButtonInfo.createdAt) {
 				storedRadioButtonInfo.createdAt = Date.now()
@@ -258,24 +267,24 @@ async function performRadioButtonChecks() {
 				firstRadioButton.checked = true
 				firstRadioButton.dispatchEvent(new Event('change', { bubbles: true }))
 				await addDelay(500)
-				
+
 				const options = Array.from(fieldset.querySelectorAll('input[type="radio"]')).map(radioButton => {
 					const labelElement = fieldset.querySelector(`label[for="${radioButton.id}"]`)
 					let text = labelElement?.textContent.trim()
-					
+
 					if (!text) {
 						const parentElement = radioButton.parentElement
 						const textElement = parentElement?.querySelector('span') || parentElement?.querySelector('div')
 						text = textElement?.textContent?.trim() || radioButton.value
 					}
-					
+
 					return {
 						value: radioButton.value,
 						text: text,
 						selected: radioButton.checked
 					}
 				})
-				
+
 				const newRadioButtonInfo = {
 					placeholderIncludes: placeholderText,
 					defaultValue: firstRadioButton.value,
@@ -283,9 +292,9 @@ async function performRadioButtonChecks() {
 					options: options,
 					createdAt: Date.now()
 				}
-				
+
 				storedRadioButtons.push(newRadioButtonInfo)
-				
+
 				await chrome.storage.local.set({ 'radioButtons': storedRadioButtons })
 			}
 			const isStopScript = Boolean((await chrome.storage.local.get('stopIfNotExistInFormControl'))?.stopIfNotExistInFormControl)
@@ -298,7 +307,7 @@ async function performRadioButtonChecks() {
 			}
 		}
 	}
-	
+
 	await chrome.storage.local.set({ 'radioButtons': storedRadioButtons })
 }
 
@@ -308,48 +317,48 @@ async function performDropdownChecks() {
 			resolve(result.dropdowns || [])
 		})
 	})
-	
+
 	const dropdowns = document.querySelectorAll('.fb-dash-form-element select')
 	dropdowns.forEach((dropdown, index) => {
 		const parentElement = dropdown.closest('.fb-dash-form-element')
 		if (parentElement) {
 			const labelElement = parentElement.querySelector('label')
 			let labelText = null
-			
+
 			if (labelElement) {
 				const ariaHiddenSpan = labelElement.querySelector('span[aria-hidden="true"]')
 				labelText = ariaHiddenSpan?.textContent.trim()
-				
+
 				if (!labelText) {
 					labelText = labelElement.innerText.trim()
 				}
 			}
-			
+
 			labelText = labelText || `Dropdown ${index}`
-			
+
 			const secondOption = dropdown.options[1]
 			if (secondOption && dropdown.selectedIndex < 1) {
 				secondOption.selected = true
 				dropdown.dispatchEvent(new Event('change', { bubbles: true }))
 			}
-			
+
 			const options = Array.from(dropdown.options).map(option => ({
 				value: option.value,
 				text: option.textContent.trim(),
 				selected: option.selected
 			}))
-			
+
 			const storedDropdownInfo = storedDropdowns.find(info => info.placeholderIncludes === labelText)
-			
+
 			if (storedDropdownInfo) {
 				const selectedValue = storedDropdownInfo.options.find(option => option.selected)?.value
-				
+
 				Array.from(dropdown.options).forEach(option => {
 					option.selected = option.value === selectedValue
 				})
-				
+
 				dropdown.dispatchEvent(new Event('change', { bubbles: true }))
-				
+
 				storedDropdownInfo.count++
 			} else {
 				const newDropdownInfo = {
@@ -361,12 +370,12 @@ async function performDropdownChecks() {
 						selected: option.selected
 					}))
 				}
-				
+
 				storedDropdowns.push(newDropdownInfo)
 			}
 		}
 	})
-	
+
 	void chrome.storage.local.set({ dropdowns: storedDropdowns })
 }
 
@@ -440,7 +449,7 @@ async function runValidations() {
 
 async function uncheckFollowCompany() {
 	const followCheckboxWait = await waitForElements({ elementOrSelector: '#follow-company-checkbox', timeout: 3000 })
-	
+
 	const followCheckbox = followCheckboxWait?.[0]
 	if (followCheckbox?.checked) {
 		followCheckbox?.scrollIntoView({ block: 'center' })
@@ -466,14 +475,14 @@ async function runApplyModel() {
 				if (Array.isArray(applyModalWait)) {
 					const applyModal = applyModalWait[0]
 					const continueApplyingButton = applyModal?.querySelector('button[aria-label="Continue applying"]')
-					
+
 					if (continueApplyingButton) {
 						continueApplyingButton?.scrollIntoView({ block: 'center' })
 						await addDelay(300)
 						continueApplyingButton.click()
 						await runApplyModel()
 					}
-					
+
 					const nextButton = applyModal?.querySelectorAll && Array.from(applyModal.querySelectorAll('button')).find(button => button.textContent.includes('Next'))
 					const reviewButtonWait = await waitForElements({
 						elementOrSelector: 'button[aria-label="Review your application"]',
@@ -505,7 +514,7 @@ async function runApplyModel() {
 						const buttonToClick = reviewButton || nextButton
 						await runValidations()
 						const isError = await checkForError()
-						
+
 						if (isError) {
 							await terminateJobModel()
 						} else {
@@ -592,60 +601,7 @@ async function runFindEasyApply(jobTitle, companyName) {
 
 let currentPage = ''
 
-async function goToNextPage() {
-	await addDelay()
-	const pagination = document?.querySelector('.jobs-search-pagination')
-	const paginationPage = pagination?.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText
-	const nextButton = pagination?.querySelector('button[aria-label*=\'next\']')
 
-	return new Promise(resolve => {
-		if (nextButton) {
-			nextButton.click()
-			waitForElements({
-				elementOrSelector: '.scaffold-layout__list-item',
-				timeout: 5000
-			}).then(() => {
-				resolve()
-			}).catch(error => {
-				console.trace('goToNextPage waitForElements error:' + error?.message)
-				resolve()
-			})
-		} else {
-			resolve()
-		}
-	}).then(() => {
-		addDelay(500).then(() => {
-			const scrollElement = document?.querySelector('.scaffold-layout__list > div')
-			scrollElement?.scrollTo({
-				top: scrollElement.scrollHeight
-			})
-			if (!nextButton && paginationPage === currentPage) {
-				const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
-				if (showAllLinks.length > 0) {
-					for (const link of showAllLinks) {
-						if ('click' in link) {
-							const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
-							if (inputElement && inputElement.value.trim()) {
-								prevSearchValue = inputElement.value.trim()
-							}
-							link.click()
-							break
-						}
-					}
-				} else {
-					stopScript()
-				}
-			} else {
-				currentPage = paginationPage
-			}
-			return Promise.resolve()
-		})
-	}).then(() => {
-			runScript()
-		}).catch(err => {
-		console.trace('goToNextPage error:' + err?.message)
-		})
-}
 
 function toggleBlinkingBorder(element) {
 	let count = 0
@@ -662,12 +618,12 @@ function toggleBlinkingBorder(element) {
 async function checkLimitReached() {
 	return new Promise((resolve) => {
 		const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
-		
+
 		if (feedbackMessageElement) {
 			const textContent = feedbackMessageElement.textContent;
-			
+
 			const searchString = 'You\'ve exceeded the daily application limit';
-			
+
 			resolve(textContent.includes(searchString));
 		} else {
 			resolve(false);
@@ -726,22 +682,134 @@ async function fillSearchFieldIfEmpty() {
 
 async function closeApplicationSentModal() {
 	const modal = document.querySelector('.artdeco-modal')
-	
+
 	if (modal?.textContent.includes('Application sent') && modal.textContent.includes('Your application was sent to')) {
 		modal.querySelector('.artdeco-modal__dismiss')?.click()
 	}
 }
-async function runScript() {
-	await startScript()
-	await fillSearchFieldIfEmpty()
-	if (!(await checkAndPrepareRunState())) return
-	if (firstRun) {
-		console.log('Easy apply linkedin started...')
-		await addDelay(firstRun ? 4000 : 2000)
+// Flag to prevent multiple navigation attempts
+let isNavigating = false;
+
+// This is the new implementation that was causing issues
+async function goToNextPage() {
+	// Prevent multiple navigation attempts
+	await addDelay()
+	if (isNavigating) {
+		console.log('Navigation already in progress, skipping');
+		return false;
 	}
-	firstRun = false
+
+	isNavigating = true;
 
 	try {
+		const pagination = document?.querySelector('.jobs-search-pagination')
+		const paginationPage = pagination?.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText
+		const nextButton = pagination?.querySelector('button[aria-label*=\'next\']')
+
+		if (!nextButton) {
+			console.log('No next page available or button is disabled');
+			isNavigating = false;
+
+			// Handle case when there's no next button
+			if (paginationPage === currentPage) {
+				const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
+				if (showAllLinks.length > 0) {
+					for (const link of showAllLinks) {
+						if ('click' in link) {
+							const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
+							if (inputElement && inputElement.value.trim()) {
+								prevSearchValue = inputElement.value.trim()
+							}
+							link.click()
+							break
+						}
+					}
+				} else {
+					stopScript()
+				}
+			} else {
+				currentPage = paginationPage
+			}
+			return false;
+		}
+
+		// Scroll to and click the next button
+		nextButton.scrollIntoView({ behavior: 'smooth', block: 'center' })
+		await addDelay(1000)
+		nextButton.click()
+
+		// Wait for elements to load
+		try {
+			await waitForElements({
+				elementOrSelector: '.scaffold-layout__list-item',
+				timeout: 5000
+			})
+		} catch (error) {
+			console.trace('goToNextPage waitForElements error:' + error?.message)
+		}
+
+		// Additional delay and scroll
+		await addDelay(500)
+		const scrollElement = document?.querySelector('.scaffold-layout__list > div')
+		scrollElement?.scrollTo({
+			top: scrollElement.scrollHeight
+		})
+
+		// Wait for the page to fully load before continuing
+		await new Promise(resolve => {
+			const checkPageLoaded = () => {
+				console.log('goToNextPage check ready state:', document.readyState)
+				if (document.readyState === 'complete') {
+					resolve();
+				} else {
+					setTimeout(checkPageLoaded, 500);
+				}
+			};
+			checkPageLoaded();
+		});
+
+		// Update current page
+		currentPage = paginationPage
+
+		// Reset navigation flag after successful navigation
+		isNavigating = false;
+
+		// Continue with script execution
+		runScript();
+		return true;
+	} catch (error) {
+		console.error('Error navigating to next page:', error);
+		isNavigating = false;
+		return false;
+	}
+}
+
+
+// Previous implementation of goToNextPage has been merged with the current implementation above
+
+async function runScript() {
+	try {
+		// Check if extension context is still valid
+		if (!chrome || !chrome.runtime) {
+			console.error('Extension context invalidated');
+			return;
+		}
+
+		await startScript()
+		await fillSearchFieldIfEmpty()
+		if (!(await checkAndPrepareRunState())) return
+		if (firstRun) {
+			console.log('Easy apply linkedin started...')
+			await addDelay(firstRun ? 4000 : 2000)
+		}
+		firstRun = false
+
+		// Check again if extension context is still valid
+		if (!chrome || !chrome.runtime) {
+			console.error('Extension context invalidated');
+			return;
+		}
+
 		await chrome.storage.local.set({ autoApplyRunning: true })
 		// show form control if the user has not even filled in the default fields of user data
 		const fieldsComplete = await checkAndPromptFields()
@@ -750,7 +818,7 @@ async function runScript() {
 			return
 		}
 		const limitReached = await checkLimitReached()
-		
+
 		if (limitReached) {
 			const feedbackMessageElement = document.querySelector('.artdeco-inline-feedback__message')
 			toggleBlinkingBorder(feedbackMessageElement)
@@ -941,3 +1009,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		}
 	}
 })
+
+// Add error handling for all chrome API calls
+window.addEventListener('error', function(event) {
+    if (event.error && event.error.message && event.error.message.includes('Extension context invalidated')) {
+        console.error('Extension context invalidated. Stopping script.');
+        // Try to clean up if possible
+        try {
+            const modalWrapper = document.getElementById('scriptRunningOverlay');
+            if (modalWrapper) {
+                modalWrapper.style.display = 'none';
+            }
+        } catch (e) {
+            // Ignore errors during cleanup
+        }
+    }
+});
