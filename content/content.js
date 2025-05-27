@@ -692,11 +692,22 @@ let isNavigating = false;
 
 async function handleLoopRestart() {
 	try {
-		const currentUrl = window.location.href
-		const url = new URL(currentUrl)
+		const { lastJobSearchUrl } = await chrome.storage.local.get('lastJobSearchUrl')
+		const urlToUse = lastJobSearchUrl || window.location.href
+		const url = new URL(urlToUse)
 		url.searchParams.set('start', '1')
-		url.searchParams.delete('currentJobId')
-		const newUrl = url.toString()
+		
+		const baseSearchParams = new URLSearchParams()
+		const importantParams = ['keywords', 'geoId', 'f_TPR', 'sortBy', 'origin', 'refresh']
+		
+		importantParams.forEach(param => {
+			if (url.searchParams.has(param)) {
+				baseSearchParams.set(param, url.searchParams.get(param))
+			}
+		})
+		baseSearchParams.set('start', '1')
+		
+		const newUrl = `${url.origin}${url.pathname}?${baseSearchParams.toString()}`
 		
 		console.log('handleLoopRestart: saving URL and redirecting to:', newUrl)
 		await chrome.storage.local.set({ 
@@ -730,29 +741,14 @@ async function goToNextPage() {
 			isNavigating = false;
 
 			console.log('not next button pagination page:', paginationPage, 'currentPage:', currentPage)
-			const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
-			if (showAllLinks.length > 0) {
-				console.log('showAllLinks', showAllLinks)
-				for (const link of showAllLinks) {
-					if ('click' in link) {
-						const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
-						if (inputElement && inputElement.value.trim()) {
-							prevSearchValue = inputElement.value.trim()
-						}
-						link.click()
-						break
-					}
-				}
+			
+			const { loopRunning } = await chrome.storage.local.get('loopRunning')
+			if (loopRunning) {
+				console.log('loopRunning enabled, starting restart')
+				await handleLoopRestart()
 			} else {
-				console.log('no showAllLinks')
-				const { loopRunning } = await chrome.storage.local.get('loopRunning')
-				if (loopRunning) {
-					console.log('loopRunning')
-					await handleLoopRestart()
-				} else {
-					console.log('stopScript')
-					stopScript()
-				}
+				console.log('loopRunning disabled, stopping script')
+				stopScript()
 			}
 			return false;
 		}
@@ -815,6 +811,11 @@ async function runScript() {
 		if (!chrome || !chrome.runtime) {
 			console.error('Extension context invalidated');
 			return;
+		}
+
+		const currentUrl = window.location.href
+		if (currentUrl.includes('/jobs/search/') && currentUrl.includes('keywords=')) {
+			await chrome.storage.local.set({ lastJobSearchUrl: currentUrl })
 		}
 
 		await startScript()
@@ -1034,23 +1035,31 @@ window.addEventListener('error', function(event) {
 });
 
 window.addEventListener('load', function() {
-    chrome.storage.local.get(['shouldRestartScript', 'loopRestartUrl'], ({ shouldRestartScript, loopRestartUrl }) => {
-        console.log('Page loaded. shouldRestartScript:', shouldRestartScript, 'current URL:', window.location.href)
-        
+    chrome.storage.local.get(['shouldRestartScript', 'loopRestartUrl'], ({ shouldRestartScript, loopRestartUrl }) => {        
         if (shouldRestartScript && loopRestartUrl) {
-            const currentUrlBase = window.location.href.split('?')[0] + '?' + window.location.search
-            const savedUrlBase = loopRestartUrl.split('?')[0] + '?' + new URL(loopRestartUrl).search
+            const currentUrl = new URL(window.location.href)
+            const savedUrl = new URL(loopRestartUrl)
             
-            console.log('Comparing URLs:', currentUrlBase, 'vs', savedUrlBase)
+            const isJobSearchPage = currentUrl.pathname.includes('/jobs/search/')
+            const hasKeywords = currentUrl.searchParams.has('keywords') || savedUrl.searchParams.has('keywords')
+            const isStartPage = currentUrl.searchParams.get('start') === '1' || !currentUrl.searchParams.has('start')
             
-            if (currentUrlBase.includes('/jobs/search/') && savedUrlBase.includes('/jobs/search/')) {
-                console.log('URLs match, restarting script')
+            console.log('URL check - isJobSearchPage:', isJobSearchPage, 'hasKeywords:', hasKeywords, 'isStartPage:', isStartPage)
+            
+            if (isJobSearchPage && hasKeywords && isStartPage) {
                 chrome.storage.local.remove(['loopRestartUrl', 'shouldRestartScript'])
                 setTimeout(() => {
                     startScript()
                     runScript()
                 }, 3000)
+            } else if (currentUrl.href.includes('JOBS_HOME_JYMBII')) {
+                console.log('Redirected to recommendations page, trying saved URL again')
+                setTimeout(() => {
+                    window.location.href = loopRestartUrl
+                }, 2000)
             } else {
+                console.log('Not a valid restart page, clearing flags')
+                chrome.storage.local.remove(['loopRestartUrl', 'shouldRestartScript'])
                 chrome.storage.local.set({ autoApplyRunning: false });
             }
         } else {
