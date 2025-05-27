@@ -1,0 +1,90 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Chrome Extension Rules for LinkedIn Auto Apply
+
+## Architecture & Structure
+- Follow Chrome Extension Manifest V3 standards
+- Separate concerns: background scripts, content scripts, popup UI
+- Use service workers for background processing
+- Implement proper message passing between components
+
+## Code Style & Standards
+- Use async/await for asynchronous operations
+- Implement proper error handling with try-catch blocks
+- Use meaningful variable names (e.g., `jobTitle`, `companyName`, `autoApplyRunning`)
+- Add console.trace() for debugging errors
+- Use template literals for string concatenation
+
+## Chrome Extension Specific
+- Always check chrome.runtime.lastError for API calls
+- Use chrome.storage.local for persistent data storage
+- Implement proper tab management with chrome.tabs API
+- Use chrome.scripting.executeScript for dynamic script injection
+- Handle extension lifecycle events properly
+
+## LinkedIn DOM Interaction
+- Use XPath selectors for robust element targeting
+- Implement waitForElements() utility for dynamic content
+- Handle LinkedIn's SPA navigation and DOM changes
+- Use aria-labels and semantic selectors when possible
+- Implement retry mechanisms for element interactions
+
+## Form Automation
+- Use setNativeValue() for proper input field manipulation
+- Trigger appropriate events (change, input, blur) after value setting
+- Handle different input types: text, checkbox, radio, dropdown, autocomplete
+- Implement field validation before submission
+- Store and retrieve user configurations for form fields
+
+## State Management
+- Use chrome.storage.local for persistent state
+- Implement proper state synchronization between scripts
+- Handle autoApplyRunning state consistently
+- Clean up state on script termination
+
+## Error Handling
+- Implement graceful degradation for missing elements
+- Use defensive programming for DOM queries
+- Log errors with context information
+- Provide user feedback for failures
+- Handle network timeouts and API rate limits
+
+## Performance
+- Use efficient DOM queries with specific selectors
+- Implement proper delays between actions (addDelay())
+- Avoid memory leaks in long-running scripts
+- Clean up event listeners and observers
+
+## Security
+- Validate all user inputs
+- Sanitize data before storage
+- Use content security policy restrictions
+- Handle sensitive data (email, phone) securely
+
+## Testing & Debugging
+- Add comprehensive logging for debugging
+- Use console.trace() for error tracking
+- Implement development mode flags
+- Test across different LinkedIn page layouts
+
+## Specific Patterns
+- Use `getElementsByXPath()` utility for complex selectors
+- Implement `clickElement()` wrapper for reliable clicking
+- Use `waitForElements()` for dynamic content loading
+- Follow the pattern: check state → find element → perform action → validate result
+
+## File Organization
+- content/: DOM manipulation and LinkedIn interaction
+- popup/: User interface and configuration
+- background.js: Service worker and message handling
+- modals/: Overlay components for user feedback
+
+## Data Structures
+- Store job data with: title, link, companyName, timestamp
+- Use configuration objects for form field mappings
+- Implement unique key generation for data deduplication
+- Sort data by timestamp for chronological order
+

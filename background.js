@@ -104,12 +104,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 									}).catch(err => {
 										console.trace('startAutoApply Error: ' + err?.message)
 										sendResponse({ success: false, message: err.message })
-										// chrome.tabs.sendMessage(currentTabId, { action: 'hideRunningModal' })
 									})
-									// } else {
-									// 	console.trace('Failed to show running modal: ' + response)
-									// 	sendResponse({ success: false, message: 'Failed to show running modal.' })
-									// }
 								}
 							}
 						})
@@ -335,7 +330,7 @@ function updateDropdownConfig(dropdownData) {
 				text: option.text || '',
 				selected: option.value === dropdownData.value
 			}))
-			// check if storedDropdownInfo has  createdAt key
+			
 			if (!('createdAt' in storedDropdownInfo) || !storedDropdownInfo.createdAt) {
 				storedDropdownInfo.createdAt = Date.now();
 			}
@@ -367,7 +362,7 @@ function deleteDropdownValueConfig(placeholder) {
 	})
 }
 
-// start stop auto apply
+
 function runScriptInContent() {
 	if (typeof runScript === 'function') {
 		runScript()

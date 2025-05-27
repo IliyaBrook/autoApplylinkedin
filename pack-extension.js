@@ -2,7 +2,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const archiver = require('archiver');
 
-// List of files and folders to ignore
+
 const ignoreList = [
 	'.idea',
 	'node_modules',

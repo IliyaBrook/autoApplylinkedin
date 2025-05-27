@@ -1,0 +1,214 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# JavaScript Patterns for LinkedIn Auto Apply Extension
+
+## Async/Await Patterns
+```javascript
+// Always use try-catch with async operations
+async function performAction() {
+    try {
+        const result = await chrome.storage.local.get('key');
+        return result;
+    } catch (error) {
+        console.trace('Error in performAction:', error);
+        throw error;
+    }
+}
+
+// Use Promise.resolve for callback-based APIs
+function getStorageData(key) {
+    return new Promise(resolve => {
+        chrome.storage.local.get(key, resolve);
+    });
+}
+```
+
+## DOM Manipulation Patterns
+```javascript
+// Use utility functions for element interaction
+async function clickElement({ elementOrSelector, timeout = 5000 }) {
+    const element = typeof elementOrSelector === 'string' 
+        ? document.querySelector(elementOrSelector) 
+        : elementOrSelector;
+    
+    if (!element) throw new Error('Element not found');
+    
+    element.click();
+    await addDelay(300); // Always add delay after actions
+}
+
+// Implement robust element waiting
+async function waitForElements({ elementOrSelector, timeout = 10000 }) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        
+        const checkElement = () => {
+            const elements = document.querySelectorAll(elementOrSelector);
+            if (elements.length > 0) {
+                resolve(Array.from(elements));
+            } else if (Date.now() - startTime > timeout) {
+                reject(new Error(`Timeout waiting for ${elementOrSelector}`));
+            } else {
+                setTimeout(checkElement, 100);
+            }
+        };
+        
+        checkElement();
+    });
+}
+```
+
+## State Management Patterns
+```javascript
+// Always check running state before actions
+async function checkAndPrepareRunState() {
+    return new Promise(resolve => {
+        chrome.storage.local.get('autoApplyRunning', (result) => {
+            resolve(result?.autoApplyRunning || false);
+        });
+    });
+}
+
+// Clean state on script termination
+async function stopScript() {
+    await chrome.storage.local.set({ autoApplyRunning: false });
+    // Clean up UI elements
+    const modal = document.getElementById('scriptRunningOverlay');
+    if (modal) modal.style.display = 'none';
+}
+```
+
+## Form Field Patterns
+```javascript
+// Use native value setting for React inputs
+function setNativeValue(element, value) {
+    const valueSetter = Object.getOwnPropertyDescriptor(element, 'value')?.set ||
+                       Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), 'value')?.set;
+    
+    if (valueSetter) {
+        valueSetter.call(element, value);
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+}
+
+// Handle different input types
+async function fillField(inputField, value) {
+    if (inputField.matches('[role="combobox"]')) {
+        await fillAutocompleteField(inputField, value);
+    } else if (inputField.type === 'checkbox') {
+        inputField.checked = Boolean(value);
+        inputField.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+        setNativeValue(inputField, value);
+    }
+}
+```
+
+## Error Handling Patterns
+```javascript
+// Graceful error handling with context
+async function safeExecute(operation, context = '') {
+    try {
+        return await operation();
+    } catch (error) {
+        console.trace(`Error in ${context}:`, error?.message);
+        return null; // Return null instead of throwing
+    }
+}
+
+// Validate before proceeding
+function validateElement(element, elementName) {
+    if (!element) {
+        console.trace(`${elementName} not found`);
+        return false;
+    }
+    return true;
+}
+```
+
+## Message Passing Patterns
+```javascript
+// Background script message handling
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    try {
+        if (request.action === 'startAutoApply') {
+            handleStartAutoApply(request, sendResponse);
+            return true; // Keep message channel open
+        }
+    } catch (error) {
+        console.trace('Message handling error:', error);
+        sendResponse({ success: false, message: error.message });
+    }
+});
+
+// Content script message sending
+async function sendMessageToBackground(action, data = {}) {
+    try {
+        return await chrome.runtime.sendMessage({ action, data });
+    } catch (error) {
+        console.trace('Failed to send message:', error);
+        return { success: false, message: error.message };
+    }
+}
+```
+
+## Data Processing Patterns
+```javascript
+// Deduplicate data with multiple keys
+function deduplicateJobData(data) {
+    const uniqData = [];
+    const seenLinks = new Set();
+    const seenTitleAndCompany = new Set();
+    
+    for (const item of data) {
+        const linkKey = item.link;
+        const titleCompanyKey = `${item.title}-${item.companyName}`;
+        
+        if (!seenLinks.has(linkKey) && !seenTitleAndCompany.has(titleCompanyKey)) {
+            seenLinks.add(linkKey);
+            seenTitleAndCompany.add(titleCompanyKey);
+            uniqData.push(item);
+        }
+    }
+    
+    return uniqData.sort((a, b) => b.time - a.time);
+}
+
+// Find closest matching field
+function findClosestField(fieldsObject, labelText) {
+    const normalizedLabel = labelText.toLowerCase().trim();
+    
+    for (const [key, value] of Object.entries(fieldsObject)) {
+        if (normalizedLabel.includes(key.toLowerCase()) || 
+            key.toLowerCase().includes(normalizedLabel)) {
+            return value;
+        }
+    }
+    
+    return null;
+}
+```
+
+## Timing and Delays
+```javascript
+// Consistent delay function
+async function addDelay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Retry with exponential backoff
+async function retryOperation(operation, maxRetries = 3, baseDelay = 1000) {
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await operation();
+        } catch (error) {
+            if (i === maxRetries - 1) throw error;
+            await addDelay(baseDelay * Math.pow(2, i));
+        }
+    }
+}
+```
+

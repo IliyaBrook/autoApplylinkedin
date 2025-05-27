@@ -1,0 +1,220 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# LinkedIn Automation Rules
+
+## LinkedIn DOM Structure
+- LinkedIn uses dynamic class names, prefer aria-labels and data attributes
+- Use XPath for complex element targeting: `//button[contains(text(), "Easy Apply")]`
+- Handle SPA navigation with proper waiting mechanisms
+- LinkedIn loads content asynchronously, always wait for elements
+
+## Job Application Flow
+1. **Job Search Page**: Navigate through job listings
+2. **Job Details**: Extract job title, company name, description
+3. **Easy Apply Button**: Look for "Easy Apply" button specifically
+4. **Application Form**: Handle multi-step forms with various field types
+5. **Confirmation**: Handle success/error modals
+
+## Element Selectors Priority
+```javascript
+// Priority order for element selection:
+1. aria-label attributes
+2. data-* attributes  
+3. Semantic HTML elements
+4. CSS classes (as last resort due to dynamic nature)
+
+// Example patterns:
+const easyApplyButton = document.querySelector('[aria-label*="Easy Apply"]');
+const jobTitle = document.querySelector('[data-job-title]');
+const nextButton = document.querySelector('button[aria-label="Continue to next step"]');
+```
+
+## Form Field Handling
+```javascript
+// Common LinkedIn form field patterns:
+const fieldMappings = {
+    'First name': 'FirstName',
+    'Last name': 'LastName', 
+    'Email': 'Email',
+    'Phone': 'PhoneNumber',
+    'City': 'City',
+    'Years of experience': 'YearsOfExperience'
+};
+
+// Handle autocomplete fields
+async function fillAutocompleteField(field, value) {
+    field.focus();
+    setNativeValue(field, value);
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    await addDelay(500);
+    
+    // Wait for dropdown and select first option
+    const dropdown = await waitForElements({
+        elementOrSelector: '[role="listbox"] [role="option"]',
+        timeout: 2000
+    });
+    
+    if (dropdown?.[0]) {
+        dropdown[0].click();
+    }
+}
+```
+
+## Navigation Patterns
+```javascript
+// Handle LinkedIn's infinite scroll
+async function scrollToLoadMore() {
+    const jobsList = document.querySelector('.jobs-search-results-list');
+    if (jobsList) {
+        jobsList.scrollTop = jobsList.scrollHeight;
+        await addDelay(1000);
+    }
+}
+
+// Navigate to next page
+async function goToNextPage() {
+    const nextButton = document.querySelector('[aria-label="Next"]');
+    if (nextButton && !nextButton.disabled) {
+        await clickElement({ elementOrSelector: nextButton });
+        await waitForPageLoad();
+    }
+}
+
+// Wait for page load after navigation
+async function waitForPageLoad() {
+    await waitForElements({
+        elementOrSelector: '.jobs-search-results-list',
+        timeout: 10000
+    });
+}
+```
+
+## Modal Handling
+```javascript
+// Common LinkedIn modals to handle:
+const modalSelectors = {
+    applicationSent: '.artdeco-modal:has([data-test-modal="application-sent"])',
+    error: '.artdeco-modal:has([data-test-modal="error"])',
+    confirmation: '.artdeco-modal:has([data-test-modal="confirmation"])',
+    followCompany: '.artdeco-modal:has([data-test-modal="follow-company"])'
+};
+
+// Close modal pattern
+async function closeModal(modalSelector) {
+    const modal = document.querySelector(modalSelector);
+    if (modal) {
+        const closeButton = modal.querySelector('[aria-label="Dismiss"], .artdeco-modal__dismiss');
+        if (closeButton) {
+            await clickElement({ elementOrSelector: closeButton });
+        }
+    }
+}
+```
+
+## Rate Limiting & Delays
+```javascript
+// LinkedIn rate limiting considerations:
+const delays = {
+    betweenClicks: 300,      // Minimum delay between clicks
+    betweenApplications: 2000, // Delay between job applications
+    pageNavigation: 1500,     // Wait after page navigation
+    formSubmission: 1000,     // Wait after form submission
+    modalHandling: 500        // Wait for modal animations
+};
+
+// Implement random delays to appear more human
+function getRandomDelay(baseDelay, variance = 0.3) {
+    const min = baseDelay * (1 - variance);
+    const max = baseDelay * (1 + variance);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+```
+
+## Error Recovery
+```javascript
+// Common LinkedIn errors and recovery:
+const errorPatterns = {
+    applicationLimit: /application limit|too many applications/i,
+    networkError: /network error|connection failed/i,
+    sessionExpired: /session expired|please log in/i,
+    jobNoLongerAvailable: /no longer available|position filled/i
+};
+
+async function handleLinkedInError(errorText) {
+    if (errorPatterns.applicationLimit.test(errorText)) {
+        await stopScript();
+        showUserNotification('Daily application limit reached');
+    } else if (errorPatterns.sessionExpired.test(errorText)) {
+        showUserNotification('Please log in to LinkedIn');
+    }
+    // Continue with other error patterns...
+}
+```
+
+## Job Filtering
+```javascript
+// Filter jobs based on criteria
+function shouldApplyToJob(jobElement, filters) {
+    const jobText = jobElement.textContent.toLowerCase();
+    
+    // Check for bad words
+    if (filters.badWords?.some(word => 
+        new RegExp(`\\b${word.trim()}\\b`, 'i').test(jobText))) {
+        return false;
+    }
+    
+    // Check for required keywords
+    if (filters.requiredKeywords?.length > 0) {
+        return filters.requiredKeywords.some(keyword =>
+            jobText.includes(keyword.toLowerCase()));
+    }
+    
+    return true;
+}
+```
+
+## Data Extraction
+```javascript
+// Extract job information from LinkedIn elements
+function extractJobData(jobElement) {
+    const titleElement = jobElement.querySelector('[data-job-title], .job-card-list__title');
+    const companyElement = jobElement.querySelector('[data-job-company], .job-card-container__company-name');
+    const linkElement = jobElement.querySelector('a[href*="/jobs/view/"]');
+    
+    return {
+        title: titleElement?.textContent?.trim() || '',
+        company: companyElement?.textContent?.trim() || '',
+        link: linkElement?.href || '',
+        timestamp: Date.now()
+    };
+}
+```
+
+## Performance Optimization
+```javascript
+// Optimize for LinkedIn's heavy DOM
+function optimizeForLinkedIn() {
+    // Disable animations during automation
+    const style = document.createElement('style');
+    style.textContent = `
+        *, *::before, *::after {
+            animation-duration: 0.01ms !important;
+            animation-delay: -0.01ms !important;
+            transition-duration: 0.01ms !important;
+            transition-delay: -0.01ms !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// Clean up observers and listeners
+function cleanupLinkedInAutomation() {
+    // Remove any mutation observers
+    // Clear intervals and timeouts
+    // Remove event listeners
+}
+```
+

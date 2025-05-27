@@ -107,7 +107,7 @@ document.addEventListener('click', event => {
 			case 'show-links':
 				try {
 					let accordion = document.getElementById('linksAccordion')
-					// data set toggle
+					
 					const dataset = button.dataset
 					if (dataset.open === 'true') {
 						button.textContent = 'Show job search links'
@@ -220,7 +220,7 @@ document.addEventListener('click', event => {
 	}
 })
 
-// import file button logic
+
 document.getElementById('import-file').addEventListener('change', function(event) {
 	const file = event.target.files[0]
 	if (!file) return

@@ -92,7 +92,7 @@ function displayRadioButtonConfigs(radioButtons) {
             radioButton.checked = option.selected;
             const label = document.createElement('label');
             
-            // label.textContent = option.value;
+            
             label.textContent = isNumeric(option.value) ? option?.text : option.value;
             radioContainer.appendChild(radioButton);
             radioContainer.appendChild(label);

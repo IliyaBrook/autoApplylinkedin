@@ -1,17 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Bad Words selectors
     const badWordsToggle = document.getElementById('bad-words-toggle');
     const badWordsContainer = document.getElementById('bad-words-list');
     const newBadWordInput = document.getElementById('new-bad-word');
     const addBadWordButton = document.getElementById('add-bad-word-button');
     
-    // Job Title Must Contain (Good Words) selectors
     const titleFilterToggle = document.getElementById('title-filter-toggle');
     const titleFilterContainer = document.getElementById('title-filter-list');
     const newTitleFilterInput = document.getElementById('new-title-filter');
     const addTitleFilterButton = document.getElementById('add-title-filter-button');
     
-    // Job Title Must Skip selectors
     const titleSkipToggle = document.getElementById('title-skip-toggle');
     const titleSkipContainer = document.getElementById('title-skip-list');
     const newTitleSkipInput = document.getElementById('new-title-skip');
@@ -25,7 +22,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
     
-    // Initialize toggle states
     function initializeToggles() {
         chrome.storage.local.get(['badWordsEnabled', 'titleFilterEnabled', 'titleSkipEnabled'], (result) => {
             badWordsToggle.checked = result.badWordsEnabled ?? true;
@@ -34,7 +30,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Save toggle states
     badWordsToggle.addEventListener('change', () => {
         chrome.storage.local.set({ badWordsEnabled: badWordsToggle.checked });
     });
@@ -47,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.storage.local.set({ titleSkipEnabled: titleSkipToggle.checked });
     });
     
-    // Load "Bad Words"
+    
     function loadBadWords() {
         chrome.storage.local.get('badWords', (result) => {
             const badWords = result?.badWords || [];
@@ -56,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Load "Job Title Must Contain" (Good Words)
+    
     function loadTitleFilter() {
         chrome.storage.local.get('titleFilterWords', (result) => {
             const titleFilterWords = result?.titleFilterWords || [];
@@ -65,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Load "Job Title Must Skip" words
+    
     function loadTitleSkip() {
         chrome.storage.local.get('titleSkipWords', (result) => {
             const titleSkipWords = result?.titleSkipWords || [];
@@ -74,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Add a word to the UI
+    
     function addWordItem(word, index, container, filterType) {
         
         const wordItem = document.createElement('div');
@@ -96,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
         container.appendChild(wordItem);
     }
     
-    // Add new "Bad Word"
     addBadWordButton.addEventListener('click', () => {
         const newWord = newBadWordInput.value.trim();
         if (newWord) {
@@ -110,7 +104,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Add new "Job Title Must Contain" word
     addTitleFilterButton.addEventListener('click', () => {
         const newWord = newTitleFilterInput.value.trim();
         if (newWord) {
@@ -124,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Add new "Job Title Must Skip" word
+    
     addTitleSkipButton.addEventListener('click', () => {
         const newWord = newTitleSkipInput.value.trim();
         if (newWord) {
@@ -138,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Delete a word
+    
     function deleteWord(index, filterType) {
         const key = {
             badWords: 'badWords',
@@ -156,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Update a word
+    
     function updateWord(index, newWord, filterType) {
         const key = {
             badWords: 'badWords',
@@ -171,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Initialize
+    
     initializeToggles();
     loadBadWords();
     loadTitleFilter();

@@ -1,4 +1,4 @@
-// noinspection JSCheckFunctionSignatures
+
 let defaultFields = {
 	YearsOfExperience: '',
 	City: '',
@@ -7,8 +7,7 @@ let defaultFields = {
 	Email: '',
 	PhoneNumber: ''
 }
-//global flags
-let firstRun = true
+
 let prevSearchValue = ''
 
 async function stopScript() {
@@ -456,7 +455,7 @@ async function uncheckFollowCompany() {
 		await addDelay(300)
 		followCheckbox.checked = false
 		const changeEvent = new Event('change', { bubbles: true, cancelable: true })
-		// noinspection JSCheckFunctionSignatures
+		
 		followCheckbox.dispatchEvent(changeEvent)
 		await addDelay(200)
 	}
@@ -687,12 +686,11 @@ async function closeApplicationSentModal() {
 		modal.querySelector('.artdeco-modal__dismiss')?.click()
 	}
 }
-// Flag to prevent multiple navigation attempts
+
 let isNavigating = false;
 
-// This is the new implementation that was causing issues
+
 async function goToNextPage() {
-	// Prevent multiple navigation attempts
 	await addDelay()
 	if (isNavigating) {
 		console.log('Navigation already in progress, skipping');
@@ -710,7 +708,7 @@ async function goToNextPage() {
 			console.log('No next page available or button is disabled');
 			isNavigating = false;
 
-			// Handle case when there's no next button
+			
 			if (paginationPage === currentPage) {
 				const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
 				if (showAllLinks.length > 0) {
@@ -733,12 +731,12 @@ async function goToNextPage() {
 			return false;
 		}
 
-		// Scroll to and click the next button
+		
 		nextButton.scrollIntoView({ behavior: 'smooth', block: 'center' })
 		await addDelay(1000)
 		nextButton.click()
 
-		// Wait for elements to load
+		
 		try {
 			await waitForElements({
 				elementOrSelector: '.scaffold-layout__list-item',
@@ -748,14 +746,14 @@ async function goToNextPage() {
 			console.trace('goToNextPage waitForElements error:' + error?.message)
 		}
 
-		// Additional delay and scroll
-		await addDelay(500)
+		
+		await addDelay(1000)
 		const scrollElement = document?.querySelector('.scaffold-layout__list > div')
 		scrollElement?.scrollTo({
 			top: scrollElement.scrollHeight
 		})
 
-		// Wait for the page to fully load before continuing
+		
 		await new Promise(resolve => {
 			const checkPageLoaded = () => {
 				console.log('goToNextPage check ready state:', document.readyState)
@@ -768,14 +766,14 @@ async function goToNextPage() {
 			checkPageLoaded();
 		});
 
-		// Update current page
+		
 		currentPage = paginationPage
 
-		// Reset navigation flag after successful navigation
+		
 		isNavigating = false;
 
-		// Continue with script execution
-		runScript();
+		
+		await runScript();
 		return true;
 	} catch (error) {
 		console.error('Error navigating to next page:', error);
@@ -785,11 +783,9 @@ async function goToNextPage() {
 }
 
 
-// Previous implementation of goToNextPage has been merged with the current implementation above
-
 async function runScript() {
 	try {
-		// Check if extension context is still valid
+		await addDelay(3000)
 		if (!chrome || !chrome.runtime) {
 			console.error('Extension context invalidated');
 			return;
@@ -798,20 +794,15 @@ async function runScript() {
 		await startScript()
 		await fillSearchFieldIfEmpty()
 		if (!(await checkAndPrepareRunState())) return
-		if (firstRun) {
-			console.log('Easy apply linkedin started...')
-			await addDelay(firstRun ? 4000 : 2000)
-		}
-		firstRun = false
 
-		// Check again if extension context is still valid
+		
 		if (!chrome || !chrome.runtime) {
 			console.error('Extension context invalidated');
 			return;
 		}
 
 		await chrome.storage.local.set({ autoApplyRunning: true })
-		// show form control if the user has not even filled in the default fields of user data
+		
 		const fieldsComplete = await checkAndPromptFields()
 		if (!fieldsComplete) {
 			await chrome.runtime.sendMessage({ action: 'openDefaultInputPage' })
@@ -856,7 +847,7 @@ async function runScript() {
 			if (!jobNameLink) {
 				canClickToJob = false
 			} else {
-				jobNameLink?.scrollIntoView({ block: 'center' })
+				jobNameLink?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 			}
 			const jobFooter = listItem.querySelector('[class*="footer"]')
 			if (jobFooter && jobFooter.textContent.trim() === 'Applied') {
@@ -979,25 +970,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		sendResponse({ success: true })
 	}
 	if (message.action === 'showRunningModal') {
-		// sendResponse({ success: true })
-		// new Promise((resolve) => {
-		// 	setTimeout(() => {
-		// 		const modalWrapper = document.getElementById('scriptRunningOverlay')
-		// 		if (modalWrapper) {
-		// 			modalWrapper.style.display = 'flex'
-		// 		}
-		// 		resolve(modalWrapper)
-		// 	}, 1000)
-		// }).then(modalWrapper => {
-		// 	const stopButton = modalWrapper.querySelector('#stopScriptButton')
-		// 	if (stopButton) {
-		// 		stopButton.addEventListener('click', () => {
-		// 			void chrome.runtime.sendMessage({ action: 'stopAutoApply' })
-		// 		})
-		// 	}
-		// }).catch(err => {
-		// 	console.log('Error in showRunningModal:', err?.message)
-		// })
 		sendResponse({ success: true })
 	} else if (message.action === 'hideRunningModal') {
 		const modalWrapper = document.getElementById('scriptRunningOverlay')
@@ -1010,18 +982,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 })
 
-// Add error handling for all chrome API calls
+
 window.addEventListener('error', function(event) {
     if (event.error && event.error.message && event.error.message.includes('Extension context invalidated')) {
         console.error('Extension context invalidated. Stopping script.');
-        // Try to clean up if possible
+        
         try {
             const modalWrapper = document.getElementById('scriptRunningOverlay');
             if (modalWrapper) {
                 modalWrapper.style.display = 'none';
             }
         } catch (e) {
-            // Ignore errors during cleanup
+        
         }
     }
 });

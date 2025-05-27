@@ -1,4 +1,4 @@
-// noinspection DuplicatedCode
+
 async function addDelay(delay = 1000) {
 	return new Promise(resolve => {
 		setTimeout(() => {
@@ -25,7 +25,7 @@ function getElementsByXPath({ xpath, context = document }) {
 		XPathResult.ORDERED_NODE_ITERATOR_TYPE,
 		null
 	)
-	
+
 	const elements = []
 	let node = result.iterateNext()
 	while (node) {
@@ -34,7 +34,7 @@ function getElementsByXPath({ xpath, context = document }) {
 		}
 		node = result.iterateNext()
 	}
-	
+
 	return elements
 }
 
@@ -42,10 +42,10 @@ async function waitForElements({ elementOrSelector, timeout = 5000, contextNode 
 	return new Promise(resolve => {
 		try {
 			const startTime = Date.now()
-			
+
 			const intervalId = setInterval(() => {
 				let elements = []
-				
+
 				if (typeof elementOrSelector === 'string') {
 					if (Array.isArray(contextNode)) {
 						contextNode.forEach(node => {
@@ -65,20 +65,20 @@ async function waitForElements({ elementOrSelector, timeout = 5000, contextNode 
 					resolve([])
 					return
 				}
-				
+
 				const visibleElements = []
 				for (let i = 0; i < elements.length; i++) {
 					if (elements[i].offsetParent !== null && elements[i].isConnected) {
 						visibleElements.push(elements[i])
 					}
 				}
-				
+
 				if (visibleElements.length > 0) {
 					clearInterval(intervalId)
 					resolve(visibleElements)
 					return
 				}
-				
+
 				if (Date.now() - startTime > timeout) {
 					clearInterval(intervalId)
 					resolve([])
@@ -111,16 +111,16 @@ async function clickElement({ elementOrSelector, timeout = 5000, contextNode = d
 				console.trace('log', 'Argument must be a selector string or a DOM Element.')
 				return
 			}
-			
-			
+
+
 			if (element.offsetParent === null || !element.isConnected) {
 				console.trace('Element is not visible or not connected')
 				return
 			}
-			element?.scrollIntoView({ block: 'center' })
+			element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+			await addDelay(800)
 			element.click()
 			resolve(element)
-			
 		} catch (error) {
 			console.trace('Element is not clickable:' + error?.message)
 		}
@@ -169,11 +169,11 @@ function setNativeValue(element, value) {
 	element.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-//Levenshtein distance
+
 function levenshteinDistance(a, b) {
 	if (a.length === 0) return b.length;
 	if (b.length === 0) return a.length;
-	
+
 	const matrix = [];
 	for (let i = 0; i <= b.length; i++) {
 		matrix[i] = [i];
@@ -200,14 +200,14 @@ function levenshteinDistance(a, b) {
 function findClosestField(defaultFields, inputString) {
 	const normalizedInput = normalizeString(inputString);
 	let substringMatches = [];
-	
+
 	for (const key in defaultFields) {
 		const normalizedKey = normalizeString(key);
 		if (normalizedKey.includes(normalizedInput) || normalizedInput.includes(normalizedKey)) {
 			substringMatches.push(key);
 		}
 	}
-	
+
 	if (substringMatches.length === 1) {
 		return defaultFields[substringMatches[0]];
 	}
@@ -225,7 +225,7 @@ function findClosestField(defaultFields, inputString) {
 		}
 		return bestScore <= 0.4 ? defaultFields[bestKey] : undefined;
 	}
-	
+
 	let bestKey = null;
 	let bestScore = Infinity;
 	for (const key in defaultFields) {
