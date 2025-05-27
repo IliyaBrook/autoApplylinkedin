@@ -219,6 +219,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 			updateDropdownConfig(request.data)
 		} else if (request.action === 'deleteDropdownConfig') {
 			deleteDropdownValueConfig(request.data)
+		} else if (request.action === 'checkAutoApplyStatus') {
+			const tabId = request.tabId
+			if (tabId) {
+				chrome.tabs.sendMessage(tabId, { action: 'checkScriptRunning' })
+					.then(response => {
+						const isActuallyRunning = response?.isRunning || false
+						chrome.storage.local.set({ autoApplyRunning: isActuallyRunning }, () => {
+							sendResponse({ isRunning: isActuallyRunning })
+						})
+					})
+					.catch(() => {
+						chrome.storage.local.set({ autoApplyRunning: false }, () => {
+							sendResponse({ isRunning: false })
+						})
+					})
+			} else {
+				chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
+					sendResponse({ isRunning: Boolean(autoApplyRunning) })
+				})
+			}
+			return true
 		}
 	} catch (e) {
 		console.trace('onMessage error:' + e?.message)

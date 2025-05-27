@@ -1,7 +1,7 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 # JavaScript Patterns for LinkedIn Auto Apply Extension
 

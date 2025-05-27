@@ -15,6 +15,9 @@ async function stopScript() {
 	if (modalWrapper) {
 		modalWrapper.style.display = 'none'
 	}
+	
+	await chrome.storage.local.set({ autoApplyRunning: false })
+	
 	try {
 		if (!chrome || !chrome.tabs || typeof chrome.tabs.query !== 'function') {
 			console.error('Chrome tabs API not available');
@@ -28,9 +31,6 @@ async function stopScript() {
 				action: "stopAutoApply",
 				tabId: currentTabId
 			})
-			if (response?.success) {
-				await chrome.storage.local.set({ autoApplyRunning: false })
-			}
 		}
 	} catch (error) {
 		console.error('Error in stopScript:', error);
@@ -920,6 +920,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		} else {
 			sendResponse({ success: false, error: 'formControlOverlay not found' })
 		}
+	} else if (message.action === 'checkScriptRunning') {
+		checkAndPrepareRunState()
+			.then(isRunning => {
+				sendResponse({ isRunning: Boolean(isRunning) })
+			})
+			.catch(() => {
+				sendResponse({ isRunning: false })
+			})
+		return true
 	}
 	if (message.action === 'getCurrentUrl') {
 		sendResponse({ url: window.location.href })
@@ -996,4 +1005,12 @@ window.addEventListener('error', function(event) {
         
         }
     }
+});
+
+window.addEventListener('load', function() {
+    chrome.storage.local.set({ autoApplyRunning: false });
+});
+
+window.addEventListener('beforeunload', function() {
+    chrome.storage.local.set({ autoApplyRunning: false });
 });

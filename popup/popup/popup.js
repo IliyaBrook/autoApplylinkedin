@@ -244,8 +244,24 @@ document.getElementById('import-file').addEventListener('change', function(event
 
 document.addEventListener('DOMContentLoaded', () => {
 	const autoApplyButton = document.getElementById('start-auto-apply-button')
-	chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
-		changeAutoApplyButton(autoApplyRunning, autoApplyButton)
+	
+	chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+		if (tabs && tabs.length > 0) {
+			const currentTabId = tabs[0].id
+			chrome.runtime.sendMessage({
+				action: 'checkAutoApplyStatus',
+				tabId: currentTabId
+			}, (response) => {
+				const isRunning = response?.isRunning || false
+				chrome.storage.local.set({ autoApplyRunning: isRunning }, () => {
+					changeAutoApplyButton(isRunning, autoApplyButton)
+				})
+			})
+		} else {
+			chrome.storage.local.get('autoApplyRunning', ({ autoApplyRunning }) => {
+				changeAutoApplyButton(autoApplyRunning || false, autoApplyButton)
+			})
+		}
 	})
 	
 	const switchInput = document.getElementById('stop-if-not-exist-in-form-control');
