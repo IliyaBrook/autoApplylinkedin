@@ -17,6 +17,7 @@ async function stopScript() {
 	}
 	
 	await chrome.storage.local.set({ autoApplyRunning: false })
+	await chrome.storage.local.remove(['loopRestartUrl', 'shouldRestartScript'])
 	
 	try {
 		if (!chrome || !chrome.tabs || typeof chrome.tabs.query !== 'function') {
@@ -689,6 +690,26 @@ async function closeApplicationSentModal() {
 
 let isNavigating = false;
 
+async function handleLoopRestart() {
+	try {
+		const currentUrl = window.location.href
+		const url = new URL(currentUrl)
+		url.searchParams.set('start', '1')
+		url.searchParams.delete('currentJobId')
+		const newUrl = url.toString()
+		
+		console.log('handleLoopRestart: saving URL and redirecting to:', newUrl)
+		await chrome.storage.local.set({ 
+			loopRestartUrl: newUrl,
+			shouldRestartScript: true 
+		})
+		
+		window.location.href = newUrl
+	} catch (error) {
+		console.trace('Error in handleLoopRestart: ' + error?.message)
+		stopScript()
+	}
+}
 
 async function goToNextPage() {
 	await addDelay()
@@ -703,30 +724,35 @@ async function goToNextPage() {
 		const pagination = document?.querySelector('.jobs-search-pagination')
 		const paginationPage = pagination?.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText
 		const nextButton = pagination?.querySelector('button[aria-label*=\'next\']')
-
+		console.log('nextButton', nextButton)
 		if (!nextButton) {
 			console.log('No next page available or button is disabled');
 			isNavigating = false;
 
-			
-			if (paginationPage === currentPage) {
-				const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
-				if (showAllLinks.length > 0) {
-					for (const link of showAllLinks) {
-						if ('click' in link) {
-							const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
-							if (inputElement && inputElement.value.trim()) {
-								prevSearchValue = inputElement.value.trim()
-							}
-							link.click()
-							break
+			console.log('not next button pagination page:', paginationPage, 'currentPage:', currentPage)
+			const showAllLinks = Array.from(document.querySelectorAll('a[aria-label*="Show all"]'))
+			if (showAllLinks.length > 0) {
+				console.log('showAllLinks', showAllLinks)
+				for (const link of showAllLinks) {
+					if ('click' in link) {
+						const inputElement = document?.querySelector('[id*="jobs-search-box-keyword"]')
+						if (inputElement && inputElement.value.trim()) {
+							prevSearchValue = inputElement.value.trim()
 						}
+						link.click()
+						break
 					}
-				} else {
-					stopScript()
 				}
 			} else {
-				currentPage = paginationPage
+				console.log('no showAllLinks')
+				const { loopRunning } = await chrome.storage.local.get('loopRunning')
+				if (loopRunning) {
+					console.log('loopRunning')
+					await handleLoopRestart()
+				} else {
+					console.log('stopScript')
+					stopScript()
+				}
 			}
 			return false;
 		}
@@ -1008,7 +1034,29 @@ window.addEventListener('error', function(event) {
 });
 
 window.addEventListener('load', function() {
-    chrome.storage.local.set({ autoApplyRunning: false });
+    chrome.storage.local.get(['shouldRestartScript', 'loopRestartUrl'], ({ shouldRestartScript, loopRestartUrl }) => {
+        console.log('Page loaded. shouldRestartScript:', shouldRestartScript, 'current URL:', window.location.href)
+        
+        if (shouldRestartScript && loopRestartUrl) {
+            const currentUrlBase = window.location.href.split('?')[0] + '?' + window.location.search
+            const savedUrlBase = loopRestartUrl.split('?')[0] + '?' + new URL(loopRestartUrl).search
+            
+            console.log('Comparing URLs:', currentUrlBase, 'vs', savedUrlBase)
+            
+            if (currentUrlBase.includes('/jobs/search/') && savedUrlBase.includes('/jobs/search/')) {
+                console.log('URLs match, restarting script')
+                chrome.storage.local.remove(['loopRestartUrl', 'shouldRestartScript'])
+                setTimeout(() => {
+                    startScript()
+                    runScript()
+                }, 3000)
+            } else {
+                chrome.storage.local.set({ autoApplyRunning: false });
+            }
+        } else {
+            chrome.storage.local.set({ autoApplyRunning: false });
+        }
+    });
 });
 
 window.addEventListener('beforeunload', function() {

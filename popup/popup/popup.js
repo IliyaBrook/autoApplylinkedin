@@ -273,4 +273,14 @@ document.addEventListener('DOMContentLoaded', () => {
 	switchInput.addEventListener('change', () => {
 		void chrome.storage.local.set({ stopIfNotExistInFormControl: switchInput.checked });
 	});
+
+	const loopRunningInput = document.getElementById('loop-running');
+	
+	chrome.storage.local.get('loopRunning', ({ loopRunning }) => {
+		loopRunningInput.checked = Boolean(loopRunning);
+	});
+	
+	loopRunningInput.addEventListener('change', () => {
+		void chrome.storage.local.set({ loopRunning: loopRunningInput.checked });
+	});
 })
