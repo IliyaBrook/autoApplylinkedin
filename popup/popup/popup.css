@@ -31,9 +31,9 @@ button:hover {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 20px; /* spacing between groups */
+	gap: 20px;
 	min-width: var(--container-min-width);
-	padding: 20px;
+	padding: 10px 10px 0 10px;
 }
 
 /* Each "column" or "group" */
@@ -253,6 +253,21 @@ button:hover {
 	background-color: #c82333;
 }
 
-.stop-if-not-exist-in-form-control{
+.toggle-option {
+	display: flex;
+	flex-direction: column;
+}
+
+.toggle-option-item {
+	display: flex;
 	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+}
+.toggle-option p {
+	margin: 0;
+	font-size: 14px;
+	color: #333;
+	flex-grow: 1;
 }
