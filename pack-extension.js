@@ -29,7 +29,6 @@ async function packExtension() {
 		if (!fs.existsSync(buildDir)) {
 			await fs.mkdir(buildDir);
 		}
-		
 		console.log('Creating .zip file...');
 		const output = fs.createWriteStream(zipFile);
 		const archive = archiver('zip', {

@@ -198,9 +198,7 @@ document.addEventListener('click', event => {
 									action: newState ? 'startAutoApply' : 'stopAutoApply', tabId: currentTabId
 								}, response => {
 									if (response?.success) {
-										chrome.storage.local.set({ autoApplyRunning: newState }, () => {
-											console.log('Auto apply state updated in storage and UI (success response). New state:', newState)
-										})
+										chrome.storage.local.set({ autoApplyRunning: newState })
 									} else {
 										chrome.storage.local.set({ autoApplyRunning: false }, () => {
 											changeAutoApplyButton(false, button)

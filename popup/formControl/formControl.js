@@ -62,9 +62,7 @@ function fetchInputFieldConfigs(callback) {
 function displayRadioButtonConfigs(radioButtons) {
     const configurationsDiv = document.getElementById('radio');
     configurationsDiv.innerHTML = '';
-    const sortedRadioButtons = sortData(radioButtons)
-    console.log("sortedRadioButtons:", sortedRadioButtons)
-    
+    const sortedRadioButtons = sortData(radioButtons)    
     sortedRadioButtons.forEach(config => {
         const configContainer = document.createElement('div');
         configContainer.className = 'config-container';
@@ -81,8 +79,6 @@ function displayRadioButtonConfigs(radioButtons) {
         `;
         configContainer.appendChild(configDetails);
         config.options.forEach(option => {
-            console.log("config:", config)
-            console.log("option:", option)
             const radioContainer = document.createElement('div');
             radioContainer.className = 'radio-container';
             const radioButton = document.createElement('input');

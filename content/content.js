@@ -200,7 +200,6 @@ async function performInputFieldChecks() {
 					const isStopScript = Boolean((await chrome.storage.local.get('stopIfNotExistInFormControl'))?.stopIfNotExistInFormControl)
 					if (!isStopScript) {
 						if (!foundConfig && inputField.value.trim() !== '') {
-							console.log(`Field with label "${labelText}" is already filled. Skipping.`)
 							continue
 						}
 						setNativeValue(inputField, '')
@@ -709,7 +708,6 @@ async function handleLoopRestart() {
 		
 		const newUrl = `${url.origin}${url.pathname}?${baseSearchParams.toString()}`
 		
-		console.log('handleLoopRestart: saving URL and redirecting to:', newUrl)
 		await chrome.storage.local.set({ 
 			loopRestartUrl: newUrl,
 			shouldRestartScript: true 
@@ -725,7 +723,6 @@ async function handleLoopRestart() {
 async function goToNextPage() {
 	await addDelay()
 	if (isNavigating) {
-		console.log('Navigation already in progress, skipping');
 		return false;
 	}
 
@@ -735,19 +732,12 @@ async function goToNextPage() {
 		const pagination = document?.querySelector('.jobs-search-pagination')
 		const paginationPage = pagination?.querySelector('.jobs-search-pagination__indicator-button--active')?.innerText
 		const nextButton = pagination?.querySelector('button[aria-label*=\'next\']')
-		console.log('nextButton', nextButton)
 		if (!nextButton) {
-			console.log('No next page available or button is disabled');
-			isNavigating = false;
-
-			console.log('not next button pagination page:', paginationPage, 'currentPage:', currentPage)
-			
+			isNavigating = false;			
 			const { loopRunning } = await chrome.storage.local.get('loopRunning')
 			if (loopRunning) {
-				console.log('loopRunning enabled, starting restart')
 				await handleLoopRestart()
 			} else {
-				console.log('loopRunning disabled, stopping script')
 				stopScript()
 			}
 			return false;
@@ -778,7 +768,6 @@ async function goToNextPage() {
 		
 		await new Promise(resolve => {
 			const checkPageLoaded = () => {
-				console.log('goToNextPage check ready state:', document.readyState)
 				if (document.readyState === 'complete') {
 					resolve();
 				} else {
@@ -1043,9 +1032,6 @@ window.addEventListener('load', function() {
             const isJobSearchPage = currentUrl.pathname.includes('/jobs/search/')
             const hasKeywords = currentUrl.searchParams.has('keywords') || savedUrl.searchParams.has('keywords')
             const isStartPage = currentUrl.searchParams.get('start') === '1' || !currentUrl.searchParams.has('start')
-            
-            console.log('URL check - isJobSearchPage:', isJobSearchPage, 'hasKeywords:', hasKeywords, 'isStartPage:', isStartPage)
-            
             if (isJobSearchPage && hasKeywords && isStartPage) {
                 chrome.storage.local.remove(['loopRestartUrl', 'shouldRestartScript'])
                 setTimeout(() => {
@@ -1053,12 +1039,10 @@ window.addEventListener('load', function() {
                     runScript()
                 }, 3000)
             } else if (currentUrl.href.includes('JOBS_HOME_JYMBII')) {
-                console.log('Redirected to recommendations page, trying saved URL again')
                 setTimeout(() => {
                     window.location.href = loopRestartUrl
                 }, 2000)
             } else {
-                console.log('Not a valid restart page, clearing flags')
                 chrome.storage.local.remove(['loopRestartUrl', 'shouldRestartScript'])
                 chrome.storage.local.set({ autoApplyRunning: false });
             }
