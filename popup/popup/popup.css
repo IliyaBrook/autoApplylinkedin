@@ -270,4 +270,17 @@ button:hover {
 	font-size: 14px;
 	color: #333;
 	flex-grow: 1;
+	width:fit-content;
+}
+.loop-running-delay-container{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+}
+.loop-running-delay-container span{
+	margin-right: 5px;
+}
+.loop-running-delay-container input{	
+	width: 50px;
 }

@@ -42,7 +42,7 @@
         "assets/images/*",
         "modals/*"
       ],
-      "matches": ["*://www.linkedin.com/*"]
+      "matches": ["<all_urls>"]
     }
   ]
 }
