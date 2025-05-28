@@ -75,7 +75,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 											message: 'You are not on the LinkedIn jobs search page.'
 										}))
 										.catch(err => {
-											console.error('Error sending showNotOnJobSearchAlert in [startAutoApply (action)]:', err)
+											const errorMessage = err?.message || 'Unknown error'
+											if (errorMessage.includes('establish connection')) return false;
+											console.error('background script error:', errorMessage)
 											sendResponse({
 												success: false,
 												message: 'Error showing alert: ' + err.message

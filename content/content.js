@@ -1252,6 +1252,9 @@ window.addEventListener("load", function () {
   );
 });
 
-window.addEventListener("beforeunload", function () {
-  chrome.storage.local.set({ autoApplyRunning: false });
-});
+try {
+  window.addEventListener("beforeunload", function () {
+    chrome.storage.local.set({ autoApplyRunning: false });
+  });
+} catch  {}
+
