@@ -797,9 +797,17 @@ let isNavigating = false;
 
 async function handleLoopRestart() {
   try {
-    const { lastJobSearchUrl } = await chrome.storage.local.get(
-      "lastJobSearchUrl"
-    );
+    const { lastJobSearchUrl, loopRunningDelay } = await chrome.storage.local.get([
+      "lastJobSearchUrl",
+      "loopRunningDelay"
+    ]);
+    
+    const delayInMs = (loopRunningDelay || 0) * 1000;
+    
+    if (delayInMs > 0) {
+      await addDelay(delayInMs);
+    }
+    
     const urlToUse = lastJobSearchUrl || window.location.href;
     const url = new URL(urlToUse);
     url.searchParams.set("start", "1");

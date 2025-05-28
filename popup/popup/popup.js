@@ -281,4 +281,15 @@ document.addEventListener('DOMContentLoaded', () => {
 	loopRunningInput.addEventListener('change', () => {
 		void chrome.storage.local.set({ loopRunning: loopRunningInput.checked });
 	});
+
+	const loopRunningDelayInput = document.getElementById('loop-running-delay');
+	
+	chrome.storage.local.get('loopRunningDelay', ({ loopRunningDelay }) => {
+		loopRunningDelayInput.value = loopRunningDelay || 0;
+	});
+	
+	loopRunningDelayInput.addEventListener('input', () => {
+		const value = parseInt(loopRunningDelayInput.value) || 0;
+		void chrome.storage.local.set({ loopRunningDelay: value });
+	});
 })
