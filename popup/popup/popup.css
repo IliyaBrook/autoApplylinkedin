@@ -276,11 +276,36 @@ button:hover {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-start;
+	gap: 8px;
+	background-color: #fff;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	padding: 6px 10px;
+	min-width: 100px;
 }
 .loop-running-delay-container span{
-	margin-right: 5px;
+	font-size: 12px;
+	color: #666;
+	font-weight: 500;
+	letter-spacing: 0.5px;
+	flex-shrink: 0;
 }
 .loop-running-delay-container input{	
-	width: 50px;
+	width: 70px;
+	border: none;
+	outline: none;
+	background: transparent;
+	font-size: 14px;
+	color: #333;
+	text-align: left;
+	font-weight: 500;
+	flex-grow: 1;
+}
+.loop-running-delay-container input:focus {
+	color: #007bff;
+}
+.loop-running-delay-container input::placeholder {
+	color: #999;
+	font-size: 12px;
 }
