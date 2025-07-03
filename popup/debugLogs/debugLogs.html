@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LinkedIn Auto Apply - Debug Logs</title>
+    <link rel="stylesheet" href="debugLogs.css" />
+  </head>
+  <body>
+    <div class="debug-container">
+      <div class="header">
+        <h1>LinkedIn Auto Apply - Debug Logs</h1>
+        <div class="controls">
+          <button id="refresh-btn" class="btn btn-primary">Refresh</button>
+          <button id="clear-btn" class="btn btn-danger">Clear Logs</button>
+          <button id="export-btn" class="btn btn-secondary">Export</button>
+        </div>
+        <div id="logs-count" class="logs-count">Total logs: 0</div>
+      </div>
+
+      <div id="logs-container">
+        <div class="empty-state">
+          <h3>Loading...</h3>
+          <p>Please wait while logs are being loaded.</p>
+        </div>
+      </div>
+    </div>
+
+    <script src="debugLogs.js"></script>
+  </body>
+</html>
