@@ -87,20 +87,78 @@ function debugLogInfo(message, data = null) {
 function writeLog(message, data = null, isForced = false) {
   const timestamp = new Date().toISOString();
 
-  // Get caller information (file and line number)
+  // Enhanced caller information detection
   const stack = new Error().stack;
   let callerInfo = "unknown";
 
   if (stack) {
-    const stackLines = stack.split("\n");
-    // Skip writeLog, debugLog functions to get actual caller
-    const callerLine = stackLines[3] || stackLines[2] || "";
-    const match = callerLine.match(/at\s+.*?\s+\(?(.*?):(\d+):(\d+)\)?/);
-    if (match) {
-      const fileName = match[1].split("/").pop(); // Get just filename
-      const lineNumber = match[2];
-      callerInfo = `${fileName}:${lineNumber}`;
+    const stackLines = stack.split("\n").filter((line) => line.trim());
+
+    // Skip internal functions to find the actual caller
+    let callerLine = null;
+    for (let i = 0; i < stackLines.length; i++) {
+      const line = stackLines[i];
+
+      // Skip these internal functions
+      if (
+        line.includes("writeLog") ||
+        line.includes("debugLog") ||
+        line.includes("debugLogError") ||
+        line.includes("debugLogCritical") ||
+        line.includes("debugLogInfo")
+      ) {
+        continue;
+      }
+
+      // This should be our actual caller
+      callerLine = line;
+      break;
     }
+
+    if (callerLine) {
+      // Try multiple regex patterns to extract file and line info
+      let match = null;
+
+      // Pattern 1: at functionName (file:line:column)
+      match = callerLine.match(/at\s+.*?\s+\(([^)]+):(\d+):(\d+)\)/);
+
+      if (!match) {
+        // Pattern 2: at file:line:column
+        match = callerLine.match(/at\s+([^:]+):(\d+):(\d+)/);
+      }
+
+      if (!match) {
+        // Pattern 3: (file:line:column)
+        match = callerLine.match(/\(([^)]+):(\d+):(\d+)\)/);
+      }
+
+      if (!match) {
+        // Pattern 4: Just look for any file pattern
+        match = callerLine.match(/([^\/\\]+\.(js|ts)):(\d+)/);
+      }
+
+      if (match) {
+        const filePath = match[1];
+        const lineNumber = match[2] || match[3] || "?";
+
+        // Extract just the filename from full path
+        const fileName = filePath.split("/").pop().split("\\").pop();
+        callerInfo = `${fileName}:${lineNumber}`;
+      } else {
+        // Fallback: try to extract any meaningful info from the line
+        const cleanLine = callerLine.replace(/^\s*at\s*/, "").trim();
+        if (cleanLine.length > 0 && cleanLine !== "Object.<anonymous>") {
+          callerInfo = cleanLine.substring(0, 50); // Limit length
+        } else {
+          callerInfo = "content.js:?";
+        }
+      }
+    } else {
+      // If no suitable line found, default to content.js
+      callerInfo = "content.js:?";
+    }
+  } else {
+    callerInfo = "content.js:?";
   }
 
   const logMessage = `[LinkedIn AutoApply Debug] ${timestamp} [${callerInfo}]: ${message}`;

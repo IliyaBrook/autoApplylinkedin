@@ -41,6 +41,7 @@ function setupEventListeners() {
     { key: "critical", label: "Critical" },
     { key: "info", label: "Info" },
     { key: "background", label: "Background" },
+    { key: "popup", label: "Popup" },
     { key: "script", label: "Script" },
     { key: "navigation", label: "Navigation" },
     { key: "job", label: "Jobs" },
@@ -80,6 +81,7 @@ function getFilterIndex(filterKey) {
     "critical",
     "info",
     "background",
+    "popup",
     "script",
     "navigation",
     "job",
@@ -126,6 +128,10 @@ function displayStats() {
                     <div class="stat-label">Background</div>
                 </div>
                 <div class="stat-item">
+                    <div class="stat-number">${stats.popup}</div>
+                    <div class="stat-label">Popup</div>
+                </div>
+                <div class="stat-item">
                     <div class="stat-number">${stats.scriptCalls}</div>
                     <div class="stat-label">Script Calls</div>
                 </div>
@@ -162,6 +168,9 @@ function calculateStats() {
     background: allLogs.filter(
       (log) =>
         log.source === "background" || log.message.includes("[BACKGROUND]")
+    ).length,
+    popup: allLogs.filter(
+      (log) => log.source === "popup" || log.message.includes("[POPUP]")
     ).length,
     scriptCalls: allLogs.filter(
       (log) =>
@@ -212,6 +221,10 @@ function filterLogs() {
           matchesCategory =
             log.source === "background" || log.message.includes("[BACKGROUND]");
           break;
+        case "popup":
+          matchesCategory =
+            log.source === "popup" || log.message.includes("[POPUP]");
+          break;
         case "script":
           matchesCategory =
             log.message.includes("runScript") ||
@@ -260,7 +273,7 @@ function displayLogs() {
     .map((log) => {
       const logClass = getLogClass(log);
       const logType = getLogType(log);
-      const callerInfo = log.callerInfo || "unknown";
+      const callerInfo = log.callerInfo || "unknown:?";
       return `
             <div class="log-entry ${logClass}">
                 <div class="log-header">
@@ -292,6 +305,7 @@ function getLogType(log) {
   if (log.message.includes("[INFO]")) return "INFO";
   if (log.source === "background" || log.message.includes("[BACKGROUND]"))
     return "BACKGROUND";
+  if (log.source === "popup" || log.message.includes("[POPUP]")) return "POPUP";
   if (
     log.message.toLowerCase().includes("script") ||
     log.message.toLowerCase().includes("runscript")
@@ -321,6 +335,8 @@ function getLogClass(log) {
       return "info";
     case "BACKGROUND":
       return "background";
+    case "POPUP":
+      return "popup";
     case "SCRIPT":
       return "script";
     case "NAVIGATION":

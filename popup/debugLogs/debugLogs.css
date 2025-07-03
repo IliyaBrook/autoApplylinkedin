@@ -185,6 +185,11 @@ body {
   background: #f8f6ff;
 }
 
+.log-entry.popup {
+  border-left-color: #fd7e14;
+  background: #fff8f0;
+}
+
 .log-entry.script {
   border-left-color: #17a2b8;
   background: #f0faff;
@@ -250,6 +255,11 @@ body {
   color: white;
 }
 
+.log-type.popup {
+  background: #fd7e14;
+  color: white;
+}
+
 .log-type.script {
   background: #17a2b8;
   color: white;
@@ -280,9 +290,9 @@ body {
   font-family: monospace;
   font-size: 11px;
   background: #e9ecef;
-  padding: 2px 6px;
+  padding: 2px 10px;
   border-radius: 3px;
-  flex: 1;
+  width: fit-content;
 }
 
 .log-message {

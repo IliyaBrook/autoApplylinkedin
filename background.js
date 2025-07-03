@@ -4,18 +4,75 @@ let currentInputFieldConfigs = [];
 function debugLogBackground(message, data = null, isError = false) {
   const timestamp = new Date().toISOString();
 
-  // Get caller information (file and line number)
+  // Enhanced caller information detection
   const stack = new Error().stack;
-  let callerInfo = "background.js:unknown";
+  let callerInfo = "background.js:?";
 
   if (stack) {
-    const stackLines = stack.split("\n");
-    const callerLine = stackLines[2] || "";
-    const match = callerLine.match(/at\s+.*?\s+\(?(.*?):(\d+):(\d+)\)?/);
-    if (match) {
-      const lineNumber = match[2];
-      callerInfo = `background.js:${lineNumber}`;
+    const stackLines = stack.split("\n").filter((line) => line.trim());
+
+    // Skip internal functions to find the actual caller
+    let callerLine = null;
+    for (let i = 0; i < stackLines.length; i++) {
+      const line = stackLines[i];
+
+      // Skip these internal functions
+      if (
+        line.includes("debugLogBackground") ||
+        line.includes("debugLogBackgroundError")
+      ) {
+        continue;
+      }
+
+      // This should be our actual caller
+      callerLine = line;
+      break;
     }
+
+    if (callerLine) {
+      // Try multiple regex patterns to extract file and line info
+      let match = null;
+
+      // Pattern 1: at functionName (file:line:column)
+      match = callerLine.match(/at\s+.*?\s+\(([^)]+):(\d+):(\d+)\)/);
+
+      if (!match) {
+        // Pattern 2: at file:line:column
+        match = callerLine.match(/at\s+([^:]+):(\d+):(\d+)/);
+      }
+
+      if (!match) {
+        // Pattern 3: (file:line:column)
+        match = callerLine.match(/\(([^)]+):(\d+):(\d+)\)/);
+      }
+
+      if (!match) {
+        // Pattern 4: Just look for any file pattern
+        match = callerLine.match(/([^\/\\]+\.(js|ts)):(\d+)/);
+      }
+
+      if (match) {
+        const filePath = match[1];
+        const lineNumber = match[2] || match[3] || "?";
+
+        // Extract just the filename from full path
+        const fileName = filePath.split("/").pop().split("\\").pop();
+        callerInfo = `${fileName}:${lineNumber}`;
+      } else {
+        // Fallback: try to extract any meaningful info from the line
+        const cleanLine = callerLine.replace(/^\s*at\s*/, "").trim();
+        if (cleanLine.length > 0 && cleanLine !== "Object.<anonymous>") {
+          callerInfo = cleanLine.substring(0, 50); // Limit length
+        } else {
+          callerInfo = "background.js:?";
+        }
+      }
+    } else {
+      // If no suitable line found, default to background.js
+      callerInfo = "background.js:?";
+    }
+  } else {
+    callerInfo = "background.js:?";
   }
 
   const logType = isError ? "[ERROR]" : "[BACKGROUND]";
@@ -80,33 +137,44 @@ function deleteInputFieldConfig(placeholder) {
 }
 
 async function saveLinkedInJobData(jobTitle, jobLink, companyName) {
-  const storageResult = await chrome.storage.local.get("externalApplyData");
-  const storedData = storageResult?.externalApplyData || [];
-  storedData.push({
-    title: jobTitle,
-    link: jobLink,
-    companyName,
-    time: Date.now(),
-  });
-  const uniqData = [];
-  const seenLinks = new Set();
-  const seenTitleAndCompany = new Set();
-  for (const item of storedData) {
-    const uniqKeyLink = `${item.link}`;
-    const uniqKeyTitleName = `${item.title}-${item.companyName}`;
+  try {
+    const storageResult = await chrome.storage.local.get("externalApplyData");
+    const storedData = storageResult?.externalApplyData || [];
+    storedData.push({
+      title: jobTitle,
+      link: jobLink,
+      companyName,
+      time: Date.now(),
+    });
+    const uniqData = [];
+    const seenLinks = new Set();
+    const seenTitleAndCompany = new Set();
+    for (const item of storedData) {
+      const uniqKeyLink = `${item.link}`;
+      const uniqKeyTitleName = `${item.title}-${item.companyName}`;
 
-    if (
-      !seenLinks.has(uniqKeyLink) &&
-      !seenTitleAndCompany.has(uniqKeyTitleName)
-    ) {
-      seenLinks.add(uniqKeyLink);
-      seenTitleAndCompany.add(uniqKeyTitleName);
-      uniqData.push(item);
+      if (
+        !seenLinks.has(uniqKeyLink) &&
+        !seenTitleAndCompany.has(uniqKeyTitleName)
+      ) {
+        seenLinks.add(uniqKeyLink);
+        seenTitleAndCompany.add(uniqKeyTitleName);
+        uniqData.push(item);
+      }
     }
-  }
 
-  const sortedData = uniqData.sort((a, b) => b.time - a.time);
-  await chrome.storage.local.set({ externalApplyData: sortedData });
+    const sortedData = uniqData.sort((a, b) => b.time - a.time);
+    await chrome.storage.local.set({ externalApplyData: sortedData });
+
+    debugLogBackground("LinkedIn job data saved successfully", {
+      jobTitle,
+      companyName,
+      totalJobs: sortedData.length,
+    });
+  } catch (error) {
+    debugLogBackgroundError("Failed to save LinkedIn job data", error);
+    throw error;
+  }
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -118,8 +186,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ success: true });
         })
         .catch((error) => {
-          debugLogBackgroundError("Failed to save LinkedIn job data", error);
-          sendResponse({ success: false });
+          // Error already logged in saveLinkedInJobData function
+          sendResponse({ success: false, error: error.message });
         });
       return true;
     } else if (request.action === "openDefaultInputPage") {
@@ -213,6 +281,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       func: runScriptInContent,
                     })
                     .then(() => {
+                      debugLogBackground(
+                        "Auto-apply script started successfully",
+                        {
+                          tabId: currentTabId,
+                          url: currentUrl,
+                        }
+                      );
                       sendResponse({ success: true });
                     })
                     .catch((err) => {
@@ -275,6 +350,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 .sendMessage(currentTabId, { action: "hideRunningModal" })
                 .then((response) => {
                   if (response && response.success) {
+                    debugLogBackground(
+                      "Auto-apply script stopped successfully",
+                      {
+                        tabId: currentTabId,
+                      }
+                    );
                     sendResponse({ success: true });
                   } else {
                     sendResponse({
@@ -309,6 +390,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       return true;
     } else if (request.action === "openTabAndRunScript") {
+      debugLogBackground("Opening new tab for auto-apply", {
+        url: request.url,
+      });
       chrome.tabs.create({ url: request.url }, (tab) => {
         chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
           if (tabId === tab.id && changeInfo.status === "complete") {
@@ -322,6 +406,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       func: runScriptInContent,
                     })
                     .then(() => {
+                      debugLogBackground(
+                        "Auto-apply script started in new tab",
+                        {
+                          tabId: tabId,
+                          url: request.url,
+                        }
+                      );
                       sendResponse({ success: true });
                     })
                     .catch((err) => {
@@ -523,8 +614,9 @@ function updateRadioButtonValue(placeholderIncludes, newValue) {
       });
       chrome.storage.local.set({ radioButtons: storedRadioButtons });
     } else {
-      console.trace(
-        `Item with placeholderIncludes ${placeholderIncludes} not found`
+      debugLogBackgroundError(
+        `Radio button config not found for placeholder: ${placeholderIncludes}`,
+        { placeholderIncludes, newValue }
       );
     }
   });
