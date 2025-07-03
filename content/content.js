@@ -10,7 +10,7 @@ let defaultFields = {
 let prevSearchValue = "";
 
 // Debug logging utility - only logs when script is running and for critical issues
-function debugLog(message, data = null, forceLog = false) {
+function debugLog(message, data = null, forceLog = false, callerInfo = null) {
   // Check extension context first to avoid "Extension context invalidated" errors
   if (!isExtensionContextValidQuiet()) {
     return;
@@ -26,19 +26,19 @@ function debugLog(message, data = null, forceLog = false) {
         if (!result?.autoApplyRunning) {
           return; // Don't log if script is not running
         }
-        writeLog(message, data, false, "SCRIPT");
+        writeLog(message, data, false, "SCRIPT", callerInfo);
       });
     } catch (error) {
       // Context invalid, fail silently
       return;
     }
   } else {
-    writeLog(message, data, true, "SCRIPT");
+    writeLog(message, data, true, "SCRIPT", callerInfo);
   }
 }
 
 // Error logging - always logs regardless of script state
-function debugLogError(message, error = null) {
+function debugLogError(message, error = null, callerInfo = null) {
   if (!isExtensionContextValidQuiet()) {
     return;
   }
@@ -51,20 +51,20 @@ function debugLogError(message, error = null) {
       }
     : null;
 
-  writeLog(message, errorData, true, "ERROR");
+  writeLog(message, errorData, true, "ERROR", callerInfo);
 }
 
 // Critical logging - always logs for important state changes
-function debugLogCritical(message, data = null) {
+function debugLogCritical(message, data = null, callerInfo = null) {
   if (!isExtensionContextValidQuiet()) {
     return;
   }
 
-  writeLog(message, data, true, "CRITICAL");
+  writeLog(message, data, true, "CRITICAL", callerInfo);
 }
 
 // Info logging - for normal operations, only when script is running
-function debugLogInfo(message, data = null) {
+function debugLogInfo(message, data = null, callerInfo = null) {
   if (!isExtensionContextValidQuiet()) {
     return;
   }
@@ -77,80 +77,87 @@ function debugLogInfo(message, data = null) {
       if (!result?.autoApplyRunning) {
         return;
       }
-      writeLog(message, data, false, "INFO");
+      writeLog(message, data, false, "INFO", callerInfo);
     });
   } catch (error) {
     return;
   }
 }
 
-function writeLog(message, data = null, isForced = false, logType = "SCRIPT") {
+function writeLog(
+  message,
+  data = null,
+  isForced = false,
+  logType = "SCRIPT",
+  callerInfo = null
+) {
   const timestamp = new Date().toISOString();
 
   // Enhanced caller information detection
-  const stack = new Error().stack;
-  let callerInfo = "content.js:?";
+  if (!callerInfo) {
+    const stack = new Error().stack;
+    callerInfo = "content.js:?";
+    if (stack) {
+      const stackLines = stack.split("\n").filter((line) => line.trim());
 
-  if (stack) {
-    const stackLines = stack.split("\n").filter((line) => line.trim());
+      // Skip internal functions to find the actual caller
+      let callerLine = null;
+      for (let i = 0; i < stackLines.length; i++) {
+        const line = stackLines[i];
 
-    // Skip internal functions to find the actual caller
-    let callerLine = null;
-    for (let i = 0; i < stackLines.length; i++) {
-      const line = stackLines[i];
+        // Skip these internal functions
+        if (
+          line.includes("writeLog") ||
+          line.includes("debugLog") ||
+          line.includes("debugLogError") ||
+          line.includes("debugLogCritical") ||
+          line.includes("debugLogInfo")
+        ) {
+          continue;
+        }
 
-      // Skip these internal functions
-      if (
-        line.includes("writeLog") ||
-        line.includes("debugLog") ||
-        line.includes("debugLogError") ||
-        line.includes("debugLogCritical") ||
-        line.includes("debugLogInfo")
-      ) {
-        continue;
+        // This should be our actual caller
+        callerLine = line;
+        break;
       }
 
-      // This should be our actual caller
-      callerLine = line;
-      break;
-    }
+      if (callerLine) {
+        // Try multiple regex patterns to extract file and line info
+        let match = null;
 
-    if (callerLine) {
-      // Try multiple regex patterns to extract file and line info
-      let match = null;
+        // Pattern 1: at functionName (file:line:column)
+        match = callerLine.match(/at\s+.*?\s+\(([^)]+):(\d+):(\d+)\)/);
 
-      // Pattern 1: at functionName (file:line:column)
-      match = callerLine.match(/at\s+.*?\s+\(([^)]+):(\d+):(\d+)\)/);
+        if (!match) {
+          // Pattern 2: at file:line:column
+          match = callerLine.match(/at\s+([^:]+):(\d+):(\d+)/);
+        }
 
-      if (!match) {
-        // Pattern 2: at file:line:column
-        match = callerLine.match(/at\s+([^:]+):(\d+):(\d+)/);
-      }
+        if (!match) {
+          // Pattern 3: (file:line:column)
+          match = callerLine.match(/\(([^)]+):(\d+):(\d+)\)/);
+        }
 
-      if (!match) {
-        // Pattern 3: (file:line:column)
-        match = callerLine.match(/\(([^)]+):(\d+):(\d+)\)/);
-      }
+        if (!match) {
+          // Pattern 4: Just look for any file pattern
+          match = callerLine.match(/([^\/\\]+\.(js|ts)):(\d+)/);
+        }
 
-      if (!match) {
-        // Pattern 4: Just look for any file pattern
-        match = callerLine.match(/([^\/\\]+\.(js|ts)):(\d+)/);
-      }
+        if (match) {
+          const filePath = match[1];
+          const lineNumber = match[2] || match[3] || "?";
 
-      if (match) {
-        const filePath = match[1];
-        const lineNumber = match[2] || match[3] || "?";
-
-        // Extract just the filename from full path
-        const fileName = filePath.split("/").pop().split("\\").pop();
-        callerInfo = `${fileName}:${lineNumber}`;
-      } else {
-        // Fallback: try to extract any meaningful info from the line
-        const cleanLine = callerLine.replace(/^\s*at\s*/, "").trim();
-        if (cleanLine.length > 0 && cleanLine !== "Object.<anonymous>") {
-          callerInfo = cleanLine.substring(0, 50); // Limit length
+          // Extract just the filename from full path
+          const fileName = filePath.split("/").pop().split("\\").pop();
+          callerInfo = `${fileName}:${lineNumber}`;
         } else {
-          callerInfo = "content.js:?";
+          // Fallback: try to extract any meaningful info from the line
+          const cleanLine = callerLine.replace(/^\s*at\s*/, "").trim();
+          if (cleanLine.length > 0 && cleanLine !== "Object.<anonymous>") {
+            callerInfo = cleanLine.substring(0, 50); // Limit length
+          } else {
+            callerInfo = "content.js:?";
+          }
         }
       }
     }
@@ -206,7 +213,11 @@ function isExtensionContextValidQuiet() {
 }
 
 async function stopScript() {
-  debugLogCritical("stopScript called - script stopping");
+  debugLogCritical(
+    "stopScript called - script stopping",
+    null,
+    "content.js:208"
+  );
 
   stopExtensionContextMonitoring();
 
@@ -220,7 +231,11 @@ async function stopScript() {
 
   try {
     if (!chrome || !chrome.tabs || typeof chrome.tabs.query !== "function") {
-      debugLogError("Chrome tabs API not available in stopScript");
+      debugLogError(
+        "Chrome tabs API not available in stopScript",
+        null,
+        "content.js:222"
+      );
       prevSearchValue = "";
       return;
     }
@@ -233,13 +248,13 @@ async function stopScript() {
       });
     }
   } catch (error) {
-    debugLogError("Error in stopScript", error);
+    debugLogError("Error in stopScript", error, "content.js:251");
   }
   prevSearchValue = "";
 }
 
 async function startScript() {
-  debugLogInfo("startScript called");
+  debugLogInfo("startScript called", null, "content.js:241");
 
   if (!isExtensionContextValid()) {
     debugLogError("Extension context invalid in startScript, cannot start");
@@ -267,7 +282,9 @@ async function checkAndPrepareRunState() {
         resolve(true);
       } else {
         debugLogCritical(
-          "checkAndPrepareRunState: script not running, stopping process"
+          "checkAndPrepareRunState: script not running, stopping process",
+          null,
+          "content.js:258"
         );
         resolve(false);
         prevSearchValue = "";
@@ -322,7 +339,9 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
       const isRunning = await checkAndPrepareRunState();
       if (!isRunning) {
         debugLogCritical(
-          "clickJob: script not running, aborting job processing"
+          "clickJob: script not running, aborting job processing",
+          null,
+          "content.js:278"
         );
         resolve(null);
         return;
@@ -352,7 +371,9 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
             }
             if (matchedBadWord) {
               debugLogInfo(
-                `clickJob: found bad word "${matchedBadWord}", skipping job`
+                `clickJob: found bad word "${matchedBadWord}", skipping job`,
+                null,
+                "content.js:286"
               );
               resolve(null);
               return;
@@ -954,7 +975,9 @@ async function runApplyModel() {
 
             if (isError) {
               debugLogError(
-                "Error detected in form validation, terminating job modal"
+                "Error detected in form validation, terminating job modal",
+                null,
+                "content.js:388"
               );
               await terminateJobModel();
             } else {
@@ -1021,7 +1044,9 @@ async function runApplyModel() {
       new Promise((resolve) => {
         setTimeout(() => {
           debugLog(
-            "runApplyModel timeout reached (30s) - this is normal behavior"
+            "runApplyModel timeout reached (30s) - this is normal behavior",
+            null,
+            "content.js:402"
           );
           resolve(null);
         }, 30000);
@@ -1204,7 +1229,7 @@ async function closeApplicationSentModal() {
 let isNavigating = false;
 
 async function handleLoopRestart() {
-  debugLogInfo("handleLoopRestart called");
+  debugLogInfo("handleLoopRestart called", null, "content.js:487");
   try {
     const { lastJobSearchUrl, loopRunningDelay } =
       await chrome.storage.local.get(["lastJobSearchUrl", "loopRunningDelay"]);
@@ -1332,10 +1357,14 @@ async function goToNextPage() {
 }
 
 async function runScript() {
-  debugLogInfo("runScript STARTED", {
-    url: window.location.href,
-    readyState: document.readyState,
-  });
+  debugLogInfo(
+    "runScript STARTED",
+    {
+      url: window.location.href,
+      readyState: document.readyState,
+    },
+    "content.js:524"
+  );
 
   try {
     await addDelay(3000);
@@ -1370,7 +1399,9 @@ async function runScript() {
 
     if (!isExtensionContextValid()) {
       debugLogError(
-        "runScript: extension context invalid after state check, stopping"
+        "runScript: extension context invalid after state check, stopping",
+        null,
+        "content.js:538"
       );
       return;
     }
@@ -1380,7 +1411,9 @@ async function runScript() {
     const fieldsComplete = await checkAndPromptFields();
     if (!fieldsComplete) {
       debugLogCritical(
-        "runScript: default fields not configured, opening config page"
+        "runScript: default fields not configured, opening config page",
+        null,
+        "content.js:546"
       );
       await chrome.runtime.sendMessage({ action: "openDefaultInputPage" });
       return;
@@ -1414,7 +1447,11 @@ async function runScript() {
       elementOrSelector: ".scaffold-layout__list-item",
     });
 
-    debugLog(`Processing ${listItems.length} job list items`);
+    debugLog(
+      `Processing ${listItems.length} job list items`,
+      null,
+      "content.js:562"
+    );
 
     for (let i = 0; i < listItems.length; i++) {
       const listItem = listItems[i];
@@ -1543,15 +1580,19 @@ async function runScript() {
     }
   } catch (error) {
     const message = "Error in runScript: " + error?.message + " script stopped";
-    debugLogError("Critical error in runScript", {
-      error: error?.message,
-      stack: error?.stack,
-    });
+    debugLogError(
+      "Critical error in runScript",
+      {
+        error: error?.message,
+        stack: error?.stack,
+      },
+      "content.js:600"
+    );
     console.trace(message);
     await stopScript();
   }
 
-  debugLogInfo("runScript ENDED");
+  debugLogInfo("runScript ENDED", null, "content.js:606");
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -1651,12 +1692,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 window.addEventListener("error", function (event) {
-  debugLogError("Window error detected", {
-    message: event.error?.message,
-    filename: event.filename,
-    lineno: event.lineno,
-    stack: event.error?.stack,
-  });
+  debugLogError(
+    "Window error detected",
+    {
+      message: event.error?.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      stack: event.error?.stack,
+    },
+    "content.js:648"
+  );
 
   if (
     event.error &&
@@ -1744,7 +1789,8 @@ window.addEventListener("load", function () {
             "Window load event triggered - script restart conditions met",
             {
               url: window.location.href,
-            }
+            },
+            "content.js:702"
           );
 
           const currentUrl = new URL(window.location.href);
@@ -1798,7 +1844,9 @@ try {
     chrome.storage.local.get("autoApplyRunning", (result) => {
       if (result?.autoApplyRunning) {
         debugLogInfo(
-          "Window beforeunload event triggered - script was running"
+          "Window beforeunload event triggered - script was running",
+          null,
+          "content.js:728"
         );
       }
     });

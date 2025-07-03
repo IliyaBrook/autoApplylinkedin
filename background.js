@@ -1,78 +1,59 @@
 let currentInputFieldConfigs = [];
 
 // Debug logging utility for background script
-function debugLogBackground(message, data = null, isError = false) {
+function debugLogBackground(
+  message,
+  data = null,
+  isError = false,
+  callerInfo = null
+) {
   const timestamp = new Date().toISOString();
 
   // Enhanced caller information detection
-  const stack = new Error().stack;
-  let callerInfo = "background.js:?";
-
-  if (stack) {
-    const stackLines = stack.split("\n").filter((line) => line.trim());
-
-    // Skip internal functions to find the actual caller
-    let callerLine = null;
-    for (let i = 0; i < stackLines.length; i++) {
-      const line = stackLines[i];
-
-      // Skip these internal functions
-      if (
-        line.includes("debugLogBackground") ||
-        line.includes("debugLogBackgroundError")
-      ) {
-        continue;
+  if (!callerInfo) {
+    const stack = new Error().stack;
+    callerInfo = "background.js:?";
+    if (stack) {
+      const stackLines = stack.split("\n").filter((line) => line.trim());
+      let callerLine = null;
+      for (let i = 0; i < stackLines.length; i++) {
+        const line = stackLines[i];
+        if (
+          line.includes("debugLogBackground") ||
+          line.includes("debugLogBackgroundError")
+        ) {
+          continue;
+        }
+        callerLine = line;
+        break;
       }
-
-      // This should be our actual caller
-      callerLine = line;
-      break;
-    }
-
-    if (callerLine) {
-      // Try multiple regex patterns to extract file and line info
-      let match = null;
-
-      // Pattern 1: at functionName (file:line:column)
-      match = callerLine.match(/at\s+.*?\s+\(([^)]+):(\d+):(\d+)\)/);
-
-      if (!match) {
-        // Pattern 2: at file:line:column
-        match = callerLine.match(/at\s+([^:]+):(\d+):(\d+)/);
-      }
-
-      if (!match) {
-        // Pattern 3: (file:line:column)
-        match = callerLine.match(/\(([^)]+):(\d+):(\d+)\)/);
-      }
-
-      if (!match) {
-        // Pattern 4: Just look for any file pattern
-        match = callerLine.match(/([^\/\\]+\.(js|ts)):(\d+)/);
-      }
-
-      if (match) {
-        const filePath = match[1];
-        const lineNumber = match[2] || match[3] || "?";
-
-        // Extract just the filename from full path
-        const fileName = filePath.split("/").pop().split("\\").pop();
-        callerInfo = `${fileName}:${lineNumber}`;
-      } else {
-        // Fallback: try to extract any meaningful info from the line
-        const cleanLine = callerLine.replace(/^\s*at\s*/, "").trim();
-        if (cleanLine.length > 0 && cleanLine !== "Object.<anonymous>") {
-          callerInfo = cleanLine.substring(0, 50); // Limit length
+      if (callerLine) {
+        let match = null;
+        match = callerLine.match(/at\s+.*?\s+\(([^)]+):(\d+):(\d+)\)/);
+        if (!match) {
+          match = callerLine.match(/at\s+([^:]+):(\d+):(\d+)/);
+        }
+        if (!match) {
+          match = callerLine.match(/\(([^)]+):(\d+):(\d+)\)/);
+        }
+        if (!match) {
+          match = callerLine.match(/([^\/\\]+\.(js|ts)):(\d+)/);
+        }
+        if (match) {
+          const filePath = match[1];
+          const lineNumber = match[2] || match[3] || "?";
+          const fileName = filePath.split("/").pop().split("\\").pop();
+          callerInfo = `${fileName}:${lineNumber}`;
         } else {
-          callerInfo = "background.js:?";
+          const cleanLine = callerLine.replace(/^\s*at\s*/, "").trim();
+          if (cleanLine.length > 0 && cleanLine !== "Object.<anonymous>") {
+            callerInfo = cleanLine.substring(0, 50);
+          } else {
+            callerInfo = "background.js:?";
+          }
         }
       }
-    } else {
-      // If no suitable line found, default to background.js
-      callerInfo = "background.js:?";
     }
-  } else {
-    callerInfo = "background.js:?";
   }
 
   const logType = isError ? "[ERROR]" : "[BACKGROUND]";
@@ -107,7 +88,7 @@ function debugLogBackground(message, data = null, isError = false) {
 }
 
 // Error logging for background
-function debugLogBackgroundError(message, error = null) {
+function debugLogBackgroundError(message, error = null, callerInfo = null) {
   const errorData = error
     ? {
         message: error.message,
@@ -116,7 +97,7 @@ function debugLogBackgroundError(message, error = null) {
       }
     : null;
 
-  debugLogBackground(message, errorData, true);
+  debugLogBackground(message, errorData, true, callerInfo);
 }
 
 function deleteInputFieldConfig(placeholder) {
@@ -166,13 +147,22 @@ async function saveLinkedInJobData(jobTitle, jobLink, companyName) {
     const sortedData = uniqData.sort((a, b) => b.time - a.time);
     await chrome.storage.local.set({ externalApplyData: sortedData });
 
-    debugLogBackground("LinkedIn job data saved successfully", {
-      jobTitle,
-      companyName,
-      totalJobs: sortedData.length,
-    });
+    debugLogBackground(
+      "LinkedIn job data saved successfully",
+      {
+        jobTitle,
+        companyName,
+        totalJobs: sortedData.length,
+      },
+      false,
+      "background.js:168"
+    );
   } catch (error) {
-    debugLogBackgroundError("Failed to save LinkedIn job data", error);
+    debugLogBackgroundError(
+      "Failed to save LinkedIn job data",
+      error,
+      "background.js:174"
+    );
     throw error;
   }
 }
