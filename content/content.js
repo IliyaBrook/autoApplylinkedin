@@ -26,14 +26,14 @@ function debugLog(message, data = null, forceLog = false) {
         if (!result?.autoApplyRunning) {
           return; // Don't log if script is not running
         }
-        writeLog(message, data);
+        writeLog(message, data, false, "SCRIPT");
       });
     } catch (error) {
       // Context invalid, fail silently
       return;
     }
   } else {
-    writeLog(message, data);
+    writeLog(message, data, true, "SCRIPT");
   }
 }
 
@@ -51,7 +51,7 @@ function debugLogError(message, error = null) {
       }
     : null;
 
-  writeLog(`[ERROR] ${message}`, errorData, true);
+  writeLog(message, errorData, true, "ERROR");
 }
 
 // Critical logging - always logs for important state changes
@@ -60,7 +60,7 @@ function debugLogCritical(message, data = null) {
     return;
   }
 
-  writeLog(`[CRITICAL] ${message}`, data, true);
+  writeLog(message, data, true, "CRITICAL");
 }
 
 // Info logging - for normal operations, only when script is running
@@ -77,19 +77,19 @@ function debugLogInfo(message, data = null) {
       if (!result?.autoApplyRunning) {
         return;
       }
-      writeLog(`[INFO] ${message}`, data);
+      writeLog(message, data, false, "INFO");
     });
   } catch (error) {
     return;
   }
 }
 
-function writeLog(message, data = null, isForced = false) {
+function writeLog(message, data = null, isForced = false, logType = "SCRIPT") {
   const timestamp = new Date().toISOString();
 
   // Enhanced caller information detection
   const stack = new Error().stack;
-  let callerInfo = "unknown";
+  let callerInfo = "content.js:?";
 
   if (stack) {
     const stackLines = stack.split("\n").filter((line) => line.trim());
@@ -153,14 +153,10 @@ function writeLog(message, data = null, isForced = false) {
           callerInfo = "content.js:?";
         }
       }
-    } else {
-      // If no suitable line found, default to content.js
-      callerInfo = "content.js:?";
     }
-  } else {
-    callerInfo = "content.js:?";
   }
 
+  // Use filename:line as prefix instead of log type
   const logMessage = `[LinkedIn AutoApply Debug] ${timestamp} [${callerInfo}]: ${message}`;
   console.log("[DEBUGGER](LOG MESSAGE): ", logMessage);
   if (data) {
@@ -184,8 +180,9 @@ function writeLog(message, data = null, isForced = false) {
         message,
         data,
         callerInfo,
-        isError: message.includes("[ERROR]"),
-        isCritical: message.includes("[CRITICAL]") || isForced,
+        logType,
+        isError: logType === "ERROR",
+        isCritical: logType === "CRITICAL" || isForced,
       });
       // Keep only last 50 logs (reduced from 100)
       if (logs.length > 50) {
@@ -209,9 +206,8 @@ function isExtensionContextValidQuiet() {
 }
 
 async function stopScript() {
-  debugLogInfo("stopScript called");
+  debugLogCritical("stopScript called - script stopping");
 
-  // Stop extension context monitoring
   stopExtensionContextMonitoring();
 
   const modalWrapper = document.getElementById("scriptRunningOverlay");
@@ -245,7 +241,6 @@ async function stopScript() {
 async function startScript() {
   debugLogInfo("startScript called");
 
-  // Check extension context before starting
   if (!isExtensionContextValid()) {
     debugLogError("Extension context invalid in startScript, cannot start");
     return false;
@@ -255,7 +250,6 @@ async function startScript() {
     await chrome.runtime.sendMessage({ action: "autoApplyRunning" });
     await chrome.storage.local.set({ autoApplyRunning: true });
 
-    // Start monitoring extension context
     startExtensionContextMonitoring();
 
     return true;
@@ -272,6 +266,9 @@ async function checkAndPrepareRunState() {
       if (isRunning) {
         resolve(true);
       } else {
+        debugLogCritical(
+          "checkAndPrepareRunState: script not running, stopping process"
+        );
         resolve(false);
         prevSearchValue = "";
       }
@@ -324,6 +321,9 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
     try {
       const isRunning = await checkAndPrepareRunState();
       if (!isRunning) {
+        debugLogCritical(
+          "clickJob: script not running, aborting job processing"
+        );
         resolve(null);
         return;
       }
@@ -351,6 +351,9 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
               }
             }
             if (matchedBadWord) {
+              debugLogInfo(
+                `clickJob: found bad word "${matchedBadWord}", skipping job`
+              );
               resolve(null);
               return;
             }
@@ -1337,9 +1340,8 @@ async function runScript() {
   try {
     await addDelay(3000);
 
-    // Check extension context multiple times during execution
     if (!isExtensionContextValid()) {
-      debugLogError("Extension context invalidated at start of runScript");
+      debugLogError("runScript: extension context invalid at start, stopping");
       return;
     }
 
@@ -1354,22 +1356,21 @@ async function runScript() {
 
     const scriptStarted = await startScript();
     if (!scriptStarted) {
-      debugLogError("Failed to start script in runScript");
+      debugLogError("runScript: failed to start script, stopping");
       return;
     }
 
     await fillSearchFieldIfEmpty();
 
-    // Critical state check
     const isRunning = await checkAndPrepareRunState();
     if (!isRunning) {
+      debugLogCritical("runScript: state check failed, script not running");
       return;
     }
 
-    // Another extension context check
     if (!isExtensionContextValid()) {
       debugLogError(
-        "Extension context invalidated after state check in runScript"
+        "runScript: extension context invalid after state check, stopping"
       );
       return;
     }
@@ -1378,13 +1379,16 @@ async function runScript() {
 
     const fieldsComplete = await checkAndPromptFields();
     if (!fieldsComplete) {
+      debugLogCritical(
+        "runScript: default fields not configured, opening config page"
+      );
       await chrome.runtime.sendMessage({ action: "openDefaultInputPage" });
       return;
     }
 
     const limitReached = await checkLimitReached();
     if (limitReached) {
-      debugLogError("Daily application limit reached");
+      debugLogCritical("runScript: daily application limit reached, stopping");
       const feedbackMessageElement = document.querySelector(
         ".artdeco-inline-feedback__message"
       );
@@ -1415,7 +1419,6 @@ async function runScript() {
     for (let i = 0; i < listItems.length; i++) {
       const listItem = listItems[i];
 
-      // Check extension context periodically during job processing
       if (i % 5 === 0 && !isExtensionContextValid()) {
         debugLogError("Extension context lost during job processing");
         return;
@@ -1436,7 +1439,6 @@ async function runScript() {
 
       await closeApplicationSentModal();
 
-      // Check for save application modal before processing job
       const saveModalBefore = await handleSaveApplicationModal();
       if (saveModalBefore) {
         debugLog("Save application modal handled before job processing");
@@ -1528,7 +1530,6 @@ async function runScript() {
       if (canClickToJob) {
         await clickJob(listItem, companyName, jobTitle, badWordsEnabled);
 
-        // Check for save application modal after job processing
         const saveModalAfter = await handleSaveApplicationModal();
         if (saveModalAfter) {
           debugLog("Save application modal handled after job processing");
