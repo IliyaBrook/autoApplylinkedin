@@ -1,3 +1,56 @@
+function logCallLocation(options = {}) {
+  const { fullPath = false } = options;
+  const error = new Error();
+  const stackLines = error.stack.split("\n");
+  
+  const callSegments = [];
+  let mainFileName = "";
+  
+  for (let i = 2; i < stackLines.length; i++) {
+    const line = stackLines[i].trim();
+    const match = line.match(/at (.*?) \((.*?):(\d+):\d+\)/);
+    
+    if (match) {
+      let functionName = match[1] || "anonymous";
+      let filePath = match[2];
+      const lineNumber = match[3];
+      
+      if (filePath.startsWith("node:")) {
+        continue;
+      }
+      
+      if (!fullPath) {
+        const lastSeparatorIndex = Math.max(
+          filePath.lastIndexOf("/"),
+          filePath.lastIndexOf("\\")
+        );
+        if (lastSeparatorIndex !== -1) {
+          filePath = filePath.substring(lastSeparatorIndex + 1);
+        }
+      }
+      
+      if (!mainFileName) {
+        mainFileName = filePath;
+      }
+      
+      callSegments.push(`${functionName}:${lineNumber}`);
+    }
+  }
+  
+  const finalChain = callSegments.reverse();
+  
+  if (finalChain.length > 0) {
+    if (finalChain[0].startsWith("Object.<anonymous>:")) {
+      const lineNumber = finalChain[0].split(":")[1];
+      finalChain[0] = `${mainFileName}:${lineNumber}`;
+    }
+    
+    return finalChain.join(" => ");
+  }
+  
+  return "Could not determine a clean call chain.";
+}
+
 let currentInputFieldConfigs = [];
 
 // Debug logging utility for background script
@@ -8,60 +61,11 @@ function debugLogBackground(
   callerInfo = null
 ) {
   const timestamp = new Date().toISOString();
-
-  // Enhanced caller information detection
   if (!callerInfo) {
-    const stack = new Error().stack;
     callerInfo = "background.js:?";
-    if (stack) {
-      const stackLines = stack.split("\n").filter((line) => line.trim());
-      let callerLine = null;
-      for (let i = 0; i < stackLines.length; i++) {
-        const line = stackLines[i];
-        if (
-          line.includes("debugLogBackground") ||
-          line.includes("debugLogBackgroundError")
-        ) {
-          continue;
-        }
-        callerLine = line;
-        break;
-      }
-      if (callerLine) {
-        let match = null;
-        match = callerLine.match(/at\s+.*?\s+\(([^)]+):(\d+):(\d+)\)/);
-        if (!match) {
-          match = callerLine.match(/at\s+([^:]+):(\d+):(\d+)/);
-        }
-        if (!match) {
-          match = callerLine.match(/\(([^)]+):(\d+):(\d+)\)/);
-        }
-        if (!match) {
-          match = callerLine.match(/([^\/\\]+\.(js|ts)):(\d+)/);
-        }
-        if (match) {
-          const filePath = match[1];
-          const lineNumber = match[2] || match[3] || "?";
-          const fileName = filePath.split("/").pop().split("\\").pop();
-          callerInfo = `${fileName}:${lineNumber}`;
-        } else {
-          const cleanLine = callerLine.replace(/^\s*at\s*/, "").trim();
-          if (cleanLine.length > 0 && cleanLine !== "Object.<anonymous>") {
-            callerInfo = cleanLine.substring(0, 50);
-          } else {
-            callerInfo = "background.js:?";
-          }
-        }
-      }
-    }
   }
-
+  
   const logType = isError ? "[ERROR]" : "[BACKGROUND]";
-  const logMessage = `[LinkedIn AutoApply Background] ${timestamp} [${callerInfo}]: ${logType} ${message}`;
-  console.log("[DEBUGGER](BACKGROUND LOG): ", logMessage);
-  if (data) {
-    console.log("[DEBUGGER](BACKGROUND DATA): ", data);
-  }
 
   // Store debug logs in local storage
   try {
@@ -76,7 +80,6 @@ function debugLogBackground(
         isCritical: isError,
         source: "background",
       });
-      // Keep only last 50 logs
       if (logs.length > 50) {
         logs.splice(0, logs.length - 50);
       }
@@ -155,13 +158,13 @@ async function saveLinkedInJobData(jobTitle, jobLink, companyName) {
         totalJobs: sortedData.length,
       },
       false,
-      "background.js:168"
+      logCallLocation()
     );
   } catch (error) {
     debugLogBackgroundError(
       "Failed to save LinkedIn job data",
       error,
-      "background.js:174"
+      logCallLocation()
     );
     throw error;
   }
@@ -189,7 +192,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           .then((tabs) => {
             if (!tabs?.[0]) {
               debugLogBackgroundError(
-                "No active tab found during startAutoApply"
+                "No active tab found during startAutoApply",
+                false,
+                logCallLocation()
               );
               sendResponse({ success: false, message: "No active tab found." });
               return true;
@@ -227,7 +232,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         return false;
                       debugLogBackgroundError(
                         "Error showing not on job search alert",
-                        err
+                        err,
+                        logCallLocation()
                       );
                       sendResponse({
                         success: false,
@@ -251,7 +257,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     .catch((err) => {
                       debugLogBackgroundError(
                         "Error sending showFormControlAlert",
-                        err
+                        err,
+                        logCallLocation()
                       );
                       sendResponse({
                         success: false,
@@ -276,14 +283,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         {
                           tabId: currentTabId,
                           url: currentUrl,
-                        }
+                        },
+                        false,
+                        logCallLocation()
                       );
                       sendResponse({ success: true });
                     })
                     .catch((err) => {
                       debugLogBackgroundError(
                         "startAutoApply executeScript Error",
-                        err
+                        err,
+                        logCallLocation()
                       );
                       sendResponse({ success: false, message: err.message });
                     });
@@ -294,7 +304,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           });
         return true;
       } catch (err) {
-        debugLogBackgroundError("startAutoApply general Error", err);
+        debugLogBackgroundError("startAutoApply general Error", err, logCallLocation());
         sendResponse({ success: false, message: err.message });
       }
     } else if (request.action === "stopAutoApply") {
@@ -304,7 +314,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           .then((tabs) => {
             if (!tabs?.[0]) {
               debugLogBackgroundError(
-                "No active tab found during stopAutoApply"
+                "No active tab found during stopAutoApply",
+                false,
+                logCallLocation()
               );
               sendResponse({ success: false, message: "No active tab found." });
               return;
@@ -314,7 +326,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               if (chrome.runtime.lastError) {
                 debugLogBackgroundError("Error getting tab info", {
                   message: chrome?.runtime?.lastError?.message,
-                });
+                },
+                  logCallLocation()
+                );
                 sendResponse({
                   success: false,
                   message: "Tab error: " + chrome.runtime.lastError.message,
@@ -327,7 +341,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   "Tab is invalid or URL does not match",
                   {
                     tabUrl: tab?.url,
-                  }
+                  },
+                  logCallLocation()
                 );
                 sendResponse({
                   success: false,
@@ -344,7 +359,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       "Auto-apply script stopped successfully",
                       {
                         tabId: currentTabId,
-                      }
+                      },
+                      false,
+                      logCallLocation()
                     );
                     sendResponse({ success: true });
                   } else {
@@ -357,7 +374,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 .catch((err) => {
                   debugLogBackgroundError(
                     "Error sending hideRunningModal",
-                    err
+                    err,
+                    logCallLocation()
                   );
                   sendResponse({
                     success: false,
@@ -369,7 +387,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           .catch((err) => {
             debugLogBackgroundError(
               "Error querying tabs in stopAutoApply",
-              err
+              err,
+              logCallLocation()
             );
             sendResponse({
               success: false,
@@ -382,7 +401,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else if (request.action === "openTabAndRunScript") {
       debugLogBackground("Opening new tab for auto-apply", {
         url: request.url,
-      });
+      },
+        false,
+        logCallLocation());
       chrome.tabs.create({ url: request.url }, (tab) => {
         chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
           if (tabId === tab.id && changeInfo.status === "complete") {
@@ -401,14 +422,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         {
                           tabId: tabId,
                           url: request.url,
-                        }
+                        },
+                        false,
+                        logCallLocation()
                       );
                       sendResponse({ success: true });
                     })
                     .catch((err) => {
                       debugLogBackgroundError(
                         "executeScript error in openTabAndRunScript",
-                        err
+                        err,
+                        logCallLocation()
                       );
                       sendResponse({ success: false, message: err.message });
                       chrome.tabs.sendMessage(tabId, {
@@ -418,7 +442,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 } else {
                   debugLogBackgroundError("Failed to show running modal", {
                     response: response?.message,
-                  });
+                  }, logCallLocation());
                   sendResponse({
                     success: false,
                     message:
@@ -429,7 +453,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               .catch((err) => {
                 debugLogBackgroundError(
                   "Error sending showRunningModal in openTabAndRunScript",
-                  err
+                  err,
+                  logCallLocation()
                 );
                 sendResponse({
                   success: false,
@@ -447,7 +472,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       updateOrAddInputFieldValue(placeholder, value)
         .then(() => sendResponse({ success: true }))
         .catch((err) => {
-          debugLogBackgroundError("Error in updateInputFieldValue", err);
+          debugLogBackgroundError("Error in updateInputFieldValue", err, logCallLocation());
           sendResponse({ success: false, message: err?.message });
         });
       return true;
@@ -458,7 +483,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .catch((err) => {
           debugLogBackgroundError(
             "Error in updateInputFieldConfigsInStorage",
-            err
+            err,
+            logCallLocation()
           );
           sendResponse({ success: false, message: err?.message });
         });
@@ -504,7 +530,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
     }
   } catch (e) {
-    debugLogBackgroundError("onMessage error", e);
+    debugLogBackgroundError("onMessage error", e, logCallLocation());
     sendResponse({ success: false, message: e.message });
   }
 });
@@ -533,7 +559,8 @@ async function updateOrAddInputFieldValue(placeholder, value) {
   } catch (error) {
     debugLogBackgroundError(
       "Error updating or adding input field value",
-      error
+      error,
+      logCallLocation()
     );
     throw error;
   }
@@ -567,7 +594,7 @@ async function updateInputFieldConfigsInStorage(placeholder) {
       });
     }
   } catch (error) {
-    debugLogBackgroundError("Error updating input field configs", error);
+    debugLogBackgroundError("Error updating input field configs", error, logCallLocation());
     throw error;
   }
 }
@@ -606,7 +633,8 @@ function updateRadioButtonValue(placeholderIncludes, newValue) {
     } else {
       debugLogBackgroundError(
         `Radio button config not found for placeholder: ${placeholderIncludes}`,
-        { placeholderIncludes, newValue }
+        { placeholderIncludes, newValue },
+        logCallLocation()
       );
     }
   });
