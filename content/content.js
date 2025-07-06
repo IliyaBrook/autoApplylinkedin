@@ -1722,7 +1722,7 @@ let extensionContextCheckInterval
 let saveModalCheckInterval
 
 function startExtensionContextMonitoring() {
-	debugLogInfo('Starting extension context monitoring', logCallLocation())
+	debugLogInfo('Starting extension context monitoring', null, logCallLocation())
 	extensionContextCheckInterval = setInterval(() => {
 		if (!isExtensionContextValid()) {
 			debugLogError('Extension context lost during monitoring', null, logCallLocation())
