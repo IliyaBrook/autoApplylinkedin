@@ -255,8 +255,7 @@ function isExtensionContextValidQuiet() {
 async function stopScript() {
   debugLogCritical(
     "stopScript called - script stopping",
-    null,
-    "content.js:208"
+    null
   );
 
   stopExtensionContextMonitoring();
