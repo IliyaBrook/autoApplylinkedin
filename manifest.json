@@ -23,7 +23,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://www.linkedin.com/*"],
+      "matches": ["<all_urls>"],
       "js": ["content/utils.js", "content/createElements.js", "content/content.js", "content/xpaths.js"],
       "run_at": "document_idle"
     }
@@ -34,7 +34,7 @@
     "activeTab",
     "scripting"
   ],
-  "host_permissions": ["*://www.linkedin.com/*"],
+  "host_permissions": ["<all_urls>"],
   "web_accessible_resources": [
     {
       "resources": [

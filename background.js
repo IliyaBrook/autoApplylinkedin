@@ -104,13 +104,13 @@ async function saveLinkedInJobData(jobTitle, jobLink, companyName) {
         totalJobs: sortedData.length,
       },
       false,
-      new Error().stack.replace(/Error/g, '')
+      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
     );
   } catch (error) {
     debugLogBackgroundError(
       "Failed to save LinkedIn job data",
       error,
-      new Error().stack.replace(/Error/g, '')
+      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
     );
     throw error;
   }
@@ -139,7 +139,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               debugLogBackgroundError(
                 "No active tab found during startAutoApply",
                 false,
-                new Error().stack.replace(/Error/g, '')
+                Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
               );
               sendResponse({ success: false, message: "No active tab found." });
               return true;
@@ -178,7 +178,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       debugLogBackgroundError(
                         "Error showing not on job search alert",
                         err,
-                        new Error().stack.replace(/Error/g, '')
+                        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                       );
                       sendResponse({
                         success: false,
@@ -203,7 +203,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       debugLogBackgroundError(
                         "Error sending showFormControlAlert",
                         err,
-                        new Error().stack.replace(/Error/g, '')
+                        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                       );
                       sendResponse({
                         success: false,
@@ -230,7 +230,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                           url: currentUrl,
                         },
                         false,
-                        new Error().stack.replace(/Error/g, '')
+                        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                       );
                       sendResponse({ success: true });
                     })
@@ -238,7 +238,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       debugLogBackgroundError(
                         "startAutoApply executeScript Error",
                         err,
-                        new Error().stack.replace(/Error/g, '')
+                        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                       );
                       sendResponse({ success: false, message: err.message });
                     });
@@ -252,7 +252,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         debugLogBackgroundError(
           "startAutoApply general Error",
           err,
-          new Error().stack.replace(/Error/g, '')
+          Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
         );
         sendResponse({ success: false, message: err.message });
       }
@@ -265,7 +265,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               debugLogBackgroundError(
                 "No active tab found during stopAutoApply",
                 false,
-                new Error().stack.replace(/Error/g, '')
+                Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
               );
               sendResponse({ success: false, message: "No active tab found." });
               return;
@@ -278,7 +278,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   {
                     message: chrome?.runtime?.lastError?.message,
                   },
-                  new Error().stack.replace(/Error/g, '')
+                  Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                 );
                 sendResponse({
                   success: false,
@@ -293,7 +293,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   {
                     tabUrl: tab?.url,
                   },
-                  new Error().stack.replace(/Error/g, '')
+                  Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                 );
                 sendResponse({
                   success: false,
@@ -312,7 +312,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                         tabId: currentTabId,
                       },
                       false,
-                      new Error().stack.replace(/Error/g, '')
+                      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                     );
                     sendResponse({ success: true });
                   } else {
@@ -326,7 +326,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   debugLogBackgroundError(
                     "Error sending hideRunningModal",
                     err,
-                    new Error().stack.replace(/Error/g, '')
+                    Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                   );
                   sendResponse({
                     success: false,
@@ -339,7 +339,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             debugLogBackgroundError(
               "Error querying tabs in stopAutoApply",
               err,
-              new Error().stack.replace(/Error/g, '')
+              Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
             );
             sendResponse({
               success: false,
@@ -356,7 +356,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           url: request.url,
         },
         false,
-        new Error().stack.replace(/Error/g, '')
+        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
       );
       chrome.tabs.create({ url: request.url }, (tab) => {
         chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
@@ -378,7 +378,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                           url: request.url,
                         },
                         false,
-                        new Error().stack.replace(/Error/g, '')
+                        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                       );
                       sendResponse({ success: true });
                     })
@@ -386,7 +386,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       debugLogBackgroundError(
                         "executeScript error in openTabAndRunScript",
                         err,
-                        new Error().stack.replace(/Error/g, '')
+                        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                       );
                       sendResponse({ success: false, message: err.message });
                       chrome.tabs.sendMessage(tabId, {
@@ -399,7 +399,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     {
                       response: response?.message,
                     },
-                    new Error().stack.replace(/Error/g, '')
+                    Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                   );
                   sendResponse({
                     success: false,
@@ -412,7 +412,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 debugLogBackgroundError(
                   "Error sending showRunningModal in openTabAndRunScript",
                   err,
-                  new Error().stack.replace(/Error/g, '')
+                  Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
                 );
                 sendResponse({
                   success: false,
@@ -433,7 +433,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           debugLogBackgroundError(
             "Error in updateInputFieldValue",
             err,
-            new Error().stack.replace(/Error/g, '')
+            Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
           );
           sendResponse({ success: false, message: err?.message });
         });
@@ -446,7 +446,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           debugLogBackgroundError(
             "Error in updateInputFieldConfigsInStorage",
             err,
-            new Error().stack.replace(/Error/g, '')
+            Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
           );
           sendResponse({ success: false, message: err?.message });
         });
@@ -492,7 +492,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
     }
   } catch (e) {
-    debugLogBackgroundError("onMessage error", e, new Error().stack.replace(/Error/g, ''));
+    debugLogBackgroundError("onMessage error", e, Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n"));
     sendResponse({ success: false, message: e.message });
   }
 });
@@ -522,7 +522,7 @@ async function updateOrAddInputFieldValue(placeholder, value) {
     debugLogBackgroundError(
       "Error updating or adding input field value",
       error,
-      new Error().stack.replace(/Error/g, '')
+      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
     );
     throw error;
   }
@@ -559,7 +559,7 @@ async function updateInputFieldConfigsInStorage(placeholder) {
     debugLogBackgroundError(
       "Error updating input field configs",
       error,
-      new Error().stack.replace(/Error/g, '')
+      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
     );
     throw error;
   }
@@ -600,7 +600,7 @@ function updateRadioButtonValue(placeholderIncludes, newValue) {
       debugLogBackgroundError(
         `Radio button config not found for placeholder: ${placeholderIncludes}`,
         { placeholderIncludes, newValue },
-        new Error().stack.replace(/Error/g, '')
+        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
       );
     }
   });

@@ -273,7 +273,8 @@ function displayLogs() {
     .map((log) => {
       const logClass = getLogClass(log);
       const logType = getLogType(log);
-      const callerInfo = log.callerInfo || "unknown:?";
+      const stackTrace = formatStackTrace(log.callerInfo || "unknown:?");
+
       return `
             <div class="log-entry ${logClass}">
                 <div class="log-header">
@@ -281,14 +282,24 @@ function displayLogs() {
                       log.timestamp
                     )}</div>
                     <div class="log-type ${logType.toLowerCase()}">[${logType}]</div>
-                    <div class="log-location">${escapeHtml(callerInfo)}</div>
                 </div>
                 <div class="log-message">${escapeHtml(log.message)}</div>
                 ${
+                  stackTrace !== "unknown:?"
+                    ? `<div class="log-stack">
+                        <div class="log-section-title">Call Stack:</div>
+                        <div class="log-data">${stackTrace}</div>
+                       </div>`
+                    : ""
+                }
+                ${
                   log.data
-                    ? `<div class="log-data">${escapeHtml(
-                        JSON.stringify(log.data, null, 2)
-                      )}</div>`
+                    ? `<div class="log-json">
+                        <div class="log-section-title">Data:</div>
+                        <div class="log-data">${escapeHtml(
+                          JSON.stringify(log.data, null, 2)
+                        )}</div>
+                       </div>`
                     : ""
                 }
             </div>
@@ -297,6 +308,15 @@ function displayLogs() {
     .join("");
 
   logsContainer.innerHTML = logsHtml;
+}
+
+function formatStackTrace(stackTrace) {
+  if (!stackTrace || stackTrace === "unknown:?") {
+    return "unknown:?";
+  }
+
+  // Показываем весь стек как есть, без фильтрации
+  return escapeHtml(stackTrace);
 }
 
 function getLogType(log) {

@@ -293,6 +293,7 @@ body {
   padding: 2px 10px;
   border-radius: 3px;
   width: fit-content;
+  max-width: 100%;
 }
 
 .log-message {
@@ -314,6 +315,41 @@ body {
   overflow-x: auto;
   max-height: 200px;
   overflow-y: auto;
+}
+
+.log-stack {
+  margin-top: 8px;
+}
+
+.log-json {
+  margin-top: 8px;
+}
+
+.log-section-title {
+  font-size: 12px;
+  font-weight: bold;
+  color: #495057;
+  margin-bottom: 4px;
+  padding: 2px 0;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.log-stack .log-section-title {
+  color: #dc3545;
+}
+
+.log-json .log-section-title {
+  color: #007cba;
+}
+
+.log-stack .log-data {
+  background: #fff5f5;
+  border-color: #fecaca;
+}
+
+.log-json .log-data {
+  background: #f0faff;
+  border-color: #bfdbfe;
 }
 
 .empty-state {
