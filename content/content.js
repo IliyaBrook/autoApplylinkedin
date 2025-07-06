@@ -204,7 +204,7 @@ async function setAutoApplyRunning(value, reason = "Unknown") {
       return;
     }
 
-    debugLogCritical(
+    debugLogInfo(
       `autoApplyRunning state changed to: ${value}`,
       {
         reason: reason,
@@ -1375,12 +1375,14 @@ async function handleLoopRestart() {
     const newUrl = `${url.origin}${
       url.pathname
     }?${baseSearchParams.toString()}`;
-
-    await chrome.storage.local.set({
-      loopRestartUrl: newUrl,
-      shouldRestartScript: true,
-    });
-
+    
+    if (chrome.runtime?.id) {
+      await chrome.storage.local.set({
+        loopRestartUrl: newUrl,
+        shouldRestartScript: true,
+      });
+    }
+    
     window.location.href = newUrl;
   } catch (error) {
     debugLogError(
@@ -1879,7 +1881,7 @@ window.addEventListener("error", function (event) {
 
 function isExtensionContextValid() {
   try {
-    return !!(chrome);
+    return !!(chrome?.runtime?.id);
   } catch (error) {
     debugLogError(
       "Extension context check failed",
