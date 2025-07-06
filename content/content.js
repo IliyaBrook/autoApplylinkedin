@@ -7,10 +7,48 @@ let defaultFields = {
   PhoneNumber: "",
 };
 
+function logCallLocation(fullPath = false) {
+  const error = new Error();
+  const stackLines = error.stack.split("\n");
+  if (stackLines.length >= 4) {
+    const callerOfCallerLine = stackLines[3];
+    let fileName = "unknown_file";
+    let lineNumber = "unknown_line";
+
+    const match = callerOfCallerLine.match(/at (.*?) \((.*?):(\d+):(\d+)\)/);
+    if (match) {
+      fileName = match[2];
+      lineNumber = match[3];
+    } else {
+      const simpleMatch = callerOfCallerLine.match(/(.*?):(\d+):(\d+)$/);
+      if (simpleMatch) {
+        fileName = simpleMatch[1];
+        lineNumber = simpleMatch[2];
+      }
+    }
+
+    if (fileName && lineNumber) {
+      if (!fullPath) {
+        const lastSlashIndex = fileName.lastIndexOf("/");
+        const lastBackslashIndex = fileName.lastIndexOf("\\");
+        const lastSeparatorIndex = Math.max(lastSlashIndex, lastBackslashIndex);
+
+        if (lastSeparatorIndex !== -1) {
+          fileName = fileName.substring(lastSeparatorIndex + 1);
+        }
+      }
+      return `${fileName}:${lineNumber}`;
+    }
+  }
+
+  return "functionLog: Failed to determine the calling function's location.";
+}
+
 let prevSearchValue = "";
 
 // Debug logging utility - only logs when script is running and for critical issues
-function debugLog(message, data = null, forceLog = false, callerInfo = null) {
+function debugLog(message, data = null, forceLog = false) {
+  const callerInfo = logCallLocation();
   // Check extension context first to avoid "Extension context invalidated" errors
   if (!isExtensionContextValidQuiet()) {
     return;
@@ -38,7 +76,8 @@ function debugLog(message, data = null, forceLog = false, callerInfo = null) {
 }
 
 // Error logging - always logs regardless of script state
-function debugLogError(message, error = null, callerInfo = null) {
+function debugLogError(message, error = null) {
+  const callerInfo = logCallLocation();
   if (!isExtensionContextValidQuiet()) {
     return;
   }
@@ -55,7 +94,8 @@ function debugLogError(message, error = null, callerInfo = null) {
 }
 
 // Critical logging - always logs for important state changes
-function debugLogCritical(message, data = null, callerInfo = null) {
+function debugLogCritical(message, data = null) {
+  const callerInfo = logCallLocation();
   if (!isExtensionContextValidQuiet()) {
     return;
   }
