@@ -15,7 +15,7 @@ function logCallLocation(options = {}) {
   const callSegments = [];
   let mainFileName = "";
 
-  for (let i = 2; i < stackLines.length; i++) {
+  for (let i = 0; i < stackLines.length; i++) {
     const line = stackLines[i].trim();
     const match = line.match(/at (.*?) \((.*?):(\d+):\d+\)/);
 
