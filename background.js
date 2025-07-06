@@ -2,23 +2,23 @@ function logCallLocation(options = {}) {
   const { fullPath = false } = options;
   const error = new Error();
   const stackLines = error.stack.split("\n");
-  
+
   const callSegments = [];
   let mainFileName = "";
-  
+
   for (let i = 0; i < stackLines.length; i++) {
     const line = stackLines[i].trim();
     const match = line.match(/at (.*?) \((.*?):(\d+):\d+\)/);
-    
+
     if (match) {
       let functionName = match[1] || "anonymous";
       let filePath = match[2];
       const lineNumber = match[3];
-      
+
       if (filePath.startsWith("node:")) {
         continue;
       }
-      
+
       if (!fullPath) {
         const lastSeparatorIndex = Math.max(
           filePath.lastIndexOf("/"),
@@ -28,26 +28,26 @@ function logCallLocation(options = {}) {
           filePath = filePath.substring(lastSeparatorIndex + 1);
         }
       }
-      
+
       if (!mainFileName) {
         mainFileName = filePath;
       }
-      
+
       callSegments.push(`${functionName}:${lineNumber}`);
     }
   }
-  
+
   const finalChain = callSegments.reverse();
-  
+
   if (finalChain.length > 0) {
     if (finalChain[0].startsWith("Object.<anonymous>:")) {
       const lineNumber = finalChain[0].split(":")[1];
       finalChain[0] = `${mainFileName}:${lineNumber}`;
     }
-    
+
     return finalChain.join(" => ");
   }
-  
+
   return "Could not determine a clean call chain.";
 }
 
@@ -64,10 +64,9 @@ function debugLogBackground(
   if (!callerInfo) {
     callerInfo = "background.js:?";
   }
-  
+
   const logType = isError ? "[ERROR]" : "[BACKGROUND]";
 
-  // Store debug logs in local storage
   try {
     chrome.storage.local.get("debugLogs", (result) => {
       const logs = result.debugLogs || [];
@@ -179,7 +178,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({ success: true });
         })
         .catch((error) => {
-          // Error already logged in saveLinkedInJobData function
           sendResponse({ success: false, error: error.message });
         });
       return true;
@@ -304,7 +302,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           });
         return true;
       } catch (err) {
-        debugLogBackgroundError("startAutoApply general Error", err, logCallLocation());
+        debugLogBackgroundError(
+          "startAutoApply general Error",
+          err,
+          logCallLocation()
+        );
         sendResponse({ success: false, message: err.message });
       }
     } else if (request.action === "stopAutoApply") {
@@ -324,9 +326,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             const currentTabId = tabs[0].id;
             chrome.tabs.get(currentTabId, (tab) => {
               if (chrome.runtime.lastError) {
-                debugLogBackgroundError("Error getting tab info", {
-                  message: chrome?.runtime?.lastError?.message,
-                },
+                debugLogBackgroundError(
+                  "Error getting tab info",
+                  {
+                    message: chrome?.runtime?.lastError?.message,
+                  },
                   logCallLocation()
                 );
                 sendResponse({
@@ -399,11 +403,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       return true;
     } else if (request.action === "openTabAndRunScript") {
-      debugLogBackground("Opening new tab for auto-apply", {
-        url: request.url,
-      },
+      debugLogBackground(
+        "Opening new tab for auto-apply",
+        {
+          url: request.url,
+        },
         false,
-        logCallLocation());
+        logCallLocation()
+      );
       chrome.tabs.create({ url: request.url }, (tab) => {
         chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
           if (tabId === tab.id && changeInfo.status === "complete") {
@@ -440,9 +447,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       });
                     });
                 } else {
-                  debugLogBackgroundError("Failed to show running modal", {
-                    response: response?.message,
-                  }, logCallLocation());
+                  debugLogBackgroundError(
+                    "Failed to show running modal",
+                    {
+                      response: response?.message,
+                    },
+                    logCallLocation()
+                  );
                   sendResponse({
                     success: false,
                     message:
@@ -472,7 +483,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       updateOrAddInputFieldValue(placeholder, value)
         .then(() => sendResponse({ success: true }))
         .catch((err) => {
-          debugLogBackgroundError("Error in updateInputFieldValue", err, logCallLocation());
+          debugLogBackgroundError(
+            "Error in updateInputFieldValue",
+            err,
+            logCallLocation()
+          );
           sendResponse({ success: false, message: err?.message });
         });
       return true;
@@ -594,7 +609,11 @@ async function updateInputFieldConfigsInStorage(placeholder) {
       });
     }
   } catch (error) {
-    debugLogBackgroundError("Error updating input field configs", error, logCallLocation());
+    debugLogBackgroundError(
+      "Error updating input field configs",
+      error,
+      logCallLocation()
+    );
     throw error;
   }
 }

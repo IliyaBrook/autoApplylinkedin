@@ -64,7 +64,6 @@ let prevSearchValue = "";
 
 // Debug logging utility - only logs when script is running and for critical issues
 function debugLog(message, data = null, forceLog = false, callerInfo) {
-  // Check extension context first to avoid "Extension context invalidated" errors
   if (!isExtensionContextValidQuiet()) {
     return;
   }
@@ -163,9 +162,7 @@ function writeLog(
         isError: logType === "ERROR",
         isCritical: logType === "CRITICAL" || isForced,
       });
-      // if (logs.length > 50) {
-      //   logs.splice(0, logs.length - 50);
-      // }
+
       chrome.storage.local.set({ debugLogs: logs });
     });
   } catch (error) {
@@ -703,7 +700,6 @@ async function validateAndCloseConfirmationModal() {
     const modalHeader = modal.querySelector(".artdeco-modal__header");
     const modalContent = modal.querySelector(".artdeco-modal__content");
 
-    // Check for "Save this application?" modal
     if (
       (modalHeader &&
         modalHeader.textContent.includes("Save this application?")) ||
@@ -724,7 +720,6 @@ async function validateAndCloseConfirmationModal() {
         return true;
       }
 
-      // Fallback to dismiss button
       const dismissButton = modal.querySelector(".artdeco-modal__dismiss");
       if (dismissButton) {
         dismissButton.click();
@@ -761,7 +756,6 @@ async function handleSaveApplicationModal() {
         logCallLocation()
       );
 
-      // Always click "Discard" for automation
       const discardButton = saveModal.querySelector(
         "button[data-test-dialog-secondary-btn]"
       );
@@ -771,7 +765,6 @@ async function handleSaveApplicationModal() {
         return true;
       }
 
-      // Fallback to dismiss
       const dismissButton = saveModal.querySelector(
         'button[aria-label="Dismiss"]'
       );
@@ -797,15 +790,55 @@ async function handleSaveApplicationModal() {
   return false;
 }
 
-async function checkForError() {
+function checkIfAlreadyApplied(textContent) {
+  const lowerText = textContent.toLowerCase();
+  return (
+    lowerText.includes("applied") &&
+    (lowerText.includes("ago") ||
+      lowerText.includes("minutes") ||
+      lowerText.includes("hours") ||
+      lowerText.includes("days"))
+  );
+}
+
+async function checkForFormValidationError() {
   const feedbackMessageElement = document.querySelector(
     ".artdeco-inline-feedback__message"
   );
-  return feedbackMessageElement !== null;
+
+  if (!feedbackMessageElement) {
+    return false;
+  }
+
+  const textContent = feedbackMessageElement.textContent;
+
+  if (checkIfAlreadyApplied(textContent)) {
+    return false;
+  }
+
+  if (
+    textContent.toLowerCase().includes("exceeded") &&
+    textContent.toLowerCase().includes("limit")
+  ) {
+    return false;
+  }
+
+  const validationErrors = [
+    "required",
+    "must",
+    "invalid",
+    "error",
+    "cannot",
+    "please",
+    "field",
+  ];
+
+  return validationErrors.some((error) =>
+    textContent.toLowerCase().includes(error)
+  );
 }
 
 async function terminateJobModel(context = document) {
-  // First try to handle save application modal
   const saveModalHandled = await handleSaveApplicationModal();
   if (saveModalHandled) {
     return;
@@ -815,9 +848,8 @@ async function terminateJobModel(context = document) {
   if (dismissButton) {
     dismissButton.click();
     dismissButton.dispatchEvent(new Event("change", { bubbles: true }));
-    await addDelay(1000); // Increased delay to allow modal to appear
+    await addDelay(1000);
 
-    // Check for save application modal after dismiss
     const saveModalAfterDismiss = await handleSaveApplicationModal();
     if (saveModalAfterDismiss) {
       return;
@@ -841,7 +873,6 @@ async function terminateJobModel(context = document) {
 }
 
 async function runValidations() {
-  // Check for save application modal at the start
   const saveModalHandled = await handleSaveApplicationModal();
   if (saveModalHandled) {
     return;
@@ -853,7 +884,6 @@ async function runValidations() {
   await performDropdownChecks();
   await performCheckBoxFieldCityCheck();
 
-  // Check again after all validations
   await handleSaveApplicationModal();
 }
 
@@ -885,7 +915,6 @@ async function runApplyModel() {
         await addDelay();
         await performSafetyReminderCheck();
 
-        // Check for save application modal at the beginning
         const saveModalHandled = await handleSaveApplicationModal();
         if (saveModalHandled) {
           resolve(null);
@@ -938,9 +967,8 @@ async function runApplyModel() {
             }
 
             submitButton.click();
-            await addDelay(2000); // Increased delay after submit
+            await addDelay(2000);
 
-            // Check for save application modal after submit
             const saveModalAfterSubmit = await handleSaveApplicationModal();
             if (saveModalAfterSubmit) {
               debugLog(
@@ -970,11 +998,11 @@ async function runApplyModel() {
           if (nextButton || reviewButton) {
             const buttonToClick = reviewButton || nextButton;
             await runValidations();
-            const isError = await checkForError();
+            const isError = await checkForFormValidationError();
 
             if (isError) {
               debugLogError(
-                "Error detected in form validation, terminating job modal",
+                "Form validation error detected, terminating job modal",
                 null,
                 logCallLocation()
               );
@@ -984,7 +1012,6 @@ async function runApplyModel() {
               await addDelay();
               buttonToClick.click();
 
-              // Check for save application modal after clicking next/review
               await addDelay(1000);
               const saveModalAfterNext = await handleSaveApplicationModal();
               if (saveModalAfterNext) {
@@ -1010,7 +1037,6 @@ async function runApplyModel() {
           }
         }
 
-        // Final check for save application modal
         await handleSaveApplicationModal();
 
         if (!document?.querySelector(".artdeco-modal")) {
@@ -1069,16 +1095,30 @@ async function runFindEasyApply(jobTitle, companyName) {
     try {
       await addDelay(1000);
 
-      // Check for save application modal at the start
       const saveModalHandled = await handleSaveApplicationModal();
       if (saveModalHandled) {
         resolve(null);
         return;
       }
 
+      const alreadyAppliedElement = document.querySelector(
+        ".artdeco-inline-feedback__message"
+      );
+      if (alreadyAppliedElement) {
+        const textContent = alreadyAppliedElement.textContent;
+        if (checkIfAlreadyApplied(textContent)) {
+          debugLogInfo(
+            `Already applied to job: ${jobTitle} at ${companyName}`,
+            null,
+            logCallLocation()
+          );
+          resolve(null);
+          return;
+        }
+      }
+
       const currentPageLink = window.location.href;
 
-      // Check if extension context is still valid
       if (!chrome || !chrome.runtime) {
         debugLogError(
           "Extension context invalidated in runFindEasyApply",
@@ -1122,7 +1162,6 @@ async function runFindEasyApply(jobTitle, companyName) {
         await Promise.race(buttonPromises);
       }
 
-      // Final check for save application modal
       await handleSaveApplicationModal();
 
       resolve(null);
@@ -1217,7 +1256,6 @@ async function fillSearchFieldIfEmpty() {
 }
 
 async function closeApplicationSentModal() {
-  // First check for save application modal
   const saveModalHandled = await handleSaveApplicationModal();
   if (saveModalHandled) {
     return;
@@ -1294,7 +1332,6 @@ async function goToNextPage() {
   isNavigating = true;
 
   try {
-    // Check if we're still running before proceeding
     const isStillRunning = await checkAndPrepareRunState();
     if (!isStillRunning) {
       isNavigating = false;
@@ -1765,7 +1802,6 @@ window.addEventListener("error", function (event) {
   }
 });
 
-// Additional checks for extension context
 function isExtensionContextValid() {
   try {
     return !!(chrome && chrome.runtime && chrome.runtime.id);
@@ -1775,7 +1811,6 @@ function isExtensionContextValid() {
   }
 }
 
-// Enhanced extension context monitoring
 let extensionContextCheckInterval;
 let saveModalCheckInterval;
 
@@ -1823,7 +1858,7 @@ function startSaveModalMonitoring() {
         logCallLocation()
       );
     }
-  }, 3000); // Check every 3 seconds
+  }, 3000);
 }
 
 function stopSaveModalMonitoring() {
@@ -1834,7 +1869,6 @@ function stopSaveModalMonitoring() {
 }
 
 window.addEventListener("load", function () {
-  // Only log if we're actually going to restart the script
   chrome.storage.local.get(
     ["shouldRestartScript", "loopRestartUrl"],
     ({ shouldRestartScript, loopRestartUrl }) => {
@@ -1886,7 +1920,6 @@ window.addEventListener("load", function () {
             chrome.storage.local.set({ autoApplyRunning: false });
           }
         } else {
-          // Don't log when just setting autoApplyRunning to false
           chrome.storage.local.set({ autoApplyRunning: false });
         }
       } catch (error) {
@@ -1902,8 +1935,6 @@ window.addEventListener("load", function () {
 
 try {
   window.addEventListener("beforeunload", function () {
-    // Only log if the script was actually running
-
     chrome.storage.local.get("autoApplyRunning", (result) => {
       if (result?.autoApplyRunning) {
         debugLogInfo(
