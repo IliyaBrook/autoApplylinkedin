@@ -7,62 +7,66 @@ let defaultFields = {
   PhoneNumber: "",
 };
 
-function logCallLocation(options = {}) {
-  const { fullPath = false } = options;
+function getCallerInfo(skipLevels = 1) {
   const error = new Error();
   const stackLines = error.stack.split("\n");
 
-  const callSegments = [];
-  let mainFileName = "";
+  let realCallCount = 0;
+  const skipLogFunctions = [
+    "getCallerInfo",
+    "debugLog",
+    "debugLogError",
+    "debugLogCritical",
+    "debugLogInfo",
+    "writeLog",
+  ];
 
   for (let i = 0; i < stackLines.length; i++) {
     const line = stackLines[i].trim();
-    const match = line.match(/at (.*?) \((.*?):(\d+):\d+\)/);
+    let match = line.match(/at (.*?) \((.*?):(\d+):\d+\)/);
+
+    if (!match) {
+      match = line.match(/at (.*?):(.*?):(\d+):\d+/);
+      if (match) {
+        match = [null, match[1], match[2], match[3]];
+      }
+    }
 
     if (match) {
-      let functionName = match[1] || "anonymous";
-      let filePath = match[2];
+      const functionName = match[1] || "anonymous";
+      const filePath = match[2];
       const lineNumber = match[3];
 
-      if (filePath.startsWith("node:")) {
+      if (
+        filePath.startsWith("node:") ||
+        filePath.startsWith("chrome-extension:")
+      ) {
         continue;
       }
 
-      if (!fullPath) {
-        const lastSeparatorIndex = Math.max(
-          filePath.lastIndexOf("/"),
-          filePath.lastIndexOf("\\")
+      if (
+        skipLogFunctions.some((skipFunc) => functionName.includes(skipFunc))
+      ) {
+        continue;
+      }
+
+      realCallCount++;
+
+      if (realCallCount > skipLevels) {
+        const fileName = filePath.substring(
+          Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\")) + 1
         );
-        if (lastSeparatorIndex !== -1) {
-          filePath = filePath.substring(lastSeparatorIndex + 1);
-        }
-      }
 
-      if (!mainFileName) {
-        mainFileName = filePath;
+        return `${functionName}:${lineNumber} (${fileName})`;
       }
-
-      callSegments.push(`${functionName}:${lineNumber}`);
     }
   }
 
-  const finalChain = callSegments.reverse();
-
-  if (finalChain.length > 0) {
-    if (finalChain[0].startsWith("Object.<anonymous>:")) {
-      const lineNumber = finalChain[0].split(":")[1];
-      finalChain[0] = `${mainFileName}:${lineNumber}`;
-    }
-
-    return finalChain.join(" => ");
-  }
-
-  return "Could not determine a clean call chain.";
+  return "Unknown caller";
 }
 
 let prevSearchValue = "";
 
-// Debug logging utility - only logs when script is running and for critical issues
 function debugLog(message, data = null, forceLog = false, callerInfo) {
   if (!isExtensionContextValidQuiet()) {
     return;
@@ -71,6 +75,10 @@ function debugLog(message, data = null, forceLog = false, callerInfo) {
   if (!forceLog) {
     try {
       chrome.storage.local.get("autoApplyRunning", (result) => {
+        if (!isExtensionContextValidQuiet()) {
+          return;
+        }
+
         if (chrome.runtime.lastError) {
           return;
         }
@@ -87,7 +95,6 @@ function debugLog(message, data = null, forceLog = false, callerInfo) {
   }
 }
 
-// Error logging - always logs regardless of script state
 function debugLogError(message, error = null, callerInfo) {
   if (!isExtensionContextValidQuiet()) {
     return;
@@ -104,7 +111,6 @@ function debugLogError(message, error = null, callerInfo) {
   writeLog(message, errorData, true, "ERROR", callerInfo);
 }
 
-// Critical logging - always logs for important state changes
 function debugLogCritical(message, data = null, callerInfo) {
   if (!isExtensionContextValidQuiet()) {
     return;
@@ -113,7 +119,6 @@ function debugLogCritical(message, data = null, callerInfo) {
   writeLog(message, data, true, "CRITICAL", callerInfo);
 }
 
-// Info logging - for normal operations, only when script is running
 function debugLogInfo(message, data = null, callerInfo = null) {
   if (!isExtensionContextValidQuiet()) {
     return;
@@ -121,6 +126,10 @@ function debugLogInfo(message, data = null, callerInfo = null) {
 
   try {
     chrome.storage.local.get("autoApplyRunning", (result) => {
+      if (!isExtensionContextValidQuiet()) {
+        return;
+      }
+
       if (chrome.runtime.lastError) {
         return;
       }
@@ -148,20 +157,42 @@ function writeLog(
     }
 
     chrome.storage.local.get("debugLogs", (result) => {
+      if (!isExtensionContextValidQuiet()) {
+        return;
+      }
+
       if (chrome.runtime.lastError) {
         return;
       }
 
       const logs = result.debugLogs || [];
+
+      const enhancedData = data || {};
+      if (logType === "CRITICAL") {
+        try {
+          enhancedData.url = window.location.href;
+          enhancedData.readyState = document.readyState;
+          enhancedData.timestamp = timestamp;
+        } catch (error) {}
+      }
+
       logs.push({
         timestamp,
         message,
-        data,
+        data: enhancedData,
         callerInfo,
         logType,
         isError: logType === "ERROR",
         isCritical: logType === "CRITICAL" || isForced,
       });
+
+      if (logs.length > 100) {
+        logs.splice(0, logs.length - 100);
+      }
+
+      if (!isExtensionContextValidQuiet()) {
+        return;
+      }
 
       chrome.storage.local.set({ debugLogs: logs });
     });
@@ -170,20 +201,102 @@ function writeLog(
   }
 }
 
-// Silent extension context check (doesn't log errors)
 function isExtensionContextValidQuiet() {
   try {
-    return !!(chrome && chrome.runtime && chrome.runtime.id);
+    if (!chrome || !chrome.runtime || !chrome.storage) {
+      return false;
+    }
+
+    const id = chrome.runtime.id;
+    if (!id) {
+      return false;
+    }
+
+    if (!chrome.runtime.sendMessage || !chrome.storage.local) {
+      return false;
+    }
+
+    return true;
   } catch (error) {
     return false;
   }
 }
 
+function safeStorageOperation(operation) {
+  if (!isExtensionContextValidQuiet()) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    try {
+      operation(() => {
+        resolve();
+      });
+    } catch (error) {
+      resolve();
+    }
+  });
+}
+
+function setAutoApplyRunningSilent(value) {
+  if (!isExtensionContextValidQuiet()) {
+    return;
+  }
+
+  try {
+    chrome.storage.local.set({ autoApplyRunning: value });
+  } catch (error) {}
+}
+
+async function setAutoApplyRunning(value, reason = "Unknown") {
+  if (!isExtensionContextValidQuiet()) {
+    return;
+  }
+
+  try {
+    const callerInfo = getCallerInfo(0);
+
+    if (!isExtensionContextValidQuiet()) {
+      return;
+    }
+
+    await chrome.storage.local.set({ autoApplyRunning: value });
+
+    if (!isExtensionContextValidQuiet()) {
+      return;
+    }
+
+    debugLogCritical(
+      `autoApplyRunning state changed to: ${value}`,
+      {
+        calledFrom: callerInfo,
+        reason: reason,
+        timestamp: new Date().toISOString(),
+        newValue: value,
+      },
+      new Error().stack.replace(/Error/g, '')
+    );
+  } catch (error) {
+    if (isExtensionContextValidQuiet()) {
+      debugLogError(
+        `Failed to set autoApplyRunning to ${value}`,
+        error,
+        new Error().stack.replace(/Error/g, '')
+      );
+    }
+  }
+}
+
 async function stopScript() {
+  const callerInfo = getCallerInfo(0);
   debugLogCritical(
     "stopScript called - script stopping",
-    null,
-    logCallLocation()
+    {
+      calledFrom: callerInfo,
+      reason: "Manual stop or error",
+      timestamp: new Date().toISOString(),
+    },
+    new Error().stack.replace(/Error/g, '')
   );
 
   stopExtensionContextMonitoring();
@@ -193,7 +306,7 @@ async function stopScript() {
     modalWrapper.style.display = "none";
   }
 
-  await chrome.storage.local.set({ autoApplyRunning: false });
+  await setAutoApplyRunning(false, "stopScript called");
   await chrome.storage.local.remove(["loopRestartUrl", "shouldRestartScript"]);
 
   try {
@@ -201,7 +314,7 @@ async function stopScript() {
       debugLogError(
         "Chrome tabs API not available in stopScript",
         null,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
       prevSearchValue = "";
       return;
@@ -215,32 +328,40 @@ async function stopScript() {
       });
     }
   } catch (error) {
-    debugLogError("Error in stopScript", error, logCallLocation());
+    debugLogError("Error in stopScript", error, new Error().stack.replace(/Error/g, ''));
   }
   prevSearchValue = "";
 }
 
 async function startScript() {
-  debugLogInfo("startScript called", null, logCallLocation());
+  const callerInfo = getCallerInfo(0);
+  debugLogCritical(
+    "startScript called",
+    {
+      calledFrom: callerInfo,
+      timestamp: new Date().toISOString(),
+    },
+    new Error().stack.replace(/Error/g, '')
+  );
 
   if (!isExtensionContextValid()) {
     debugLogError(
       "Extension context invalid in startScript, cannot start",
       null,
-      logCallLocation()
+      new Error().stack.replace(/Error/g, '')
     );
     return false;
   }
 
   try {
     await chrome.runtime.sendMessage({ action: "autoApplyRunning" });
-    await chrome.storage.local.set({ autoApplyRunning: true });
+    await setAutoApplyRunning(true, "startScript called");
 
     startExtensionContextMonitoring();
 
     return true;
   } catch (error) {
-    debugLogError("Error in startScript", error, logCallLocation());
+    debugLogError("Error in startScript", error, new Error().stack.replace(/Error/g, ''));
     return false;
   }
 }
@@ -252,10 +373,15 @@ async function checkAndPrepareRunState() {
       if (isRunning) {
         resolve(true);
       } else {
+        const callerInfo = getCallerInfo(0);
         debugLogCritical(
           "checkAndPrepareRunState: script not running, stopping process",
-          null,
-          logCallLocation()
+          {
+            calledFrom: callerInfo,
+            storageResult: result,
+            timestamp: new Date().toISOString(),
+          },
+          new Error().stack.replace(/Error/g, '')
         );
         resolve(false);
         prevSearchValue = "";
@@ -312,7 +438,7 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
         debugLogCritical(
           "clickJob: script not running, aborting job processing",
           null,
-          logCallLocation()
+          new Error().stack.replace(/Error/g, '')
         );
         resolve(null);
         return;
@@ -344,7 +470,7 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
               debugLogInfo(
                 `clickJob: found bad word "${matchedBadWord}", skipping job`,
                 null,
-                logCallLocation()
+                new Error().stack.replace(/Error/g, '')
               );
               resolve(null);
               return;
@@ -356,7 +482,7 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
       await runFindEasyApply(jobTitle, companyName);
       resolve(null);
     } catch (error) {
-      debugLogError("Error in clickJob", error, logCallLocation());
+      debugLogError("Error in clickJob", error, new Error().stack.replace(/Error/g, ''));
       resolve(null);
     }
   });
@@ -730,7 +856,7 @@ async function validateAndCloseConfirmationModal() {
       debugLogError(
         "Save application modal found but no buttons to close it",
         null,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
     }
   }
@@ -738,7 +864,6 @@ async function validateAndCloseConfirmationModal() {
   return false;
 }
 
-// Enhanced function to handle save application modal specifically
 async function handleSaveApplicationModal() {
   const saveModal = document.querySelector(
     '[data-test-modal=""][role="alertdialog"]'
@@ -753,7 +878,7 @@ async function handleSaveApplicationModal() {
         "Save application modal detected and handling",
         null,
         false,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
 
       const discardButton = saveModal.querySelector(
@@ -772,7 +897,7 @@ async function handleSaveApplicationModal() {
         debugLogError(
           "No discard button found, using dismiss as fallback",
           null,
-          logCallLocation()
+          new Error().stack.replace(/Error/g, '')
         );
         dismissButton.click();
         await addDelay(1000);
@@ -782,7 +907,7 @@ async function handleSaveApplicationModal() {
       debugLogError(
         "Save application modal found but no way to close it",
         null,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
     }
   }
@@ -867,7 +992,7 @@ async function terminateJobModel(context = document) {
     debugLogError(
       "terminateJobModel: no dismiss button found",
       null,
-      logCallLocation()
+      new Error().stack.replace(/Error/g, '')
     );
   }
 }
@@ -975,7 +1100,7 @@ async function runApplyModel() {
                 "Save application modal handled after submit",
                 null,
                 false,
-                logCallLocation()
+                new Error().stack.replace(/Error/g, '')
               );
             }
 
@@ -1004,7 +1129,7 @@ async function runApplyModel() {
               debugLogError(
                 "Form validation error detected, terminating job modal",
                 null,
-                logCallLocation()
+                new Error().stack.replace(/Error/g, '')
               );
               await terminateJobModel();
             } else {
@@ -1019,7 +1144,7 @@ async function runApplyModel() {
                   "Save application modal handled after next/review",
                   null,
                   false,
-                  logCallLocation()
+                  new Error().stack.replace(/Error/g, '')
                 );
               }
 
@@ -1083,10 +1208,7 @@ async function runApplyModel() {
       // }),
     ]);
   } catch (error) {
-    const message = "runApplyModel error:" + error?.message;
-    debugLogError("runApplyModel critical error", error, logCallLocation());
-    console.trace(message);
-    console.error(message);
+    debugLogError("runApplyModel critical error", error, new Error().stack.replace(/Error/g, ''));
   }
 }
 
@@ -1110,7 +1232,7 @@ async function runFindEasyApply(jobTitle, companyName) {
           debugLogInfo(
             `Already applied to job: ${jobTitle} at ${companyName}`,
             null,
-            logCallLocation()
+            new Error().stack.replace(/Error/g, '')
           );
           resolve(null);
           return;
@@ -1123,7 +1245,7 @@ async function runFindEasyApply(jobTitle, companyName) {
         debugLogError(
           "Extension context invalidated in runFindEasyApply",
           null,
-          logCallLocation()
+          new Error().stack.replace(/Error/g, '')
         );
         resolve(null);
         return;
@@ -1166,7 +1288,7 @@ async function runFindEasyApply(jobTitle, companyName) {
 
       resolve(null);
     } catch (error) {
-      debugLogError("Error in runFindEasyApply", error, logCallLocation());
+      debugLogError("Error in runFindEasyApply", error, new Error().stack.replace(/Error/g, ''));
       resolve(null);
     }
   });
@@ -1275,7 +1397,7 @@ async function closeApplicationSentModal() {
 let isNavigating = false;
 
 async function handleLoopRestart() {
-  debugLogInfo("handleLoopRestart called", null, logCallLocation());
+  debugLogInfo("handleLoopRestart called", null, new Error().stack.replace(/Error/g, ''));
   try {
     const { lastJobSearchUrl, loopRunningDelay } =
       await chrome.storage.local.get(["lastJobSearchUrl", "loopRunningDelay"]);
@@ -1318,7 +1440,7 @@ async function handleLoopRestart() {
 
     window.location.href = newUrl;
   } catch (error) {
-    debugLogError("Error in handleLoopRestart", error, logCallLocation());
+    debugLogError("Error in handleLoopRestart", error, new Error().stack.replace(/Error/g, ''));
     void stopScript();
   }
 }
@@ -1368,7 +1490,7 @@ async function goToNextPage() {
       debugLogError(
         "goToNextPage waitForElements error",
         error,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
     }
 
@@ -1399,7 +1521,7 @@ async function goToNextPage() {
     await runScript();
     return true;
   } catch (error) {
-    debugLogError("Error navigating to next page", error, logCallLocation());
+    debugLogError("Error navigating to next page", error, new Error().stack.replace(/Error/g, ''));
     isNavigating = false;
     return false;
   }
@@ -1409,7 +1531,7 @@ async function runScript() {
   debugLogInfo(
     "runScript STARTED",
     { url: window.location.href, readyState: document.readyState },
-    logCallLocation()
+    new Error().stack.replace(/Error/g, '')
   );
 
   try {
@@ -1419,7 +1541,7 @@ async function runScript() {
       debugLogError(
         "runScript: extension context invalid at start, stopping",
         null,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
       return;
     }
@@ -1438,7 +1560,7 @@ async function runScript() {
       debugLogError(
         "runScript: failed to start script, stopping",
         null,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
       return;
     }
@@ -1450,7 +1572,7 @@ async function runScript() {
       debugLogCritical(
         "runScript: state check failed, script not running",
         null,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
       return;
     }
@@ -1459,19 +1581,19 @@ async function runScript() {
       debugLogError(
         "runScript: extension context invalid after state check, stopping",
         null,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
       return;
     }
 
-    await chrome.storage.local.set({ autoApplyRunning: true });
+    await setAutoApplyRunning(true, "runScript reactivation");
 
     const fieldsComplete = await checkAndPromptFields();
     if (!fieldsComplete) {
       debugLogCritical(
         "runScript: default fields not configured, opening config page",
         null,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
       await chrome.runtime.sendMessage({ action: "openDefaultInputPage" });
       return;
@@ -1482,7 +1604,7 @@ async function runScript() {
       debugLogCritical(
         "runScript: daily application limit reached, stopping",
         null,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
       const feedbackMessageElement = document.querySelector(
         ".artdeco-inline-feedback__message"
@@ -1513,7 +1635,7 @@ async function runScript() {
       `Processing ${listItems.length} job list items`,
       null,
       false,
-      logCallLocation()
+      new Error().stack.replace(/Error/g, '')
     );
 
     for (let i = 0; i < listItems.length; i++) {
@@ -1523,7 +1645,7 @@ async function runScript() {
         debugLogError(
           "Extension context lost during job processing",
           null,
-          logCallLocation()
+          new Error().stack.replace(/Error/g, '')
         );
         return;
       }
@@ -1548,7 +1670,7 @@ async function runScript() {
         debugLog(
           "Save application modal handled before job processing",
           null,
-          logCallLocation()
+          new Error().stack.replace(/Error/g, '')
         );
       }
 
@@ -1614,7 +1736,7 @@ async function runScript() {
             return;
           }
         } catch (error) {
-          debugLogError("Error clicking job link", error, logCallLocation());
+          debugLogError("Error clicking job link", error, new Error().stack.replace(/Error/g, ''));
         }
       }
 
@@ -1627,7 +1749,7 @@ async function runScript() {
           canClickToJob = false;
         }
       } catch (e) {
-        debugLogError("Failed to find main job content", e, logCallLocation());
+        debugLogError("Failed to find main job content", e, new Error().stack.replace(/Error/g, ''));
       }
 
       const stillRunning5 = await checkAndPrepareRunState();
@@ -1644,7 +1766,7 @@ async function runScript() {
             "Save application modal handled after job processing",
             null,
             false,
-            logCallLocation()
+            new Error().stack.replace(/Error/g, '')
           );
         }
       }
@@ -1659,13 +1781,13 @@ async function runScript() {
     debugLogError(
       "Critical error in runScript",
       { error: error?.message, stack: error?.stack },
-      logCallLocation()
+      new Error().stack.replace(/Error/g, '')
     );
     console.trace(message);
     await stopScript();
   }
 
-  debugLogInfo("runScript ENDED", null, logCallLocation());
+  debugLogInfo("runScript ENDED", null, new Error().stack.replace(/Error/g, ''));
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -1765,40 +1887,30 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 window.addEventListener("error", function (event) {
-  debugLogError(
-    "Window error detected",
-    {
-      message: event.error?.message,
-      filename: event.filename,
-      lineno: event.lineno,
-      stack: event.error?.stack,
-    },
-    logCallLocation()
-  );
+  if (isExtensionContextValidQuiet()) {
+    debugLogError(
+      "Window error detected",
+      {
+        message: event.error?.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        stack: event.error?.stack,
+      },
+      new Error().stack.replace(/Error/g, '')
+    );
+  }
 
   if (
     event.error &&
     event.error.message &&
     event.error.message.includes("Extension context invalidated")
   ) {
-    debugLogCritical(
-      "Extension context invalidated, stopping script",
-      null,
-      logCallLocation()
-    );
-
     try {
       const modalWrapper = document.getElementById("scriptRunningOverlay");
       if (modalWrapper) {
         modalWrapper.style.display = "none";
       }
-    } catch (error) {
-      debugLogError(
-        "Error hiding modal after extension context invalidation",
-        error,
-        logCallLocation()
-      );
-    }
+    } catch (error) {}
   }
 });
 
@@ -1806,7 +1918,7 @@ function isExtensionContextValid() {
   try {
     return !!(chrome && chrome.runtime && chrome.runtime.id);
   } catch (error) {
-    debugLogError("Extension context check failed", error, logCallLocation());
+    debugLogError("Extension context check failed", error, new Error().stack.replace(/Error/g, ''));
     return false;
   }
 }
@@ -1818,14 +1930,14 @@ function startExtensionContextMonitoring() {
   debugLogInfo(
     "Starting extension context monitoring",
     null,
-    logCallLocation()
+    new Error().stack.replace(/Error/g, '')
   );
   extensionContextCheckInterval = setInterval(() => {
     if (!isExtensionContextValid()) {
       debugLogError(
         "Extension context lost during monitoring",
         null,
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
       void stopScript();
       clearInterval(extensionContextCheckInterval);
@@ -1839,7 +1951,7 @@ function stopExtensionContextMonitoring() {
   debugLogInfo(
     "Stopping extension context monitoring",
     null,
-    logCallLocation()
+    new Error().stack.replace(/Error/g, '')
   );
   if (extensionContextCheckInterval) {
     clearInterval(extensionContextCheckInterval);
@@ -1855,7 +1967,7 @@ function startSaveModalMonitoring() {
     if (saveModalHandled) {
       debugLog(
         "Save modal detected and handled by background monitor",
-        logCallLocation()
+        new Error().stack.replace(/Error/g, '')
       );
     }
   }, 3000);
@@ -1869,88 +1981,94 @@ function stopSaveModalMonitoring() {
 }
 
 window.addEventListener("load", function () {
-  chrome.storage.local.get(
-    ["shouldRestartScript", "loopRestartUrl"],
-    ({ shouldRestartScript, loopRestartUrl }) => {
-      try {
-        if (shouldRestartScript && loopRestartUrl) {
-          debugLogInfo(
-            "Window load event triggered - script restart conditions met",
-            {
-              url: window.location.href,
-            },
-            logCallLocation()
-          );
+  if (!isExtensionContextValidQuiet()) {
+    return;
+  }
 
-          const currentUrl = new URL(window.location.href);
-          const savedUrl = new URL(loopRestartUrl);
-
-          const isJobSearchPage = currentUrl.pathname.includes("/jobs/search/");
-          const hasKeywords =
-            currentUrl.searchParams.has("keywords") ||
-            savedUrl.searchParams.has("keywords");
-          const isStartPage =
-            currentUrl.searchParams.get("start") === "1" ||
-            !currentUrl.searchParams.has("start");
-
-          if (isJobSearchPage && hasKeywords && isStartPage) {
-            debugLogInfo(
-              "Window load: conditions met, restarting script",
-              null,
-              logCallLocation()
-            );
-            chrome.storage.local.remove([
-              "loopRestartUrl",
-              "shouldRestartScript",
-            ]);
-            setTimeout(() => {
-              startScript();
-              startExtensionContextMonitoring();
-              runScript();
-            }, 3000);
-          } else if (currentUrl.href.includes("JOBS_HOME_JYMBII")) {
-            setTimeout(() => {
-              window.location.href = loopRestartUrl;
-            }, 2000);
-          } else {
-            chrome.storage.local.remove([
-              "loopRestartUrl",
-              "shouldRestartScript",
-            ]);
-            chrome.storage.local.set({ autoApplyRunning: false });
+  try {
+    chrome.storage.local.get(
+      ["shouldRestartScript", "loopRestartUrl"],
+      ({ shouldRestartScript, loopRestartUrl }) => {
+        try {
+          if (!isExtensionContextValidQuiet()) {
+            return;
           }
-        } else {
-          chrome.storage.local.set({ autoApplyRunning: false });
+
+          if (shouldRestartScript && loopRestartUrl) {
+            debugLogInfo(
+              "Window load event triggered - script restart conditions met",
+              {
+                url: window.location.href,
+              },
+              new Error().stack.replace(/Error/g, '')
+            );
+
+            const currentUrl = new URL(window.location.href);
+            const savedUrl = new URL(loopRestartUrl);
+
+            const isJobSearchPage =
+              currentUrl.pathname.includes("/jobs/search/");
+            const hasKeywords =
+              currentUrl.searchParams.has("keywords") ||
+              savedUrl.searchParams.has("keywords");
+            const isStartPage =
+              currentUrl.searchParams.get("start") === "1" ||
+              !currentUrl.searchParams.has("start");
+
+            if (isJobSearchPage && hasKeywords && isStartPage) {
+              debugLogInfo(
+                "Window load: conditions met, restarting script",
+                null,
+                new Error().stack.replace(/Error/g, '')
+              );
+
+              if (isExtensionContextValidQuiet()) {
+                chrome.storage.local.remove([
+                  "loopRestartUrl",
+                  "shouldRestartScript",
+                ]);
+              }
+
+              setTimeout(() => {
+                startScript();
+                startExtensionContextMonitoring();
+                runScript();
+              }, 3000);
+            } else if (currentUrl.href.includes("JOBS_HOME_JYMBII")) {
+              setTimeout(() => {
+                window.location.href = loopRestartUrl;
+              }, 2000);
+            } else {
+              if (isExtensionContextValidQuiet()) {
+                chrome.storage.local.remove([
+                  "loopRestartUrl",
+                  "shouldRestartScript",
+                ]);
+              }
+              setAutoApplyRunningSilent(false);
+            }
+          } else {
+            setAutoApplyRunningSilent(false);
+          }
+        } catch (error) {
+          if (isExtensionContextValidQuiet()) {
+            debugLogError(
+              "Window load: error during processing",
+              error,
+              new Error().stack.replace(/Error/g, '')
+            );
+          }
         }
-      } catch (error) {
-        debugLogError(
-          "Window load: error during processing",
-          error,
-          logCallLocation()
-        );
       }
-    }
-  );
+    );
+  } catch (error) {}
 });
 
 try {
   window.addEventListener("beforeunload", function () {
-    chrome.storage.local.get("autoApplyRunning", (result) => {
-      if (result?.autoApplyRunning) {
-        debugLogInfo(
-          "Window beforeunload event triggered - script was running",
-          null,
-          logCallLocation()
-        );
-      }
-    });
-    stopExtensionContextMonitoring();
-    chrome.storage.local.set({ autoApplyRunning: false });
+    try {
+      stopExtensionContextMonitoring();
+      setAutoApplyRunningSilent(false);
+    } catch (error) {}
   });
-} catch (error) {
-  debugLogError(
-    "Error setting beforeunload listener",
-    error,
-    logCallLocation()
-  );
-}
+} catch (error) {}
