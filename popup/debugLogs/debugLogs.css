@@ -205,6 +205,16 @@ body {
   background: #fffdf0;
 }
 
+.log-entry.recovery {
+  border-left-color: #20c997;
+  background: #f0fff8;
+}
+
+.log-entry.context {
+  border-left-color: #9966cc;
+  background: #f9f5ff;
+}
+
 .log-entry.info {
   border-left-color: #6c757d;
   background: #f8f9fa;
@@ -273,6 +283,16 @@ body {
 .log-type.jobs {
   background: #ffc107;
   color: #212529;
+}
+
+.log-type.recovery {
+  background: #20c997;
+  color: white;
+}
+
+.log-type.context {
+  background: #9966cc;
+  color: white;
 }
 
 .log-type.info {

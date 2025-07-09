@@ -7,7 +7,6 @@ let defaultFields = {
   PhoneNumber: "",
 };
 
-
 let prevSearchValue = "";
 
 function debugLog(message, data = null, forceLog = false, callerInfo) {
@@ -155,8 +154,6 @@ function isExtensionContextValidQuiet() {
     }
 
     return !(!chrome.runtime.sendMessage || !chrome.storage.local);
-
-    
   } catch (error) {
     return false;
   }
@@ -188,6 +185,97 @@ function setAutoApplyRunningSilent(value) {
   } catch (error) {}
 }
 
+async function updateScriptActivity() {
+  try {
+    if (isExtensionContextValidQuiet()) {
+      await chrome.storage.local.set({ lastScriptActivity: Date.now() });
+    }
+  } catch (error) {
+    debugLog("Failed to update script activity timestamp", error, false);
+  }
+}
+
+async function attemptScriptRecovery() {
+  try {
+    debugLogInfo(
+      "Attempting script recovery after unexpected stop",
+      { timestamp: new Date().toISOString() },
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
+    );
+
+    const storage = await chrome.storage.local.get([
+      "autoApplyRunning",
+      "lastScriptActivity",
+      "shouldRestartScript",
+      "loopRestartUrl",
+    ]);
+
+    const now = Date.now();
+    const timeSinceLastActivity = now - (storage.lastScriptActivity || 0);
+    const isOnJobSearchPage = window.location.href.includes("/jobs/search/");
+
+    if (
+      timeSinceLastActivity < 60000 &&
+      isOnJobSearchPage &&
+      storage.shouldRestartScript
+    ) {
+      debugLogInfo(
+        "Recovery conditions met - restarting script",
+        {
+          timeSinceLastActivity,
+          isOnJobSearchPage,
+          shouldRestart: storage.shouldRestartScript,
+        },
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
+      );
+
+      await chrome.storage.local.remove([
+        "shouldRestartScript",
+        "loopRestartUrl",
+      ]);
+
+      setTimeout(async () => {
+        const started = await startScript();
+        if (started) {
+          runScript();
+        }
+      }, 2000);
+
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    debugLogError(
+      "Error during script recovery attempt",
+      error,
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
+    );
+    return false;
+  }
+}
+
 async function setAutoApplyRunning(value, reason = "Unknown") {
   if (!isExtensionContextValidQuiet()) {
     return;
@@ -198,7 +286,10 @@ async function setAutoApplyRunning(value, reason = "Unknown") {
       return;
     }
 
-    await chrome.storage.local.set({ autoApplyRunning: value });
+    await chrome.storage.local.set({
+      autoApplyRunning: value,
+      lastScriptActivity: Date.now(),
+    });
 
     if (!isExtensionContextValidQuiet()) {
       return;
@@ -210,15 +301,30 @@ async function setAutoApplyRunning(value, reason = "Unknown") {
         reason: reason,
         timestamp: new Date().toISOString(),
         newValue: value,
+        lastActivity: Date.now(),
       },
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
   } catch (error) {
     if (isExtensionContextValidQuiet()) {
       debugLogError(
         `Failed to set autoApplyRunning to ${value}`,
         error,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
     }
   }
@@ -231,7 +337,14 @@ async function stopScript() {
       reason: "Manual stop or error",
       timestamp: new Date().toISOString(),
     },
-    Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+    Array.from(
+      new Set(
+        new Error().stack
+          .replace(/Error/g, "")
+          .match(/^\s*at.*$/gm)
+          .map((i) => i.trim())
+      )
+    ).join("\n")
   );
 
   stopExtensionContextMonitoring();
@@ -249,7 +362,14 @@ async function stopScript() {
       debugLogError(
         "Chrome tabs API not available in stopScript",
         null,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
       prevSearchValue = "";
       return;
@@ -266,7 +386,14 @@ async function stopScript() {
     debugLogError(
       "Error in stopScript",
       error,
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
   }
   prevSearchValue = "";
@@ -277,7 +404,14 @@ async function startScript() {
     debugLogError(
       "Extension context invalid in startScript, cannot start",
       null,
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
     return false;
   }
@@ -293,32 +427,102 @@ async function startScript() {
     debugLogError(
       "Error in startScript",
       error,
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
     return false;
   }
 }
 
 async function checkAndPrepareRunState() {
-  return new Promise((resolve) => {
-    chrome.storage.local.get("autoApplyRunning", (result) => {
+  return new Promise(async (resolve) => {
+    try {
+      const result = await chrome.storage.local.get("autoApplyRunning");
       const isRunning = result && result.autoApplyRunning;
+
       if (isRunning) {
         resolve(true);
       } else {
-        debugLogCritical(
-          "checkAndPrepareRunState: script not running, stopping process",
-          {
-            calledFrom: Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n"),
-            storageResult: result,
-            timestamp: new Date().toISOString(),
-          },
-          Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        const lastActivity = await chrome.storage.local.get(
+          "lastScriptActivity"
         );
-        resolve(false);
-        prevSearchValue = "";
+        const now = Date.now();
+        const timeSinceLastActivity =
+          now - (lastActivity?.lastScriptActivity || 0);
+
+        if (timeSinceLastActivity < 30000) {
+          debugLogInfo(
+            "checkAndPrepareRunState: script was recently active, attempting auto-recovery",
+            {
+              timeSinceLastActivity,
+              attempting: "auto-recovery",
+              storageResult: result,
+              timestamp: new Date().toISOString(),
+            },
+            Array.from(
+              new Set(
+                new Error().stack
+                  .replace(/Error/g, "")
+                  .match(/^\s*at.*$/gm)
+                  .map((i) => i.trim())
+              )
+            ).join("\n")
+          );
+
+          await setAutoApplyRunning(true, "auto-recovery from recent activity");
+          resolve(true);
+        } else {
+          debugLogCritical(
+            "checkAndPrepareRunState: script not running, stopping process",
+            {
+              calledFrom: Array.from(
+                new Set(
+                  new Error().stack
+                    .replace(/Error/g, "")
+                    .match(/^\s*at.*$/gm)
+                    .map((i) => i.trim())
+                )
+              ).join("\n"),
+              storageResult: result,
+              timeSinceLastActivity,
+              timestamp: new Date().toISOString(),
+              url: window.location.href,
+              readyState: document.readyState,
+            },
+            Array.from(
+              new Set(
+                new Error().stack
+                  .replace(/Error/g, "")
+                  .match(/^\s*at.*$/gm)
+                  .map((i) => i.trim())
+              )
+            ).join("\n")
+          );
+          resolve(false);
+          prevSearchValue = "";
+        }
       }
-    });
+    } catch (error) {
+      debugLogError(
+        "checkAndPrepareRunState: error during state check",
+        error,
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
+      );
+      resolve(false);
+    }
   });
 }
 
@@ -365,12 +569,21 @@ async function clickDoneIfExist() {
 async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
   return new Promise(async (resolve) => {
     try {
+      await updateScriptActivity();
+
       const isRunning = await checkAndPrepareRunState();
       if (!isRunning) {
         debugLogCritical(
           "clickJob: script not running, aborting job processing",
           null,
-          Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+          Array.from(
+            new Set(
+              new Error().stack
+                .replace(/Error/g, "")
+                .match(/^\s*at.*$/gm)
+                .map((i) => i.trim())
+            )
+          ).join("\n")
         );
         resolve(null);
         return;
@@ -402,7 +615,14 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
               debugLogInfo(
                 `clickJob: found bad word "${matchedBadWord}", skipping job`,
                 null,
-                Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+                Array.from(
+                  new Set(
+                    new Error().stack
+                      .replace(/Error/g, "")
+                      .match(/^\s*at.*$/gm)
+                      .map((i) => i.trim())
+                  )
+                ).join("\n")
               );
               resolve(null);
               return;
@@ -417,7 +637,14 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
       debugLogError(
         "Error in clickJob",
         error,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
       resolve(null);
     }
@@ -792,7 +1019,14 @@ async function validateAndCloseConfirmationModal() {
       debugLogError(
         "Save application modal found but no buttons to close it",
         null,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
     }
   }
@@ -814,7 +1048,14 @@ async function handleSaveApplicationModal() {
         "Save application modal detected and handling",
         null,
         false,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
 
       const discardButton = saveModal.querySelector(
@@ -833,7 +1074,14 @@ async function handleSaveApplicationModal() {
         debugLogError(
           "No discard button found, using dismiss as fallback",
           null,
-          Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+          Array.from(
+            new Set(
+              new Error().stack
+                .replace(/Error/g, "")
+                .match(/^\s*at.*$/gm)
+                .map((i) => i.trim())
+            )
+          ).join("\n")
         );
         dismissButton.click();
         await addDelay(1000);
@@ -843,7 +1091,14 @@ async function handleSaveApplicationModal() {
       debugLogError(
         "Save application modal found but no way to close it",
         null,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
     }
   }
@@ -928,7 +1183,14 @@ async function terminateJobModel(context = document) {
     debugLogError(
       "terminateJobModel: no dismiss button found",
       null,
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
   }
 }
@@ -1036,7 +1298,14 @@ async function runApplyModel() {
                 "Save application modal handled after submit",
                 null,
                 false,
-                Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+                Array.from(
+                  new Set(
+                    new Error().stack
+                      .replace(/Error/g, "")
+                      .match(/^\s*at.*$/gm)
+                      .map((i) => i.trim())
+                  )
+                ).join("\n")
               );
             }
 
@@ -1065,7 +1334,14 @@ async function runApplyModel() {
               debugLogError(
                 "Form validation error detected, terminating job modal",
                 null,
-                Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+                Array.from(
+                  new Set(
+                    new Error().stack
+                      .replace(/Error/g, "")
+                      .match(/^\s*at.*$/gm)
+                      .map((i) => i.trim())
+                  )
+                ).join("\n")
               );
               await terminateJobModel();
             } else {
@@ -1080,7 +1356,14 @@ async function runApplyModel() {
                   "Save application modal handled after next/review",
                   null,
                   false,
-                  Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+                  Array.from(
+                    new Set(
+                      new Error().stack
+                        .replace(/Error/g, "")
+                        .match(/^\s*at.*$/gm)
+                        .map((i) => i.trim())
+                    )
+                  ).join("\n")
                 );
               }
 
@@ -1142,7 +1425,14 @@ async function runApplyModel() {
     debugLogError(
       "runApplyModel critical error",
       error,
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
   }
 }
@@ -1167,7 +1457,14 @@ async function runFindEasyApply(jobTitle, companyName) {
           debugLogInfo(
             `Already applied to job: ${jobTitle} at ${companyName}`,
             null,
-            Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+            Array.from(
+              new Set(
+                new Error().stack
+                  .replace(/Error/g, "")
+                  .match(/^\s*at.*$/gm)
+                  .map((i) => i.trim())
+              )
+            ).join("\n")
           );
           resolve(null);
           return;
@@ -1180,7 +1477,14 @@ async function runFindEasyApply(jobTitle, companyName) {
         debugLogError(
           "Extension context invalidated in runFindEasyApply",
           null,
-          Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+          Array.from(
+            new Set(
+              new Error().stack
+                .replace(/Error/g, "")
+                .match(/^\s*at.*$/gm)
+                .map((i) => i.trim())
+            )
+          ).join("\n")
         );
         resolve(null);
         return;
@@ -1226,7 +1530,14 @@ async function runFindEasyApply(jobTitle, companyName) {
       debugLogError(
         "Error in runFindEasyApply",
         error,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
       resolve(null);
     }
@@ -1339,7 +1650,14 @@ async function handleLoopRestart() {
   debugLogInfo(
     "handleLoopRestart called",
     null,
-    Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+    Array.from(
+      new Set(
+        new Error().stack
+          .replace(/Error/g, "")
+          .match(/^\s*at.*$/gm)
+          .map((i) => i.trim())
+      )
+    ).join("\n")
   );
   try {
     const { lastJobSearchUrl, loopRunningDelay } =
@@ -1375,20 +1693,27 @@ async function handleLoopRestart() {
     const newUrl = `${url.origin}${
       url.pathname
     }?${baseSearchParams.toString()}`;
-    
+
     if (chrome.runtime?.id) {
       await chrome.storage.local.set({
         loopRestartUrl: newUrl,
         shouldRestartScript: true,
       });
     }
-    
+
     window.location.href = newUrl;
   } catch (error) {
     debugLogError(
       "Error in handleLoopRestart",
       error,
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
     void stopScript();
   }
@@ -1439,7 +1764,14 @@ async function goToNextPage() {
       debugLogError(
         "goToNextPage waitForElements error",
         error,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
     }
 
@@ -1473,7 +1805,14 @@ async function goToNextPage() {
     debugLogError(
       "Error navigating to next page",
       error,
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
     isNavigating = false;
     return false;
@@ -1484,7 +1823,14 @@ async function runScript() {
   debugLogInfo(
     "runScript STARTED",
     { url: window.location.href, readyState: document.readyState },
-    Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+    Array.from(
+      new Set(
+        new Error().stack
+          .replace(/Error/g, "")
+          .match(/^\s*at.*$/gm)
+          .map((i) => i.trim())
+      )
+    ).join("\n")
   );
 
   try {
@@ -1494,7 +1840,14 @@ async function runScript() {
       debugLogError(
         "runScript: extension context invalid at start, stopping",
         null,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
       return;
     }
@@ -1513,7 +1866,14 @@ async function runScript() {
       debugLogError(
         "runScript: failed to start script, stopping",
         null,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
       return;
     }
@@ -1525,7 +1885,14 @@ async function runScript() {
       debugLogCritical(
         "runScript: state check failed, script not running",
         null,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
       return;
     }
@@ -1534,7 +1901,14 @@ async function runScript() {
       debugLogError(
         "runScript: extension context invalid after state check, stopping",
         null,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
       return;
     }
@@ -1546,7 +1920,14 @@ async function runScript() {
       debugLogCritical(
         "runScript: default fields not configured, opening config page",
         null,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
       await chrome.runtime.sendMessage({ action: "openDefaultInputPage" });
       return;
@@ -1557,7 +1938,14 @@ async function runScript() {
       debugLogCritical(
         "runScript: daily application limit reached, stopping",
         null,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
       const feedbackMessageElement = document.querySelector(
         ".artdeco-inline-feedback__message"
@@ -1588,7 +1976,14 @@ async function runScript() {
       `Processing ${listItems.length} job list items`,
       null,
       false,
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
 
     for (let i = 0; i < listItems.length; i++) {
@@ -1598,7 +1993,14 @@ async function runScript() {
         debugLogError(
           "Extension context lost during job processing",
           null,
-          Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+          Array.from(
+            new Set(
+              new Error().stack
+                .replace(/Error/g, "")
+                .match(/^\s*at.*$/gm)
+                .map((i) => i.trim())
+            )
+          ).join("\n")
         );
         return;
       }
@@ -1623,7 +2025,14 @@ async function runScript() {
         debugLog(
           "Save application modal handled before job processing",
           null,
-          Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+          Array.from(
+            new Set(
+              new Error().stack
+                .replace(/Error/g, "")
+                .match(/^\s*at.*$/gm)
+                .map((i) => i.trim())
+            )
+          ).join("\n")
         );
       }
 
@@ -1692,7 +2101,14 @@ async function runScript() {
           debugLogError(
             "Error clicking job link",
             error,
-            Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+            Array.from(
+              new Set(
+                new Error().stack
+                  .replace(/Error/g, "")
+                  .match(/^\s*at.*$/gm)
+                  .map((i) => i.trim())
+              )
+            ).join("\n")
           );
         }
       }
@@ -1709,7 +2125,14 @@ async function runScript() {
         debugLogError(
           "Failed to find main job content",
           e,
-          Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+          Array.from(
+            new Set(
+              new Error().stack
+                .replace(/Error/g, "")
+                .match(/^\s*at.*$/gm)
+                .map((i) => i.trim())
+            )
+          ).join("\n")
         );
       }
 
@@ -1727,7 +2150,14 @@ async function runScript() {
             "Save application modal handled after job processing",
             null,
             false,
-            Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+            Array.from(
+              new Set(
+                new Error().stack
+                  .replace(/Error/g, "")
+                  .match(/^\s*at.*$/gm)
+                  .map((i) => i.trim())
+              )
+            ).join("\n")
           );
         }
       }
@@ -1742,7 +2172,14 @@ async function runScript() {
     debugLogError(
       "Critical error in runScript",
       { error: error?.message, stack: error?.stack },
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
     console.trace(message);
     await stopScript();
@@ -1751,7 +2188,14 @@ async function runScript() {
   debugLogInfo(
     "runScript ENDED",
     null,
-    Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+    Array.from(
+      new Set(
+        new Error().stack
+          .replace(/Error/g, "")
+          .match(/^\s*at.*$/gm)
+          .map((i) => i.trim())
+      )
+    ).join("\n")
   );
 }
 
@@ -1861,7 +2305,14 @@ window.addEventListener("error", function (event) {
         lineno: event.lineno,
         stack: event.error?.stack,
       },
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
   }
 
@@ -1881,12 +2332,19 @@ window.addEventListener("error", function (event) {
 
 function isExtensionContextValid() {
   try {
-    return !!(chrome?.runtime?.id);
+    return !!chrome?.runtime?.id;
   } catch (error) {
     debugLogError(
       "Extension context check failed",
       error,
-      Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
     );
     return false;
   }
@@ -1897,21 +2355,73 @@ let saveModalCheckInterval;
 
 function startExtensionContextMonitoring() {
   debugLogInfo(
-    "Starting extension context monitoring",
+    "Starting enhanced extension context monitoring",
     null,
-    Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+    Array.from(
+      new Set(
+        new Error().stack
+          .replace(/Error/g, "")
+          .match(/^\s*at.*$/gm)
+          .map((i) => i.trim())
+      )
+    ).join("\n")
   );
-  extensionContextCheckInterval = setInterval(() => {
-    if (!isExtensionContextValid()) {
+
+  let contextLossCount = 0;
+
+  extensionContextCheckInterval = setInterval(async () => {
+    try {
+      if (!isExtensionContextValid()) {
+        contextLossCount++;
+
+        if (contextLossCount >= 3) {
+          debugLogCritical(
+            "Extension context lost permanently after multiple checks",
+            { contextLossCount, attempts: 3 },
+            Array.from(
+              new Set(
+                new Error().stack
+                  .replace(/Error/g, "")
+                  .match(/^\s*at.*$/gm)
+                  .map((i) => i.trim())
+              )
+            ).join("\n")
+          );
+          void stopScript();
+          clearInterval(extensionContextCheckInterval);
+        } else {
+          debugLogInfo(
+            `Extension context check failed (attempt ${contextLossCount}/3)`,
+            { contextLossCount },
+            Array.from(
+              new Set(
+                new Error().stack
+                  .replace(/Error/g, "")
+                  .match(/^\s*at.*$/gm)
+                  .map((i) => i.trim())
+              )
+            ).join("\n")
+          );
+        }
+      } else {
+        contextLossCount = 0;
+        await updateScriptActivity();
+      }
+    } catch (error) {
       debugLogError(
-        "Extension context lost during monitoring",
-        null,
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        "Error during extension context monitoring",
+        error,
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
-      void stopScript();
-      clearInterval(extensionContextCheckInterval);
     }
-  }, 5000);
+  }, 10000);
 
   startSaveModalMonitoring();
 }
@@ -1920,7 +2430,14 @@ function stopExtensionContextMonitoring() {
   debugLogInfo(
     "Stopping extension context monitoring",
     null,
-    Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+    Array.from(
+      new Set(
+        new Error().stack
+          .replace(/Error/g, "")
+          .match(/^\s*at.*$/gm)
+          .map((i) => i.trim())
+      )
+    ).join("\n")
   );
   if (extensionContextCheckInterval) {
     clearInterval(extensionContextCheckInterval);
@@ -1936,7 +2453,14 @@ function startSaveModalMonitoring() {
     if (saveModalHandled) {
       debugLog(
         "Save modal detected and handled by background monitor",
-        Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
       );
     }
   }, 3000);
@@ -1969,7 +2493,14 @@ window.addEventListener("load", function () {
               {
                 url: window.location.href,
               },
-              Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+              Array.from(
+                new Set(
+                  new Error().stack
+                    .replace(/Error/g, "")
+                    .match(/^\s*at.*$/gm)
+                    .map((i) => i.trim())
+                )
+              ).join("\n")
             );
 
             const currentUrl = new URL(window.location.href);
@@ -1988,7 +2519,14 @@ window.addEventListener("load", function () {
               debugLogInfo(
                 "Window load: conditions met, restarting script",
                 null,
-                Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+                Array.from(
+                  new Set(
+                    new Error().stack
+                      .replace(/Error/g, "")
+                      .match(/^\s*at.*$/gm)
+                      .map((i) => i.trim())
+                  )
+                ).join("\n")
               );
 
               if (isExtensionContextValidQuiet()) {
@@ -2017,14 +2555,41 @@ window.addEventListener("load", function () {
               setAutoApplyRunningSilent(false);
             }
           } else {
-            setAutoApplyRunningSilent(false);
+            attemptScriptRecovery()
+              .then((recovered) => {
+                if (!recovered) {
+                  setAutoApplyRunningSilent(false);
+                }
+              })
+              .catch((error) => {
+                debugLogError(
+                  "Error during script recovery",
+                  error,
+                  Array.from(
+                    new Set(
+                      new Error().stack
+                        .replace(/Error/g, "")
+                        .match(/^\s*at.*$/gm)
+                        .map((i) => i.trim())
+                    )
+                  ).join("\n")
+                );
+                setAutoApplyRunningSilent(false);
+              });
           }
         } catch (error) {
           if (isExtensionContextValidQuiet()) {
             debugLogError(
               "Window load: error during processing",
               error,
-              Array.from(new Set(new Error().stack.replace(/Error/g, "").match(/^\s*at.*$/gm).map(i => i.trim()))).join("\n")
+              Array.from(
+                new Set(
+                  new Error().stack
+                    .replace(/Error/g, "")
+                    .match(/^\s*at.*$/gm)
+                    .map((i) => i.trim())
+                )
+              ).join("\n")
             );
           }
         }
@@ -2036,8 +2601,45 @@ window.addEventListener("load", function () {
 try {
   window.addEventListener("beforeunload", function () {
     try {
+      debugLogInfo(
+        "Page beforeunload detected - preserving script state",
+        {
+          url: window.location.href,
+          reason: "page_navigation",
+        },
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
+      );
+
+      chrome.storage.local.get("autoApplyRunning", (result) => {
+        if (result?.autoApplyRunning) {
+          chrome.storage.local.set({
+            shouldRestartScript: true,
+            loopRestartUrl: window.location.href,
+          });
+        }
+      });
+
       stopExtensionContextMonitoring();
-      setAutoApplyRunningSilent(false);
-    } catch (error) {}
+    } catch (error) {
+      debugLogError(
+        "Error in beforeunload handler",
+        error,
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
+      );
+    }
   });
 } catch (error) {}

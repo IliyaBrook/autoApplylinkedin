@@ -45,6 +45,8 @@ function setupEventListeners() {
     { key: "script", label: "Script" },
     { key: "navigation", label: "Navigation" },
     { key: "job", label: "Jobs" },
+    { key: "recovery", label: "Recovery" },
+    { key: "context", label: "Context" },
   ];
 
   filters.forEach((filter) => {
@@ -85,6 +87,8 @@ function getFilterIndex(filterKey) {
     "script",
     "navigation",
     "job",
+    "recovery",
+    "context",
   ];
   return filters.indexOf(filterKey);
 }
@@ -244,6 +248,20 @@ function filterLogs() {
             log.message.includes("runFindEasyApply") ||
             log.message.includes("Processing ");
           break;
+        case "recovery":
+          matchesCategory =
+            log.message.includes("recovery") ||
+            log.message.includes("auto-recovery") ||
+            log.message.includes("attemptScriptRecovery") ||
+            log.message.includes("Recovery conditions");
+          break;
+        case "context":
+          matchesCategory =
+            log.message.includes("Extension context") ||
+            log.message.includes("context monitoring") ||
+            log.message.includes("beforeunload") ||
+            log.message.includes("context check");
+          break;
       }
     }
 
@@ -327,6 +345,17 @@ function getLogType(log) {
     return "BACKGROUND";
   if (log.source === "popup" || log.message.includes("[POPUP]")) return "POPUP";
   if (
+    log.message.toLowerCase().includes("recovery") ||
+    log.message.toLowerCase().includes("auto-recovery")
+  )
+    return "RECOVERY";
+  if (
+    log.message.toLowerCase().includes("extension context") ||
+    log.message.toLowerCase().includes("context monitoring") ||
+    log.message.toLowerCase().includes("beforeunload")
+  )
+    return "CONTEXT";
+  if (
     log.message.toLowerCase().includes("script") ||
     log.message.toLowerCase().includes("runscript")
   )
@@ -357,6 +386,10 @@ function getLogClass(log) {
       return "background";
     case "POPUP":
       return "popup";
+    case "RECOVERY":
+      return "recovery";
+    case "CONTEXT":
+      return "context";
     case "SCRIPT":
       return "script";
     case "NAVIGATION":
