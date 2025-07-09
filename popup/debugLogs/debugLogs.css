@@ -215,6 +215,11 @@ body {
   background: #f9f5ff;
 }
 
+.log-entry.checkbox {
+  border-left-color: #e91e63;
+  background: #fef7f3;
+}
+
 .log-entry.info {
   border-left-color: #6c757d;
   background: #f8f9fa;
@@ -292,6 +297,11 @@ body {
 
 .log-type.context {
   background: #9966cc;
+  color: white;
+}
+
+.log-type.checkbox {
+  background: #e91e63;
   color: white;
 }
 

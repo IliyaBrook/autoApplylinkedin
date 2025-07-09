@@ -47,6 +47,7 @@ function setupEventListeners() {
     { key: "job", label: "Jobs" },
     { key: "recovery", label: "Recovery" },
     { key: "context", label: "Context" },
+    { key: "checkbox", label: "Checkboxes" },
   ];
 
   filters.forEach((filter) => {
@@ -89,6 +90,7 @@ function getFilterIndex(filterKey) {
     "job",
     "recovery",
     "context",
+    "checkbox",
   ];
   return filters.indexOf(filterKey);
 }
@@ -262,6 +264,16 @@ function filterLogs() {
             log.message.includes("beforeunload") ||
             log.message.includes("context check");
           break;
+        case "checkbox":
+          matchesCategory =
+            log.message.includes("checkbox") ||
+            log.message.includes("Checkbox") ||
+            log.message.includes("Processing checkbox") ||
+            (log.message.includes("Found") &&
+              log.message.includes("checkboxes")) ||
+            log.data?.action === "checkbox_checked" ||
+            log.data?.action === "checkbox_skipped";
+          break;
       }
     }
 
@@ -370,6 +382,12 @@ function getLogType(log) {
     log.message.toLowerCase().includes("apply")
   )
     return "JOBS";
+  if (
+    log.message.toLowerCase().includes("checkbox") ||
+    log.data?.action === "checkbox_checked" ||
+    log.data?.action === "checkbox_skipped"
+  )
+    return "CHECKBOX";
   return "DEBUG";
 }
 
@@ -396,6 +414,8 @@ function getLogClass(log) {
       return "navigation";
     case "JOBS":
       return "job";
+    case "CHECKBOX":
+      return "checkbox";
     case "DEBUG":
       return "debug";
     default:

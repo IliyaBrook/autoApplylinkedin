@@ -440,7 +440,7 @@ async function startScript() {
   }
 }
 
-async function checkAndPrepareRunState() {
+async function checkAndPrepareRunState(allowAutoRecovery = false) {
   return new Promise(async (resolve) => {
     try {
       const result = await chrome.storage.local.get("autoApplyRunning");
@@ -449,64 +449,70 @@ async function checkAndPrepareRunState() {
       if (isRunning) {
         resolve(true);
       } else {
-        const lastActivity = await chrome.storage.local.get(
-          "lastScriptActivity"
-        );
-        const now = Date.now();
-        const timeSinceLastActivity =
-          now - (lastActivity?.lastScriptActivity || 0);
-
-        if (timeSinceLastActivity < 30000) {
-          debugLogInfo(
-            "checkAndPrepareRunState: script was recently active, attempting auto-recovery",
-            {
-              timeSinceLastActivity,
-              attempting: "auto-recovery",
-              storageResult: result,
-              timestamp: new Date().toISOString(),
-            },
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
+        if (allowAutoRecovery) {
+          const lastActivity = await chrome.storage.local.get(
+            "lastScriptActivity"
           );
+          const now = Date.now();
+          const timeSinceLastActivity =
+            now - (lastActivity?.lastScriptActivity || 0);
 
-          await setAutoApplyRunning(true, "auto-recovery from recent activity");
-          resolve(true);
-        } else {
-          debugLogCritical(
-            "checkAndPrepareRunState: script not running, stopping process",
-            {
-              calledFrom: Array.from(
+          if (timeSinceLastActivity < 30000) {
+            debugLogInfo(
+              "checkAndPrepareRunState: script was recently active, attempting auto-recovery",
+              {
+                timeSinceLastActivity,
+                attempting: "auto-recovery",
+                storageResult: result,
+                timestamp: new Date().toISOString(),
+              },
+              Array.from(
                 new Set(
                   new Error().stack
                     .replace(/Error/g, "")
                     .match(/^\s*at.*$/gm)
                     .map((i) => i.trim())
                 )
-              ).join("\n"),
-              storageResult: result,
-              timeSinceLastActivity,
-              timestamp: new Date().toISOString(),
-              url: window.location.href,
-              readyState: document.readyState,
-            },
-            Array.from(
+              ).join("\n")
+            );
+
+            await setAutoApplyRunning(
+              true,
+              "auto-recovery from recent activity"
+            );
+            resolve(true);
+            return;
+          }
+        }
+
+        debugLogCritical(
+          "checkAndPrepareRunState: script not running, stopping process",
+          {
+            calledFrom: Array.from(
               new Set(
                 new Error().stack
                   .replace(/Error/g, "")
                   .match(/^\s*at.*$/gm)
                   .map((i) => i.trim())
               )
-            ).join("\n")
-          );
-          resolve(false);
-          prevSearchValue = "";
-        }
+            ).join("\n"),
+            storageResult: result,
+            allowAutoRecovery,
+            timestamp: new Date().toISOString(),
+            url: window.location.href,
+            readyState: document.readyState,
+          },
+          Array.from(
+            new Set(
+              new Error().stack
+                .replace(/Error/g, "")
+                .match(/^\s*at.*$/gm)
+                .map((i) => i.trim())
+            )
+          ).join("\n")
+        );
+        resolve(false);
+        prevSearchValue = "";
       }
     } catch (error) {
       debugLogError(
@@ -651,37 +657,267 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
   });
 }
 
-async function performInputFieldChecks() {
+async function handleCheckboxField(inputField, labelText, jobUrl, jobTitle) {
+  try {
+    const checkboxLabel = labelText.toLowerCase();
+
+    // Ключевые слова для автоматического согласия с условиями
+    const agreementKeywords = [
+      "terms",
+      "conditions",
+      "agree",
+      "i agree",
+      "terms & conditions",
+      "terms and conditions",
+      "privacy policy",
+      "accept",
+      "consent",
+      "acknowledge",
+      "confirm",
+      "verified",
+    ];
+
+    const shouldCheck = agreementKeywords.some(
+      (keyword) =>
+        checkboxLabel.includes(keyword) ||
+        checkboxLabel.includes(keyword.replace("&", "and"))
+    );
+
+    debugLogInfo(
+      `Processing checkbox: "${labelText}"`,
+      {
+        jobUrl,
+        jobTitle,
+        checkboxLabel: labelText,
+        shouldCheck,
+        matchedKeywords: agreementKeywords.filter(
+          (keyword) =>
+            checkboxLabel.includes(keyword) ||
+            checkboxLabel.includes(keyword.replace("&", "and"))
+        ),
+        inputId: inputField.id,
+        currentlyChecked: inputField.checked,
+      },
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
+    );
+
+    if (shouldCheck && !inputField.checked) {
+      // Прокручиваем к элементу и добавляем задержку для надежности
+      inputField.scrollIntoView({ behavior: "smooth", block: "center" });
+      await addDelay(200);
+
+      inputField.checked = true;
+      inputField.dispatchEvent(new Event("change", { bubbles: true }));
+      inputField.dispatchEvent(new Event("click", { bubbles: true }));
+
+      await addDelay(300); // Дополнительная задержка после изменения состояния
+
+      debugLogInfo(
+        `Checkbox checked automatically: "${labelText}"`,
+        {
+          jobUrl,
+          jobTitle,
+          checkboxLabel: labelText,
+          action: "checkbox_checked",
+        },
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
+      );
+    } else if (!shouldCheck) {
+      debugLogInfo(
+        `Checkbox skipped (no matching keywords): "${labelText}"`,
+        {
+          jobUrl,
+          jobTitle,
+          checkboxLabel: labelText,
+          action: "checkbox_skipped",
+        },
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
+      );
+    }
+  } catch (error) {
+    debugLogError(
+      `Error handling checkbox: "${labelText}"`,
+      error,
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
+    );
+  }
+}
+
+async function performInputFieldChecks(context = document) {
   try {
     const result = await new Promise((resolve) => {
       chrome.runtime.sendMessage({ action: "getInputFieldConfig" }, resolve);
     });
-    const questionContainers = document.querySelectorAll(
-      ".fb-dash-form-element"
-    );
-    for (const container of questionContainers) {
-      let label = container.querySelector(".artdeco-text-input--label");
-      if (!label) {
-        label = getElementsByXPath({
-          context: container,
-          xpath: ".//label",
-        })?.[0];
-      }
-      const inputField = container.querySelector(
-        'input:not([type="hidden"]), textarea'
-      );
 
-      if (!label || !inputField) {
+    // Получаем URL текущей вакансии для логирования
+    const jobUrl = window.location.href;
+    const jobTitle =
+      document.querySelector("[data-job-title]")?.textContent?.trim() ||
+      document
+        .querySelector(".job-details-jobs-unified-top-card__job-title")
+        ?.textContent?.trim() ||
+      "Unknown Job";
+
+    // Ищем поля только в контексте модального окна заявки, исключая поисковые поля LinkedIn
+    const allInputFields = context.querySelectorAll(
+      'input[type="text"]:not([placeholder*="Search"]):not([placeholder*="search"]), input[role="combobox"]:not([placeholder*="Search"]):not([placeholder*="search"]), textarea, select, input[type="checkbox"]'
+    );
+
+    for (const inputField of allInputFields) {
+      // Пропускаем скрытые поля
+      if (inputField.type === "hidden" || inputField.offsetParent === null) {
         continue;
       }
-      let labelText = label.textContent.trim();
-      if (inputField.type === "checkbox") {
-        const checkboxLabel = labelText.toLowerCase();
-        if (checkboxLabel.includes("terms")) {
-          setNativeValue(inputField, true);
-          inputField.checked = true;
-          inputField.dispatchEvent(new Event("change", { bubbles: true }));
+
+      // Исключаем поисковые поля LinkedIn и поля навигации
+      if (
+        inputField.closest('[class*="search"]') ||
+        inputField.closest('[class*="global-nav"]') ||
+        inputField.closest('[class*="jobs-search-box"]') ||
+        inputField.closest('[data-test="jobs-search-box"]') ||
+        inputField.placeholder?.toLowerCase().includes("search") ||
+        (inputField.placeholder?.toLowerCase().includes("company") &&
+          inputField.placeholder?.toLowerCase().includes("title"))
+      ) {
+        continue;
+      }
+
+      // Ищем label универсальными способами
+      let label = null;
+      let labelText = "";
+
+      // Способ 1: label с for атрибутом
+      if (inputField.id) {
+        label = document.querySelector(`label[for="${inputField.id}"]`);
+      }
+
+      // Способ 2: label как родительский элемент
+      if (!label) {
+        label = inputField.closest("label");
+      }
+
+      // Способ 3: ищем label в том же контейнере
+      if (!label) {
+        const container = inputField.closest("div, fieldset, section, form");
+        if (container) {
+          label = container.querySelector("label");
         }
+      }
+
+      // Способ 4: ищем по aria-labelledby
+      if (!label && inputField.getAttribute("aria-labelledby")) {
+        const labelId = inputField.getAttribute("aria-labelledby");
+        label = document.getElementById(labelId);
+      }
+
+      // Способ 5: берем placeholder как fallback
+      if (!label && inputField.placeholder) {
+        labelText = inputField.placeholder.trim();
+      }
+
+      // Способ 6: ищем ближайший текст перед полем в контейнере
+      if (!label && !labelText) {
+        const container = inputField.closest("div, fieldset, section");
+        if (container) {
+          const textElements = container.querySelectorAll(
+            'span[aria-hidden="true"], span:not(.visually-hidden), div, p, h1, h2, h3, h4, h5, h6'
+          );
+          for (const textEl of textElements) {
+            const text = textEl.textContent?.trim();
+            if (
+              text &&
+              text.length > 0 &&
+              text.length < 200 &&
+              !text.includes("http") &&
+              !text.includes("data-")
+            ) {
+              labelText = text;
+              break;
+            }
+          }
+        }
+      }
+
+      // Получаем текст label
+      if (label) {
+        labelText = label.textContent?.trim() || label.innerText?.trim() || "";
+      }
+
+      // Очищаем labelText от лишних символов
+      if (labelText) {
+        labelText = labelText.replace(/[*()]/g, "").trim();
+      }
+
+      if (!labelText || labelText.length < 2) {
+        continue;
+      }
+
+      // Логируем обнаруженные поля для отладки
+      const isAutocompleteField = inputField.matches('[role="combobox"]');
+      const container = inputField.closest("div, fieldset, section, form");
+      const isNewTypeContainer =
+        container?.hasAttribute(
+          "data-test-single-typeahead-entity-form-component"
+        ) || false;
+
+      debugLogInfo(
+        `Processing form field: "${labelText}"`,
+        {
+          jobUrl,
+          jobTitle,
+          isAutocomplete: isAutocompleteField,
+          isNewType: isNewTypeContainer,
+          inputType: inputField.type,
+          inputRole: inputField.getAttribute("role"),
+          inputId: inputField.id,
+          containerClass: container?.className || "no-container",
+          hasPlaceholder: !!inputField.placeholder,
+          labelSource: label
+            ? "label-element"
+            : inputField.placeholder
+            ? "placeholder"
+            : "text-search",
+        },
+        Array.from(
+          new Set(
+            new Error().stack
+              .replace(/Error/g, "")
+              .match(/^\s*at.*$/gm)
+              .map((i) => i.trim())
+          )
+        ).join("\n")
+      );
+
+      if (inputField.type === "checkbox") {
+        await handleCheckboxField(inputField, labelText, jobUrl, jobTitle);
         continue;
       }
       const foundConfig = result.find(
@@ -718,7 +954,26 @@ async function performInputFieldChecks() {
                 labelText
               );
               if (valueFromConfigs) {
-                if (inputField.matches('[role="combobox"]')) {
+                debugLogInfo(
+                  `Filling field from configs: "${labelText}" = "${valueFromConfigs}"`,
+                  {
+                    jobUrl,
+                    jobTitle,
+                    isAutocomplete: isAutocompleteField,
+                    isNewType: isNewTypeContainer,
+                    value: valueFromConfigs,
+                  },
+                  Array.from(
+                    new Set(
+                      new Error().stack
+                        .replace(/Error/g, "")
+                        .match(/^\s*at.*$/gm)
+                        .map((i) => i.trim())
+                    )
+                  ).join("\n")
+                );
+
+                if (isAutocompleteField) {
                   await fillAutocompleteField(inputField, valueFromConfigs);
                 } else {
                   setNativeValue(inputField, valueFromConfigs);
@@ -726,7 +981,26 @@ async function performInputFieldChecks() {
               }
             }
           } else {
-            if (inputField.matches('[role="combobox"]')) {
+            debugLogInfo(
+              `Filling field from defaults: "${labelText}" = "${valueFromDefault}"`,
+              {
+                jobUrl,
+                jobTitle,
+                isAutocomplete: isAutocompleteField,
+                isNewType: isNewTypeContainer,
+                value: valueFromDefault,
+              },
+              Array.from(
+                new Set(
+                  new Error().stack
+                    .replace(/Error/g, "")
+                    .match(/^\s*at.*$/gm)
+                    .map((i) => i.trim())
+                )
+              ).join("\n")
+            );
+
+            if (isAutocompleteField) {
               await fillAutocompleteField(inputField, valueFromDefault);
             } else {
               setNativeValue(inputField, valueFromDefault);
@@ -734,6 +1008,25 @@ async function performInputFieldChecks() {
           }
         }
         if (!inputField.value) {
+          debugLogInfo(
+            `Saving new field to storage: "${labelText}"`,
+            {
+              jobUrl,
+              jobTitle,
+              isAutocomplete: isAutocompleteField,
+              isNewType: isNewTypeContainer,
+              action: "updateInputFieldConfigsInStorage",
+            },
+            Array.from(
+              new Set(
+                new Error().stack
+                  .replace(/Error/g, "")
+                  .match(/^\s*at.*$/gm)
+                  .map((i) => i.trim())
+              )
+            ).join("\n")
+          );
+
           await chrome.runtime.sendMessage({
             action: "updateInputFieldConfigsInStorage",
             data: labelText,
@@ -1195,6 +1488,124 @@ async function terminateJobModel(context = document) {
   }
 }
 
+async function performUniversalCheckboxChecks(context = document) {
+  try {
+    const jobUrl = window.location.href;
+    const jobTitle =
+      document.querySelector("[data-job-title]")?.textContent?.trim() ||
+      document
+        .querySelector(".job-details-jobs-unified-top-card__job-title")
+        ?.textContent?.trim() ||
+      "Unknown Job";
+
+    // Универсальный поиск всех чекбоксов в контексте заявки
+    const checkboxSelectors = [
+      'input[type="checkbox"]',
+      '[data-test-text-selectable-option] input[type="checkbox"]',
+      "[data-test-text-selectable-option__input]",
+    ];
+
+    let allCheckboxes = [];
+    for (const selector of checkboxSelectors) {
+      const checkboxes = context.querySelectorAll(selector);
+      allCheckboxes.push(...Array.from(checkboxes));
+    }
+
+    // Удаляем дубликаты
+    allCheckboxes = [...new Set(allCheckboxes)];
+
+    debugLogInfo(
+      `Found ${allCheckboxes.length} checkboxes in form`,
+      {
+        jobUrl,
+        jobTitle,
+        checkboxCount: allCheckboxes.length,
+        selectors: checkboxSelectors,
+      },
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
+    );
+
+    for (const checkbox of allCheckboxes) {
+      if (checkbox.type !== "checkbox") continue;
+
+      // Различные способы получения текста чекбокса
+      let labelText = "";
+
+      // 1. Поиск label по for атрибуту
+      if (checkbox.id) {
+        const label = context.querySelector(`label[for="${checkbox.id}"]`);
+        if (label) {
+          labelText = label.textContent?.trim() || "";
+        }
+      }
+
+      // 2. Поиск по data-test-text-selectable-option__label
+      if (!labelText) {
+        const dataTestLabel = checkbox.getAttribute(
+          "data-test-text-selectable-option__input"
+        );
+        if (dataTestLabel) {
+          labelText = dataTestLabel.replace(/&amp;/g, "&").trim();
+        }
+      }
+
+      // 3. Поиск ближайшего label
+      if (!labelText) {
+        const closestLabel = checkbox
+          .closest("div, span, fieldset")
+          ?.querySelector("label");
+        if (closestLabel) {
+          labelText = closestLabel.textContent?.trim() || "";
+        }
+      }
+
+      // 4. Поиск по aria-label
+      if (!labelText) {
+        labelText = checkbox.getAttribute("aria-label") || "";
+      }
+
+      // 5. Поиск в ближайшем тексте
+      if (!labelText) {
+        const container = checkbox.closest("div, span, fieldset");
+        if (container) {
+          const textNodes = container.querySelectorAll("span, div, label, p");
+          for (const node of textNodes) {
+            const text = node.textContent?.trim();
+            if (text && text.length > 2 && text.length < 200) {
+              labelText = text;
+              break;
+            }
+          }
+        }
+      }
+
+      if (labelText && labelText.length > 1) {
+        await handleCheckboxField(checkbox, labelText, jobUrl, jobTitle);
+      }
+    }
+  } catch (error) {
+    debugLogError(
+      "Error in performUniversalCheckboxChecks",
+      error,
+      Array.from(
+        new Set(
+          new Error().stack
+            .replace(/Error/g, "")
+            .match(/^\s*at.*$/gm)
+            .map((i) => i.trim())
+        )
+      ).join("\n")
+    );
+  }
+}
+
 async function runValidations() {
   const saveModalHandled = await handleSaveApplicationModal();
   if (saveModalHandled) {
@@ -1202,7 +1613,11 @@ async function runValidations() {
   }
 
   await validateAndCloseConfirmationModal();
-  await performInputFieldChecks();
+
+  // Ищем активное модальное окно заявки
+  const applyModal = document.querySelector(".artdeco-modal") || document;
+  await performInputFieldChecks(applyModal);
+  await performUniversalCheckboxChecks(applyModal);
   await performRadioButtonChecks();
   await performDropdownChecks();
   await performCheckBoxFieldCityCheck();
@@ -1880,7 +2295,7 @@ async function runScript() {
 
     await fillSearchFieldIfEmpty();
 
-    const isRunning = await checkAndPrepareRunState();
+    const isRunning = await checkAndPrepareRunState(true); // Разрешаем автовосстановление при запуске скрипта
     if (!isRunning) {
       debugLogCritical(
         "runScript: state check failed, script not running",
@@ -2219,13 +2634,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: false, error: "formControlOverlay not found" });
     }
   } else if (message.action === "checkScriptRunning") {
-    checkAndPrepareRunState()
-      .then((isRunning) => {
-        sendResponse({ isRunning: Boolean(isRunning) });
-      })
-      .catch(() => {
-        sendResponse({ isRunning: false });
-      });
+    // Просто проверяем статус без автовосстановления
+    chrome.storage.local.get("autoApplyRunning", (result) => {
+      sendResponse({ isRunning: Boolean(result?.autoApplyRunning) });
+    });
     return true;
   }
   if (message.action === "getCurrentUrl") {
@@ -2555,27 +2967,9 @@ window.addEventListener("load", function () {
               setAutoApplyRunningSilent(false);
             }
           } else {
-            attemptScriptRecovery()
-              .then((recovered) => {
-                if (!recovered) {
-                  setAutoApplyRunningSilent(false);
-                }
-              })
-              .catch((error) => {
-                debugLogError(
-                  "Error during script recovery",
-                  error,
-                  Array.from(
-                    new Set(
-                      new Error().stack
-                        .replace(/Error/g, "")
-                        .match(/^\s*at.*$/gm)
-                        .map((i) => i.trim())
-                    )
-                  ).join("\n")
-                );
-                setAutoApplyRunningSilent(false);
-              });
+            // Просто очищаем состояние при перезагрузке без shouldRestartScript
+            setAutoApplyRunningSilent(false);
+            chrome.storage.local.remove(["lastScriptActivity"]);
           }
         } catch (error) {
           if (isExtensionContextValidQuiet()) {
