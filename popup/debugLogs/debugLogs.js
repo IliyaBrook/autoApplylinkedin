@@ -48,6 +48,7 @@ function setupEventListeners() {
     { key: "recovery", label: "Recovery" },
     { key: "context", label: "Context" },
     { key: "checkbox", label: "Checkboxes" },
+    { key: "modal", label: "Modals" },
   ];
 
   filters.forEach((filter) => {
@@ -91,6 +92,7 @@ function getFilterIndex(filterKey) {
     "recovery",
     "context",
     "checkbox",
+    "modal",
   ];
   return filters.indexOf(filterKey);
 }
@@ -274,6 +276,16 @@ function filterLogs() {
             log.data?.action === "checkbox_checked" ||
             log.data?.action === "checkbox_skipped";
           break;
+        case "modal":
+          matchesCategory =
+            log.message.includes("modal") ||
+            log.message.includes("Modal") ||
+            log.message.includes("Save application") ||
+            log.message.includes("terminateJobModel") ||
+            log.message.includes("handleSaveApplicationModal") ||
+            log.message.includes("Discard") ||
+            log.message.includes("Dismiss");
+          break;
       }
     }
 
@@ -388,6 +400,14 @@ function getLogType(log) {
     log.data?.action === "checkbox_skipped"
   )
     return "CHECKBOX";
+  if (
+    log.message.toLowerCase().includes("modal") ||
+    log.message.toLowerCase().includes("save application") ||
+    log.message.toLowerCase().includes("terminatejobmodel") ||
+    log.message.toLowerCase().includes("discard") ||
+    log.message.toLowerCase().includes("dismiss")
+  )
+    return "MODAL";
   return "DEBUG";
 }
 
@@ -416,6 +436,8 @@ function getLogClass(log) {
       return "job";
     case "CHECKBOX":
       return "checkbox";
+    case "MODAL":
+      return "modal";
     case "DEBUG":
       return "debug";
     default:

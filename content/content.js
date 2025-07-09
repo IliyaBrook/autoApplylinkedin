@@ -1,3 +1,15 @@
+// Global variables for script state
+let autoApplyRunning = false;
+let userDataObject = {};
+let extensionContextCheckInterval = null;
+let saveModalCheckInterval = null;
+let isSaveModalBeingHandled = false; // Предотвращение одновременной обработки save modal
+let lastSaveModalHandleTime = 0; // Предотвращение слишком частых вызовов
+let saveModalDetectedTime = 0; // Время первого обнаружения save modal
+let saveModalFailureCount = 0; // Количество неудачных попыток закрыть modal
+const MAX_SAVE_MODAL_WAIT_TIME = 30000; // Максимальное время ожидания (30 секунд)
+const MAX_SAVE_MODAL_FAILURES = 5; // Максимальное количество неудачных попыток
+
 let defaultFields = {
   YearsOfExperience: "",
   City: "",
@@ -417,6 +429,10 @@ async function startScript() {
   }
 
   try {
+    // Сбрасываем счетчики save modal при запуске
+    saveModalDetectedTime = 0;
+    saveModalFailureCount = 0;
+
     await chrome.runtime.sendMessage({ action: "autoApplyRunning" });
     await setAutoApplyRunning(true, "startScript called");
 
@@ -1328,75 +1344,195 @@ async function validateAndCloseConfirmationModal() {
 }
 
 async function handleSaveApplicationModal() {
+  const currentTime = Date.now();
+
+  // Предотвращение одновременной обработки
+  if (isSaveModalBeingHandled) {
+    debugLog("Save modal already being handled, skipping duplicate call");
+    return false;
+  }
+
+  // Предотвращение слишком частых вызовов (минимум 2 секунды между обработками)
+  if (currentTime - lastSaveModalHandleTime < 2000) {
+    return false;
+  }
+
   const saveModal = document.querySelector(
     '[data-test-modal=""][role="alertdialog"]'
   );
-  if (saveModal) {
-    const titleElement = saveModal.querySelector("h2[data-test-dialog-title]");
-    if (
-      titleElement &&
-      titleElement.textContent.includes("Save this application?")
-    ) {
-      debugLog(
-        "Save application modal detected and handling",
-        null,
-        false,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
 
-      const discardButton = saveModal.querySelector(
-        "button[data-test-dialog-secondary-btn]"
-      );
-      if (discardButton) {
-        discardButton.click();
-        await addDelay(1000);
-        return true;
-      }
-
-      const dismissButton = saveModal.querySelector(
-        'button[aria-label="Dismiss"]'
-      );
-      if (dismissButton) {
-        debugLogError(
-          "No discard button found, using dismiss as fallback",
-          null,
-          Array.from(
-            new Set(
-              new Error().stack
-                .replace(/Error/g, "")
-                .match(/^\s*at.*$/gm)
-                .map((i) => i.trim())
-            )
-          ).join("\n")
-        );
-        dismissButton.click();
-        await addDelay(1000);
-        return true;
-      }
-
-      debugLogError(
-        "Save application modal found but no way to close it",
-        null,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
-    }
+  if (!saveModal) {
+    return false;
   }
 
-  return false;
+  const titleElement = saveModal.querySelector("h2[data-test-dialog-title]");
+  if (
+    !titleElement ||
+    !titleElement.textContent.includes("Save this application?")
+  ) {
+    return false;
+  }
+
+  // Устанавливаем флаг обработки
+  isSaveModalBeingHandled = true;
+  lastSaveModalHandleTime = currentTime;
+
+  // Отслеживаем время первого обнаружения modal
+  if (saveModalDetectedTime === 0) {
+    saveModalDetectedTime = currentTime;
+    saveModalFailureCount = 0;
+  }
+
+  // Проверяем максимальное время ожидания
+  const waitTime = currentTime - saveModalDetectedTime;
+  if (waitTime > MAX_SAVE_MODAL_WAIT_TIME) {
+    debugLogCritical(
+      "Save modal has been stuck for too long - stopping script",
+      {
+        waitTime,
+        maxWaitTime: MAX_SAVE_MODAL_WAIT_TIME,
+        failureCount: saveModalFailureCount,
+      }
+    );
+    await stopScript();
+    return false;
+  }
+
+  // Проверяем количество неудач
+  if (saveModalFailureCount >= MAX_SAVE_MODAL_FAILURES) {
+    debugLogCritical(
+      "Too many save modal handling failures - stopping script",
+      {
+        failureCount: saveModalFailureCount,
+        maxFailures: MAX_SAVE_MODAL_FAILURES,
+        waitTime,
+      }
+    );
+    await stopScript();
+    return false;
+  }
+
+  try {
+    const jobUrl = window.location.href;
+    const jobTitle =
+      document.querySelector("[data-job-title]")?.textContent?.trim() ||
+      document
+        .querySelector(".job-details-jobs-unified-top-card__job-title")
+        ?.textContent?.trim() ||
+      "Unknown Job";
+
+    debugLogCritical("Save application modal detected - attempting to handle", {
+      jobUrl,
+      jobTitle,
+      modalVisible: saveModal.style.display !== "none",
+      timestamp: new Date().toISOString(),
+      waitTime,
+      failureCount: saveModalFailureCount,
+    });
+
+    // Ищем кнопку Discard
+    const discardButton = saveModal.querySelector(
+      "button[data-test-dialog-secondary-btn]"
+    );
+    if (
+      discardButton &&
+      discardButton.textContent.trim().toLowerCase().includes("discard")
+    ) {
+      debugLogInfo("Clicking Discard button to close save modal", {
+        jobUrl,
+        jobTitle,
+        buttonText: discardButton.textContent.trim(),
+      });
+
+      discardButton.click();
+      await addDelay(1500);
+
+      // Проверяем что модал закрылся
+      const modalStillExists = document.querySelector(
+        '[data-test-modal=""][role="alertdialog"]'
+      );
+      if (!modalStillExists) {
+        debugLogInfo("Save modal successfully closed with Discard button", {
+          jobUrl,
+          jobTitle,
+        });
+        // Сбрасываем счетчики при успешном закрытии
+        saveModalDetectedTime = 0;
+        saveModalFailureCount = 0;
+        return true;
+      } else {
+        debugLogError("Save modal still exists after Discard click", {
+          jobUrl,
+          jobTitle,
+        });
+        saveModalFailureCount++;
+      }
+    }
+
+    // Fallback: ищем кнопку Dismiss
+    const dismissButton = saveModal.querySelector(
+      'button[aria-label="Dismiss"]'
+    );
+    if (dismissButton) {
+      debugLogError("No Discard button found, using Dismiss as fallback", {
+        jobUrl,
+        jobTitle,
+        availableButtons: Array.from(saveModal.querySelectorAll("button")).map(
+          (b) => b.textContent.trim()
+        ),
+      });
+
+      dismissButton.click();
+      await addDelay(1500);
+
+      // Проверяем что модал закрылся
+      const modalStillExists = document.querySelector(
+        '[data-test-modal=""][role="alertdialog"]'
+      );
+      if (!modalStillExists) {
+        debugLogInfo("Save modal successfully closed with Dismiss button", {
+          jobUrl,
+          jobTitle,
+        });
+        // Сбрасываем счетчики при успешном закрытии
+        saveModalDetectedTime = 0;
+        saveModalFailureCount = 0;
+        return true;
+      } else {
+        debugLogError("Save modal still exists after Dismiss click", {
+          jobUrl,
+          jobTitle,
+        });
+        saveModalFailureCount++;
+      }
+    }
+
+    // Если ничего не помогло
+    debugLogError("Save modal found but no way to close it", {
+      jobUrl,
+      jobTitle,
+      modalHTML: saveModal.outerHTML.substring(0, 500),
+      availableButtons: Array.from(saveModal.querySelectorAll("button")).map(
+        (b) => ({
+          text: b.textContent.trim(),
+          ariaLabel: b.getAttribute("aria-label"),
+          dataTest: b.getAttribute("data-test-dialog-secondary-btn"),
+        })
+      ),
+    });
+
+    saveModalFailureCount++;
+    return false;
+  } catch (error) {
+    debugLogError("Error in handleSaveApplicationModal", error);
+    saveModalFailureCount++;
+    return false;
+  } finally {
+    // Снимаем флаг обработки
+    setTimeout(() => {
+      isSaveModalBeingHandled = false;
+    }, 1000);
+  }
 }
 
 function checkIfAlreadyApplied(textContent) {
@@ -1448,43 +1584,50 @@ async function checkForFormValidationError() {
 }
 
 async function terminateJobModel(context = document) {
-  const saveModalHandled = await handleSaveApplicationModal();
-  if (saveModalHandled) {
-    return;
+  // Сначала проверяем save modal только если он не обрабатывается
+  if (!isSaveModalBeingHandled) {
+    const saveModalHandled = await handleSaveApplicationModal();
+    if (saveModalHandled) {
+      debugLogInfo("terminateJobModel: save modal handled, exiting");
+      return;
+    }
   }
 
   const dismissButton = context.querySelector('button[aria-label="Dismiss"]');
   if (dismissButton) {
+    debugLogInfo("terminateJobModel: clicking dismiss button");
     dismissButton.click();
     dismissButton.dispatchEvent(new Event("change", { bubbles: true }));
     await addDelay(1000);
 
-    const saveModalAfterDismiss = await handleSaveApplicationModal();
-    if (saveModalAfterDismiss) {
-      return;
+    // Проверяем save modal после dismiss только если не обрабатывается
+    if (!isSaveModalBeingHandled) {
+      const saveModalAfterDismiss = await handleSaveApplicationModal();
+      if (saveModalAfterDismiss) {
+        debugLogInfo("terminateJobModel: save modal handled after dismiss");
+        return;
+      }
     }
 
+    // Ищем отдельную кнопку Discard
     const discardButton = Array.from(
       document.querySelectorAll("button[data-test-dialog-secondary-btn]")
     ).find((button) => button.textContent.trim() === "Discard");
     if (discardButton) {
+      debugLogInfo("terminateJobModel: clicking separate discard button");
       discardButton.click();
       discardButton.dispatchEvent(new Event("change", { bubbles: true }));
       await addDelay(500);
     }
   } else {
-    debugLogError(
-      "terminateJobModel: no dismiss button found",
-      null,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    debugLogError("terminateJobModel: no dismiss button found", {
+      availableButtons: Array.from(context.querySelectorAll("button")).map(
+        (b) => ({
+          text: b.textContent.trim(),
+          ariaLabel: b.getAttribute("aria-label"),
+        })
+      ),
+    });
   }
 }
 
@@ -2762,9 +2905,6 @@ function isExtensionContextValid() {
   }
 }
 
-let extensionContextCheckInterval;
-let saveModalCheckInterval;
-
 function startExtensionContextMonitoring() {
   debugLogInfo(
     "Starting enhanced extension context monitoring",
@@ -2861,21 +3001,39 @@ function stopExtensionContextMonitoring() {
 
 function startSaveModalMonitoring() {
   saveModalCheckInterval = setInterval(async () => {
-    const saveModalHandled = await handleSaveApplicationModal();
-    if (saveModalHandled) {
-      debugLog(
-        "Save modal detected and handled by background monitor",
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
+    // Проверяем что не обрабатывается уже другим процессом
+    if (isSaveModalBeingHandled) {
+      return;
     }
-  }, 3000);
+
+    // Быстрая проверка наличия save modal без полной обработки
+    const saveModal = document.querySelector(
+      '[data-test-modal=""][role="alertdialog"]'
+    );
+    if (saveModal) {
+      const titleElement = saveModal.querySelector(
+        "h2[data-test-dialog-title]"
+      );
+      if (
+        titleElement &&
+        titleElement.textContent.includes("Save this application?")
+      ) {
+        debugLogInfo(
+          "Background monitor detected save modal - triggering handle",
+          {
+            timestamp: new Date().toISOString(),
+            modalFound: true,
+          }
+        );
+
+        // Вызываем обработку с полной логикой
+        const saveModalHandled = await handleSaveApplicationModal();
+        if (saveModalHandled) {
+          debugLogInfo("Save modal handled successfully by background monitor");
+        }
+      }
+    }
+  }, 5000); // Увеличиваем интервал с 3 до 5 секунд
 }
 
 function stopSaveModalMonitoring() {

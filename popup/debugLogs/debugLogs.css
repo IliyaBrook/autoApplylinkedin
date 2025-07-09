@@ -220,6 +220,11 @@ body {
   background: #fef7f3;
 }
 
+.log-entry.modal {
+  border-left-color: #9c27b0;
+  background: #f3e5f5;
+}
+
 .log-entry.info {
   border-left-color: #6c757d;
   background: #f8f9fa;
@@ -302,6 +307,11 @@ body {
 
 .log-type.checkbox {
   background: #e91e63;
+  color: white;
+}
+
+.log-type.modal {
+  background: #9c27b0;
   color: white;
 }
 
