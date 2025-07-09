@@ -1,14 +1,13 @@
-// Global variables for script state
 let autoApplyRunning = false;
 let userDataObject = {};
 let extensionContextCheckInterval = null;
 let saveModalCheckInterval = null;
-let isSaveModalBeingHandled = false; // Предотвращение одновременной обработки save modal
-let lastSaveModalHandleTime = 0; // Предотвращение слишком частых вызовов
-let saveModalDetectedTime = 0; // Время первого обнаружения save modal
-let saveModalFailureCount = 0; // Количество неудачных попыток закрыть modal
-const MAX_SAVE_MODAL_WAIT_TIME = 30000; // Максимальное время ожидания (30 секунд)
-const MAX_SAVE_MODAL_FAILURES = 5; // Максимальное количество неудачных попыток
+let isSaveModalBeingHandled = false;
+let lastSaveModalHandleTime = 0;
+let saveModalDetectedTime = 0;
+let saveModalFailureCount = 0;
+const MAX_SAVE_MODAL_WAIT_TIME = 30000;
+const MAX_SAVE_MODAL_FAILURES = 5;
 
 let defaultFields = {
   YearsOfExperience: "",
@@ -429,7 +428,6 @@ async function startScript() {
   }
 
   try {
-    // Сбрасываем счетчики save modal при запуске
     saveModalDetectedTime = 0;
     saveModalFailureCount = 0;
 
@@ -677,7 +675,6 @@ async function handleCheckboxField(inputField, labelText, jobUrl, jobTitle) {
   try {
     const checkboxLabel = labelText.toLowerCase();
 
-    // Ключевые слова для автоматического согласия с условиями
     const agreementKeywords = [
       "terms",
       "conditions",
@@ -725,7 +722,6 @@ async function handleCheckboxField(inputField, labelText, jobUrl, jobTitle) {
     );
 
     if (shouldCheck && !inputField.checked) {
-      // Прокручиваем к элементу и добавляем задержку для надежности
       inputField.scrollIntoView({ behavior: "smooth", block: "center" });
       await addDelay(200);
 
@@ -733,7 +729,7 @@ async function handleCheckboxField(inputField, labelText, jobUrl, jobTitle) {
       inputField.dispatchEvent(new Event("change", { bubbles: true }));
       inputField.dispatchEvent(new Event("click", { bubbles: true }));
 
-      await addDelay(300); // Дополнительная задержка после изменения состояния
+      await addDelay(300);
 
       debugLogInfo(
         `Checkbox checked automatically: "${labelText}"`,
@@ -793,7 +789,6 @@ async function performInputFieldChecks(context = document) {
       chrome.runtime.sendMessage({ action: "getInputFieldConfig" }, resolve);
     });
 
-    // Получаем URL текущей вакансии для логирования
     const jobUrl = window.location.href;
     const jobTitle =
       document.querySelector("[data-job-title]")?.textContent?.trim() ||
@@ -802,18 +797,15 @@ async function performInputFieldChecks(context = document) {
         ?.textContent?.trim() ||
       "Unknown Job";
 
-    // Ищем поля только в контексте модального окна заявки, исключая поисковые поля LinkedIn
     const allInputFields = context.querySelectorAll(
       'input[type="text"]:not([placeholder*="Search"]):not([placeholder*="search"]), input[role="combobox"]:not([placeholder*="Search"]):not([placeholder*="search"]), textarea, select, input[type="checkbox"]'
     );
 
     for (const inputField of allInputFields) {
-      // Пропускаем скрытые поля
       if (inputField.type === "hidden" || inputField.offsetParent === null) {
         continue;
       }
 
-      // Исключаем поисковые поля LinkedIn и поля навигации
       if (
         inputField.closest('[class*="search"]') ||
         inputField.closest('[class*="global-nav"]') ||
@@ -826,21 +818,17 @@ async function performInputFieldChecks(context = document) {
         continue;
       }
 
-      // Ищем label универсальными способами
       let label = null;
       let labelText = "";
 
-      // Способ 1: label с for атрибутом
       if (inputField.id) {
         label = document.querySelector(`label[for="${inputField.id}"]`);
       }
 
-      // Способ 2: label как родительский элемент
       if (!label) {
         label = inputField.closest("label");
       }
 
-      // Способ 3: ищем label в том же контейнере
       if (!label) {
         const container = inputField.closest("div, fieldset, section, form");
         if (container) {
@@ -848,18 +836,15 @@ async function performInputFieldChecks(context = document) {
         }
       }
 
-      // Способ 4: ищем по aria-labelledby
       if (!label && inputField.getAttribute("aria-labelledby")) {
         const labelId = inputField.getAttribute("aria-labelledby");
         label = document.getElementById(labelId);
       }
 
-      // Способ 5: берем placeholder как fallback
       if (!label && inputField.placeholder) {
         labelText = inputField.placeholder.trim();
       }
 
-      // Способ 6: ищем ближайший текст перед полем в контейнере
       if (!label && !labelText) {
         const container = inputField.closest("div, fieldset, section");
         if (container) {
@@ -882,12 +867,10 @@ async function performInputFieldChecks(context = document) {
         }
       }
 
-      // Получаем текст label
       if (label) {
         labelText = label.textContent?.trim() || label.innerText?.trim() || "";
       }
 
-      // Очищаем labelText от лишних символов
       if (labelText) {
         labelText = labelText.replace(/[*()]/g, "").trim();
       }
@@ -896,7 +879,6 @@ async function performInputFieldChecks(context = document) {
         continue;
       }
 
-      // Логируем обнаруженные поля для отладки
       const isAutocompleteField = inputField.matches('[role="combobox"]');
       const container = inputField.closest("div, fieldset, section, form");
       const isNewTypeContainer =
@@ -1346,13 +1328,11 @@ async function validateAndCloseConfirmationModal() {
 async function handleSaveApplicationModal() {
   const currentTime = Date.now();
 
-  // Предотвращение одновременной обработки
   if (isSaveModalBeingHandled) {
     debugLog("Save modal already being handled, skipping duplicate call");
     return false;
   }
 
-  // Предотвращение слишком частых вызовов (минимум 2 секунды между обработками)
   if (currentTime - lastSaveModalHandleTime < 2000) {
     return false;
   }
@@ -1373,17 +1353,14 @@ async function handleSaveApplicationModal() {
     return false;
   }
 
-  // Устанавливаем флаг обработки
   isSaveModalBeingHandled = true;
   lastSaveModalHandleTime = currentTime;
 
-  // Отслеживаем время первого обнаружения modal
   if (saveModalDetectedTime === 0) {
     saveModalDetectedTime = currentTime;
     saveModalFailureCount = 0;
   }
 
-  // Проверяем максимальное время ожидания
   const waitTime = currentTime - saveModalDetectedTime;
   if (waitTime > MAX_SAVE_MODAL_WAIT_TIME) {
     debugLogCritical(
@@ -1398,7 +1375,6 @@ async function handleSaveApplicationModal() {
     return false;
   }
 
-  // Проверяем количество неудач
   if (saveModalFailureCount >= MAX_SAVE_MODAL_FAILURES) {
     debugLogCritical(
       "Too many save modal handling failures - stopping script",
@@ -1430,7 +1406,6 @@ async function handleSaveApplicationModal() {
       failureCount: saveModalFailureCount,
     });
 
-    // Ищем кнопку Discard
     const discardButton = saveModal.querySelector(
       "button[data-test-dialog-secondary-btn]"
     );
@@ -1447,7 +1422,6 @@ async function handleSaveApplicationModal() {
       discardButton.click();
       await addDelay(1500);
 
-      // Проверяем что модал закрылся
       const modalStillExists = document.querySelector(
         '[data-test-modal=""][role="alertdialog"]'
       );
@@ -1456,7 +1430,6 @@ async function handleSaveApplicationModal() {
           jobUrl,
           jobTitle,
         });
-        // Сбрасываем счетчики при успешном закрытии
         saveModalDetectedTime = 0;
         saveModalFailureCount = 0;
         return true;
@@ -1469,7 +1442,6 @@ async function handleSaveApplicationModal() {
       }
     }
 
-    // Fallback: ищем кнопку Dismiss
     const dismissButton = saveModal.querySelector(
       'button[aria-label="Dismiss"]'
     );
@@ -1485,7 +1457,6 @@ async function handleSaveApplicationModal() {
       dismissButton.click();
       await addDelay(1500);
 
-      // Проверяем что модал закрылся
       const modalStillExists = document.querySelector(
         '[data-test-modal=""][role="alertdialog"]'
       );
@@ -1494,7 +1465,6 @@ async function handleSaveApplicationModal() {
           jobUrl,
           jobTitle,
         });
-        // Сбрасываем счетчики при успешном закрытии
         saveModalDetectedTime = 0;
         saveModalFailureCount = 0;
         return true;
@@ -1507,7 +1477,6 @@ async function handleSaveApplicationModal() {
       }
     }
 
-    // Если ничего не помогло
     debugLogError("Save modal found but no way to close it", {
       jobUrl,
       jobTitle,
@@ -1528,7 +1497,6 @@ async function handleSaveApplicationModal() {
     saveModalFailureCount++;
     return false;
   } finally {
-    // Снимаем флаг обработки
     setTimeout(() => {
       isSaveModalBeingHandled = false;
     }, 1000);
@@ -1584,7 +1552,6 @@ async function checkForFormValidationError() {
 }
 
 async function terminateJobModel(context = document) {
-  // Сначала проверяем save modal только если он не обрабатывается
   if (!isSaveModalBeingHandled) {
     const saveModalHandled = await handleSaveApplicationModal();
     if (saveModalHandled) {
@@ -1600,7 +1567,6 @@ async function terminateJobModel(context = document) {
     dismissButton.dispatchEvent(new Event("change", { bubbles: true }));
     await addDelay(1000);
 
-    // Проверяем save modal после dismiss только если не обрабатывается
     if (!isSaveModalBeingHandled) {
       const saveModalAfterDismiss = await handleSaveApplicationModal();
       if (saveModalAfterDismiss) {
@@ -1609,7 +1575,6 @@ async function terminateJobModel(context = document) {
       }
     }
 
-    // Ищем отдельную кнопку Discard
     const discardButton = Array.from(
       document.querySelectorAll("button[data-test-dialog-secondary-btn]")
     ).find((button) => button.textContent.trim() === "Discard");
@@ -1641,7 +1606,6 @@ async function performUniversalCheckboxChecks(context = document) {
         ?.textContent?.trim() ||
       "Unknown Job";
 
-    // Универсальный поиск всех чекбоксов в контексте заявки
     const checkboxSelectors = [
       'input[type="checkbox"]',
       '[data-test-text-selectable-option] input[type="checkbox"]',
@@ -1654,7 +1618,6 @@ async function performUniversalCheckboxChecks(context = document) {
       allCheckboxes.push(...Array.from(checkboxes));
     }
 
-    // Удаляем дубликаты
     allCheckboxes = [...new Set(allCheckboxes)];
 
     debugLogInfo(
@@ -1678,10 +1641,8 @@ async function performUniversalCheckboxChecks(context = document) {
     for (const checkbox of allCheckboxes) {
       if (checkbox.type !== "checkbox") continue;
 
-      // Различные способы получения текста чекбокса
       let labelText = "";
 
-      // 1. Поиск label по for атрибуту
       if (checkbox.id) {
         const label = context.querySelector(`label[for="${checkbox.id}"]`);
         if (label) {
@@ -1689,7 +1650,6 @@ async function performUniversalCheckboxChecks(context = document) {
         }
       }
 
-      // 2. Поиск по data-test-text-selectable-option__label
       if (!labelText) {
         const dataTestLabel = checkbox.getAttribute(
           "data-test-text-selectable-option__input"
@@ -1699,7 +1659,6 @@ async function performUniversalCheckboxChecks(context = document) {
         }
       }
 
-      // 3. Поиск ближайшего label
       if (!labelText) {
         const closestLabel = checkbox
           .closest("div, span, fieldset")
@@ -1709,12 +1668,10 @@ async function performUniversalCheckboxChecks(context = document) {
         }
       }
 
-      // 4. Поиск по aria-label
       if (!labelText) {
         labelText = checkbox.getAttribute("aria-label") || "";
       }
 
-      // 5. Поиск в ближайшем тексте
       if (!labelText) {
         const container = checkbox.closest("div, span, fieldset");
         if (container) {
@@ -1757,7 +1714,6 @@ async function runValidations() {
 
   await validateAndCloseConfirmationModal();
 
-  // Ищем активное модальное окно заявки
   const applyModal = document.querySelector(".artdeco-modal") || document;
   await performInputFieldChecks(applyModal);
   await performUniversalCheckboxChecks(applyModal);
@@ -2438,7 +2394,7 @@ async function runScript() {
 
     await fillSearchFieldIfEmpty();
 
-    const isRunning = await checkAndPrepareRunState(true); // Разрешаем автовосстановление при запуске скрипта
+    const isRunning = await checkAndPrepareRunState(true);
     if (!isRunning) {
       debugLogCritical(
         "runScript: state check failed, script not running",
@@ -2777,7 +2733,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: false, error: "formControlOverlay not found" });
     }
   } else if (message.action === "checkScriptRunning") {
-    // Просто проверяем статус без автовосстановления
     chrome.storage.local.get("autoApplyRunning", (result) => {
       sendResponse({ isRunning: Boolean(result?.autoApplyRunning) });
     });
@@ -3001,12 +2956,10 @@ function stopExtensionContextMonitoring() {
 
 function startSaveModalMonitoring() {
   saveModalCheckInterval = setInterval(async () => {
-    // Проверяем что не обрабатывается уже другим процессом
     if (isSaveModalBeingHandled) {
       return;
     }
 
-    // Быстрая проверка наличия save modal без полной обработки
     const saveModal = document.querySelector(
       '[data-test-modal=""][role="alertdialog"]'
     );
@@ -3026,14 +2979,13 @@ function startSaveModalMonitoring() {
           }
         );
 
-        // Вызываем обработку с полной логикой
         const saveModalHandled = await handleSaveApplicationModal();
         if (saveModalHandled) {
           debugLogInfo("Save modal handled successfully by background monitor");
         }
       }
     }
-  }, 5000); // Увеличиваем интервал с 3 до 5 секунд
+  }, 5000);
 }
 
 function stopSaveModalMonitoring() {
@@ -3125,7 +3077,6 @@ window.addEventListener("load", function () {
               setAutoApplyRunningSilent(false);
             }
           } else {
-            // Просто очищаем состояние при перезагрузке без shouldRestartScript
             setAutoApplyRunningSilent(false);
             chrome.storage.local.remove(["lastScriptActivity"]);
           }

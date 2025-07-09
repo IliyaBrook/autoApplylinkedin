@@ -8,14 +8,12 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 function setupEventListeners() {
-  // Button event listeners
   document
     .getElementById("refresh-btn")
     .addEventListener("click", loadDebugLogs);
   document.getElementById("clear-btn").addEventListener("click", clearLogs);
   document.getElementById("export-btn").addEventListener("click", exportLogs);
 
-  // Search functionality
   const searchInput = document.createElement("input");
   searchInput.type = "text";
   searchInput.placeholder = "Search logs...";
@@ -27,11 +25,9 @@ function setupEventListeners() {
   searchBox.className = "search-box";
   searchBox.appendChild(searchInput);
 
-  // Insert search box after controls
   const controls = document.querySelector(".controls");
   controls.parentNode.insertBefore(searchBox, controls.nextSibling);
 
-  // Filter buttons
   const filterButtons = document.createElement("div");
   filterButtons.className = "filter-buttons";
 
@@ -151,7 +147,6 @@ function displayStats() {
         </div>
     `;
 
-  // Insert stats before logs container
   const logsContainer = document.getElementById("logs-container");
   const existingStats = document.querySelector(".stats");
   if (existingStats) {
@@ -202,13 +197,11 @@ function filterLogs() {
     .value.toLowerCase();
 
   filteredLogs = allLogs.filter((log) => {
-    // Search filter
     const matchesSearch =
       !searchTerm ||
       log.message.toLowerCase().includes(searchTerm) ||
       (log.data && JSON.stringify(log.data).toLowerCase().includes(searchTerm));
 
-    // Category filter
     let matchesCategory = true;
     if (currentFilter !== "all") {
       switch (currentFilter) {
@@ -308,7 +301,6 @@ function displayLogs() {
     return;
   }
 
-  // Show most recent logs first
   const sortedLogs = [...filteredLogs].reverse();
 
   const logsHtml = sortedLogs
@@ -357,7 +349,6 @@ function formatStackTrace(stackTrace) {
     return "unknown:?";
   }
 
-  // Показываем весь стек как есть, без фильтрации
   return escapeHtml(stackTrace);
 }
 

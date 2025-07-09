@@ -1,48 +1,38 @@
-// Debug logging utility for popup scripts
 function debugLogPopup(message, data = null, isError = false) {
   const timestamp = new Date().toISOString();
 
-  // Enhanced caller information detection
   const stack = new Error().stack;
   let callerInfo = "popup.js:?";
 
   if (stack) {
     const stackLines = stack.split("\n").filter((line) => line.trim());
 
-    // Skip internal functions to find the actual caller
     let callerLine = null;
     for (let i = 0; i < stackLines.length; i++) {
       const line = stackLines[i];
 
-      // Skip these internal functions
       if (line.includes("debugLogPopup")) {
         continue;
       }
 
-      // This should be our actual caller
       callerLine = line;
       break;
     }
 
     if (callerLine) {
-      // Try multiple regex patterns to extract file and line info
       let match = null;
 
-      // Pattern 1: at functionName (file:line:column)
       match = callerLine.match(/at\s+.*?\s+\(([^)]+):(\d+):(\d+)\)/);
 
       if (!match) {
-        // Pattern 2: at file:line:column
         match = callerLine.match(/at\s+([^:]+):(\d+):(\d+)/);
       }
 
       if (!match) {
-        // Pattern 3: (file:line:column)
         match = callerLine.match(/\(([^)]+):(\d+):(\d+)\)/);
       }
 
       if (!match) {
-        // Pattern 4: Just look for any file pattern
         match = callerLine.match(/([^\/\\]+\.(js|ts)):(\d+)/);
       }
 
@@ -50,20 +40,17 @@ function debugLogPopup(message, data = null, isError = false) {
         const filePath = match[1];
         const lineNumber = match[2] || match[3] || "?";
 
-        // Extract just the filename from full path
         const fileName = filePath.split("/").pop().split("\\").pop();
         callerInfo = `${fileName}:${lineNumber}`;
       } else {
-        // Fallback: try to extract any meaningful info from the line
         const cleanLine = callerLine.replace(/^\s*at\s*/, "").trim();
         if (cleanLine.length > 0 && cleanLine !== "Object.<anonymous>") {
-          callerInfo = cleanLine.substring(0, 50); // Limit length
+          callerInfo = cleanLine.substring(0, 50);
         } else {
           callerInfo = "popup.js:?";
         }
       }
     } else {
-      // If no suitable line found, default to popup.js
       callerInfo = "popup.js:?";
     }
   } else {
@@ -77,7 +64,6 @@ function debugLogPopup(message, data = null, isError = false) {
     console.log("[DEBUGGER](POPUP DATA): ", data);
   }
 
-  // Store debug logs in local storage
   try {
     chrome.storage.local.get("debugLogs", (result) => {
       const logs = result.debugLogs || [];
@@ -90,7 +76,7 @@ function debugLogPopup(message, data = null, isError = false) {
         isCritical: isError,
         source: "popup",
       });
-      // Keep only last 50 logs
+
       if (logs.length > 50) {
         logs.splice(0, logs.length - 50);
       }
@@ -101,7 +87,6 @@ function debugLogPopup(message, data = null, isError = false) {
   }
 }
 
-// Error logging for popup
 function debugLogPopupError(message, error = null) {
   const errorData = error
     ? {

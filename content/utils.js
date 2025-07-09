@@ -154,7 +154,6 @@ async function fillAutocompleteField(element, value) {
 
   let dropdownContainer = null;
 
-  // Пробуем найти dropdown через aria-controls/aria-owns (старый способ)
   const dropdownId =
     element.getAttribute("aria-controls") || element.getAttribute("aria-owns");
   if (dropdownId) {
@@ -164,23 +163,20 @@ async function fillAutocompleteField(element, value) {
     );
   }
 
-  // Если не найден, ищем по универсальной структуре
   if (!dropdownContainer || dropdownContainer.offsetHeight === 0) {
     console.log(
       `[AUTOCOMPLETE] Searching for dropdown using universal approach`
     );
 
-    // Универсальный поиск dropdown в разных контекстах
     const searchContainers = [
-      element.closest("div"), // Ближайший div контейнер
-      element.parentElement, // Прямой родитель
-      document.body, // Весь документ как fallback
+      element.closest("div"),
+      element.parentElement,
+      document.body,
     ];
 
     for (const searchContainer of searchContainers) {
       if (!searchContainer) continue;
 
-      // Ищем по разным селекторам
       const dropdownSelectors = [
         '[role="listbox"]',
         ".basic-typeahead__selectable",
@@ -211,11 +207,9 @@ async function fillAutocompleteField(element, value) {
       if (dropdownContainer) break;
     }
 
-    // Альтернативный поиск dropdown по всему документу
     if (!dropdownContainer) {
-      await addDelay(200); // Даем время для появления dropdown
+      await addDelay(200);
 
-      // Пробуем разные способы поиска dropdown
       const dropdownSelectors = [
         '[role="listbox"]:not([style*="display: none"])',
         ".basic-typeahead__selectable",
@@ -245,7 +239,6 @@ async function fillAutocompleteField(element, value) {
   }
 
   if (dropdownContainer) {
-    // Универсальный поиск опций в dropdown
     const optionSelectors = [
       '[role="option"]',
       ".basic-typeahead__selectable",
@@ -263,7 +256,6 @@ async function fillAutocompleteField(element, value) {
     for (const selector of optionSelectors) {
       const options = dropdownContainer.querySelectorAll(selector);
       if (options.length > 0) {
-        // Берем первую видимую опцию
         for (const option of options) {
           if (option.offsetParent !== null && option.textContent?.trim()) {
             firstOption = option;
@@ -295,7 +287,7 @@ async function fillAutocompleteField(element, value) {
           `[AUTOCOMPLETE] Error clicking on option for ${element.id}:`,
           e
         );
-        // Fallback: попробуем mouseover + click
+
         try {
           firstOption.dispatchEvent(
             new MouseEvent("mouseover", { bubbles: true })
