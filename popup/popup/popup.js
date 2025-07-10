@@ -256,9 +256,8 @@ document.addEventListener("click", (event) => {
               content.className = "accordion-content";
               content.style.display = "block";
               accordion.appendChild(content);
-              document
-                .getElementById("show-links")
-                .parentElement.appendChild(accordion);
+              const linksRow = document.querySelector(".links-buttons-row");
+              linksRow.parentNode.insertBefore(accordion, linksRow.nextSibling);
               chrome.storage.local.get("savedLinks", (result) => {
                 const savedLinks = result.savedLinks || {};
                 content.innerHTML = "";
