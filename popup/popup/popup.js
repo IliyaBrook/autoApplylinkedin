@@ -502,7 +502,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const loopRunningDelayInput = document.getElementById("loop-running-delay");
 
   chrome.storage.local.get("loopRunningDelay", ({ loopRunningDelay }) => {
-    loopRunningDelayInput.value = loopRunningDelay || 0;
+    let delayInMinutes = loopRunningDelay || 0;
+    if (delayInMinutes > 60) {
+      delayInMinutes = Math.round(delayInMinutes / 60);
+      chrome.storage.local.set({ loopRunningDelay: delayInMinutes });
+    }
+    loopRunningDelayInput.value = delayInMinutes;
   });
 
   loopRunningDelayInput.addEventListener("input", () => {

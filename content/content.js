@@ -2184,7 +2184,7 @@ async function handleLoopRestart() {
     const { lastJobSearchUrl, loopRunningDelay } =
       await chrome.storage.local.get(["lastJobSearchUrl", "loopRunningDelay"]);
 
-    const delayInMs = (loopRunningDelay || 0) * 1000;
+    const delayInMs = (loopRunningDelay || 0) * 60 * 1000;
 
     if (delayInMs > 0) {
       await addDelay(delayInMs);
