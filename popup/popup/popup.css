@@ -428,22 +428,56 @@ input:checked + .slider:before {
 }
 /* Compact icon buttons for links */
 .saved-link-item .icon-btn {
-  background: none;
   border: none;
-  padding: 4px;
+  padding: 6px;
   margin-left: 4px;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
-}
-.saved-link-item .icon-btn:hover {
-  background: #f0f0f0;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 .saved-link-item .icon-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   display: block;
+  transition: transform 0.2s ease;
+}
+.saved-link-item .icon-btn:hover svg {
+  transform: scale(1.1);
+}
+
+/* Go button - Green */
+.saved-link-item .go-btn {
+  background: linear-gradient(135deg, #4caf50, #45a049);
+  color: white;
+}
+.saved-link-item .go-btn:hover {
+  background: linear-gradient(135deg, #45a049, #3d8b40);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+/* Edit button - Blue */
+.saved-link-item .edit-btn {
+  background: linear-gradient(135deg, #2196f3, #1976d2);
+  color: white;
+}
+.saved-link-item .edit-btn:hover {
+  background: linear-gradient(135deg, #1976d2, #1565c0);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+/* Delete button - Red */
+.saved-link-item .delete-btn {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  color: white;
+}
+.saved-link-item .delete-btn:hover {
+  background: linear-gradient(135deg, #d32f2f, #c62828);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(244, 67, 54, 0.3);
 }

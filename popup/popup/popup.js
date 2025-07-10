@@ -236,7 +236,7 @@ function renderSavedLinks() {
       const goBtn = document.createElement("button");
       goBtn.className = "icon-btn go-btn";
       goBtn.innerHTML =
-        '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 17l6-5-6-5v10z"/></svg>';
+        '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>';
       goBtn.title = "Go";
       goBtn.onclick = () => {
         chrome.runtime.sendMessage(
@@ -254,7 +254,7 @@ function renderSavedLinks() {
       const editBtn = document.createElement("button");
       editBtn.className = "icon-btn edit-btn";
       editBtn.innerHTML =
-        '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M14.06 9L15 9.94L5.92 19H5v-.92L14.06 9zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.04 0-1.41L18.37 3.29c-.19-.19-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z"/></svg>';
+        '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M3 17.46v3.04c0 .28.22.5.5.5h3.04c.13 0 .26-.05.35-.15L17.81 9.94l-3.75-3.75L3.15 17.1c-.1.1-.15.22-.15.36zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
       editBtn.title = "Edit";
       editBtn.onclick = () => {
         openLinkModal({ edit: true, name, url });
@@ -264,7 +264,7 @@ function renderSavedLinks() {
       const delBtn = document.createElement("button");
       delBtn.className = "icon-btn delete-btn";
       delBtn.innerHTML =
-        '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+        '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z"/></svg>';
       delBtn.title = "Delete";
       delBtn.onclick = () => {
         chrome.storage.local.get("savedLinks", (res) => {
