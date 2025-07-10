@@ -141,6 +141,146 @@ const getCurrentUrl = () => {
   });
 };
 
+// Modal state
+let editingLinkName = null;
+
+function openLinkModal({ edit = false, name = "", url = "" } = {}) {
+  document.getElementById("linkModalOverlay").style.display = "flex";
+  document.getElementById("linkModalTitle").textContent = edit
+    ? "Edit job search link"
+    : "Add job search link";
+  document.getElementById("linkNameInput").value = name;
+  document.getElementById("linkUrlInput").value = url;
+  editingLinkName = edit ? name : null;
+}
+function closeLinkModal() {
+  document.getElementById("linkModalOverlay").style.display = "none";
+  document.getElementById("linkNameInput").value = "";
+  document.getElementById("linkUrlInput").value = "";
+  editingLinkName = null;
+}
+document.getElementById("cancelLinkModalBtn").onclick = closeLinkModal;
+document.getElementById("linkModalOverlay").onclick = function (e) {
+  if (e.target === this) closeLinkModal();
+};
+
+document.getElementById("save-link").onclick = function () {
+  getCurrentUrl().then((url) => {
+    if (!url) return;
+    openLinkModal({ edit: false, name: "", url });
+  });
+};
+document.getElementById("saveLinkModalBtn").onclick = function () {
+  const name = document.getElementById("linkNameInput").value.trim();
+  const url = document.getElementById("linkUrlInput").value.trim();
+  if (!name || !url) {
+    alert("Both name and URL are required.");
+    return;
+  }
+  chrome.storage.local.get("savedLinks", (result) => {
+    const savedLinks = result.savedLinks || {};
+    if (editingLinkName && editingLinkName !== name && name in savedLinks) {
+      alert("Link name already exists.");
+      return;
+    }
+    if (!editingLinkName && name in savedLinks) {
+      alert("Link name already exists.");
+      return;
+    }
+    if (!editingLinkName && Object.values(savedLinks).includes(url)) {
+      alert("Link already exists.");
+      return;
+    }
+    if (editingLinkName) {
+      // Edit mode: rename or update url
+      const updatedLinks = { ...savedLinks };
+      if (editingLinkName !== name) delete updatedLinks[editingLinkName];
+      updatedLinks[name] = url;
+      chrome.storage.local.set({ savedLinks: updatedLinks }, () => {
+        closeLinkModal();
+        renderSavedLinks();
+      });
+    } else {
+      // Add mode
+      chrome.storage.local.set(
+        { savedLinks: { ...savedLinks, [name]: url } },
+        () => {
+          closeLinkModal();
+          renderSavedLinks();
+        }
+      );
+    }
+  });
+};
+
+function renderSavedLinks() {
+  const accordion = document.getElementById("linksAccordion");
+  if (!accordion) return;
+  const content = accordion.querySelector(".accordion-content");
+  chrome.storage.local.get("savedLinks", (result) => {
+    const savedLinks = result.savedLinks || {};
+    content.innerHTML = "";
+    if (Object.keys(savedLinks).length === 0) {
+      const emptyMsg = document.createElement("div");
+      emptyMsg.textContent = "No saved links available.";
+      content.appendChild(emptyMsg);
+      return;
+    }
+    Object.entries(savedLinks).forEach(([name, url]) => {
+      const item = document.createElement("div");
+      item.className = "saved-link-item";
+      const nameEl = document.createElement("span");
+      nameEl.textContent = name;
+      item.appendChild(nameEl);
+      // Go icon button
+      const goBtn = document.createElement("button");
+      goBtn.className = "icon-btn go-btn";
+      goBtn.innerHTML =
+        '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M10 17l6-5-6-5v10z"/></svg>';
+      goBtn.title = "Go";
+      goBtn.onclick = () => {
+        chrome.runtime.sendMessage(
+          { action: "openTabAndRunScript", url },
+          (response) => {
+            debugLogPopup(
+              "Result of opening the tab and executing the script",
+              { response }
+            );
+          }
+        );
+      };
+      item.appendChild(goBtn);
+      // Edit icon button
+      const editBtn = document.createElement("button");
+      editBtn.className = "icon-btn edit-btn";
+      editBtn.innerHTML =
+        '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M14.06 9L15 9.94L5.92 19H5v-.92L14.06 9zm3.6-6c-.25 0-.51.1-.7.29l-1.83 1.83 3.75 3.75 1.83-1.83c.39-.39.39-1.04 0-1.41L18.37 3.29c-.19-.19-.45-.29-.71-.29zm-3.6 3.19L3 17.25V21h3.75L17.81 9.94l-3.75-3.75z"/></svg>';
+      editBtn.title = "Edit";
+      editBtn.onclick = () => {
+        openLinkModal({ edit: true, name, url });
+      };
+      item.appendChild(editBtn);
+      // Delete icon button
+      const delBtn = document.createElement("button");
+      delBtn.className = "icon-btn delete-btn";
+      delBtn.innerHTML =
+        '<svg viewBox="0 0 24 24"><path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+      delBtn.title = "Delete";
+      delBtn.onclick = () => {
+        chrome.storage.local.get("savedLinks", (res) => {
+          const links = res.savedLinks || {};
+          delete links[name];
+          chrome.storage.local.set({ savedLinks: links }, () => {
+            renderSavedLinks();
+          });
+        });
+      };
+      item.appendChild(delBtn);
+      content.appendChild(item);
+    });
+  });
+}
+
 document.addEventListener("click", (event) => {
   if (event.target.tagName === "BUTTON") {
     const buttonId = event.target.id;
@@ -176,51 +316,7 @@ document.addEventListener("click", (event) => {
         document.getElementById("import-file").click();
         break;
       case "save-link":
-        chrome.storage.local.get("savedLinks", (result) => {
-          const linkName = prompt("Enter link name");
-          if (!linkName) {
-            alert("Link name cannot be empty.");
-            return;
-          }
-          if (!("savedLinks" in result)) {
-            getCurrentUrl()
-              .then((url) => {
-                if (!url) return;
-                chrome.storage.local.set(
-                  { savedLinks: { [linkName]: url } },
-                  () => {
-                    alert("Link saved successfully!");
-                  }
-                );
-              })
-              .catch((err) => {
-                debugLogPopupError("Error getting current url", err);
-              });
-          } else {
-            getCurrentUrl().then((url) => {
-              if (!url) return;
-              const savedLinks = result.savedLinks;
-              const savedLinksSet = new Set(Object.values(savedLinks));
-              if (linkName in savedLinks) {
-                alert("Link name already exists.");
-              } else if (savedLinksSet.has(url)) {
-                alert("Link already exists.");
-              } else {
-                chrome.storage.local.set(
-                  {
-                    savedLinks: {
-                      ...savedLinks,
-                      [linkName]: url,
-                    },
-                  },
-                  () => {
-                    alert("Link saved successfully!");
-                  }
-                );
-              }
-            });
-          }
-        });
+        // This case is now handled by the new modal logic
         break;
       case "show-links":
         try {
@@ -258,53 +354,10 @@ document.addEventListener("click", (event) => {
               accordion.appendChild(content);
               const linksRow = document.querySelector(".links-buttons-row");
               linksRow.parentNode.insertBefore(accordion, linksRow.nextSibling);
-              chrome.storage.local.get("savedLinks", (result) => {
-                const savedLinks = result.savedLinks || {};
-                content.innerHTML = "";
-                if (Object.keys(savedLinks).length === 0) {
-                  const emptyMsg = document.createElement("div");
-                  emptyMsg.textContent = "No saved links available.";
-                  content.appendChild(emptyMsg);
-                  return;
-                }
-                Object.entries(savedLinks).forEach(([name, url]) => {
-                  const item = document.createElement("div");
-                  item.className = "saved-link-item";
-                  const nameEl = document.createElement("span");
-                  nameEl.textContent = name;
-                  item.appendChild(nameEl);
-                  const goButton = document.createElement("button");
-                  goButton.className = "modal-button primary go-button";
-                  goButton.textContent = "Go";
-                  goButton.addEventListener("click", () => {
-                    chrome.runtime.sendMessage(
-                      { action: "openTabAndRunScript", url: url },
-                      (response) => {
-                        debugLogPopup(
-                          "Result of opening the tab and executing the script",
-                          { response: response }
-                        );
-                      }
-                    );
-                  });
-                  item.appendChild(goButton);
-                  const deleteButton = document.createElement("button");
-                  deleteButton.className = "modal-button danger delete-button";
-                  deleteButton.textContent = "Delete";
-                  deleteButton.addEventListener("click", () => {
-                    chrome.storage.local.get("savedLinks", (res) => {
-                      const links = res.savedLinks || {};
-                      delete links[name];
-                      chrome.storage.local.set({ savedLinks: links }, () => {
-                        item.remove();
-                      });
-                    });
-                  });
-                  item.appendChild(deleteButton);
-                  content.appendChild(item);
-                });
-              });
             }
+          }
+          if (accordion && dataset.open === "true") {
+            renderSavedLinks();
           }
         } catch (error) {
           debugLogPopupError("Cannot show links case 'show-links'", error);

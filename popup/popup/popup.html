@@ -86,6 +86,39 @@
         </button>
       </div>
 
+      <!-- Custom modal for add/edit link -->
+      <div
+        id="linkModalOverlay"
+        class="auto-apply-modal-overlay"
+        style="display: none"
+      >
+        <div class="modal" id="linkModal">
+          <h3 class="modal-title" id="linkModalTitle">Add job search link</h3>
+          <div class="modal-message">
+            <input
+              type="text"
+              id="linkNameInput"
+              placeholder="Link name"
+              style="width: 90%; margin-bottom: 10px"
+            />
+            <input
+              type="text"
+              id="linkUrlInput"
+              placeholder="Job search URL"
+              style="width: 90%; margin-bottom: 10px"
+            />
+            <div class="button-container-form-control">
+              <button id="saveLinkModalBtn" class="modal-button primary">
+                Save
+              </button>
+              <button id="cancelLinkModalBtn" class="modal-button secondary">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Settings section -->
       <div class="settings-section">
         <div class="toggle-option-item">

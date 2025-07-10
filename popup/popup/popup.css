@@ -371,3 +371,79 @@ input:checked + .slider:before {
 .slider.round:before {
   border-radius: 50%;
 }
+
+/* Modal overlay for add/edit link */
+#linkModalOverlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  justify-content: center;
+  align-items: center;
+}
+#linkModalOverlay .modal {
+  width: 350px;
+  margin: 0;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+#linkModal input[type="text"] {
+  width: 90%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+#linkModal .modal-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 0 5px;
+  transition: background-color 0.3s ease;
+}
+#linkModal .modal-button.primary {
+  background-color: #2196f3;
+  color: white;
+}
+#linkModal .modal-button.primary:hover {
+  background-color: #1976d2;
+}
+#linkModal .modal-button.secondary {
+  background-color: #4caf50;
+  color: white;
+}
+#linkModal .modal-button.secondary:hover {
+  background-color: #45a049;
+}
+/* Compact icon buttons for links */
+.saved-link-item .icon-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  margin-left: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.saved-link-item .icon-btn:hover {
+  background: #f0f0f0;
+}
+.saved-link-item .icon-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
