@@ -239,11 +239,13 @@ async function attemptScriptRecovery() {
     ) {
       debugLogInfo(
         "Recovery conditions met - restarting script",
-        {
-          timeSinceLastActivity,
-          isOnJobSearchPage,
-          shouldRestart: storage.shouldRestartScript,
-        },
+        chrome.runtime?.id
+          ? {
+              timeSinceLastActivity,
+              isOnJobSearchPage: isOnJobSearchPage ?? null,
+              shouldRestart: storage?.shouldRestartScript ?? null,
+            }
+          : null,
         Array.from(
           new Set(
             new Error().stack
@@ -634,7 +636,12 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
             if (matchedBadWord) {
               debugLogInfo(
                 `clickJob: found bad word "${matchedBadWord}", skipping job`,
-                null,
+                {
+                  url: window.location.href,
+                  companyName,
+                  jobTitle,
+                  matchedBadWord,
+                },
                 Array.from(
                   new Set(
                     new Error().stack
@@ -2581,20 +2588,53 @@ async function runScript() {
       }
 
       if (titleSkipEnabled) {
-        if (
-          titleSkipWords.some((word) =>
-            jobTitle.toLowerCase().includes(word.toLowerCase())
-          )
-        ) {
+        const matchedSkipWord = titleSkipWords.find((word) =>
+          jobTitle.toLowerCase().includes(word.toLowerCase())
+        );
+        if (matchedSkipWord) {
+          debugLogInfo(
+            `skipJob: found skip word "${matchedSkipWord}", skipping job`,
+            {
+              url: window.location.href,
+              companyName,
+              jobTitle,
+              matchedWord: matchedSkipWord,
+              reason: "titleSkip",
+            },
+            Array.from(
+              new Set(
+                new Error().stack
+                  .replace(/Error/g, "")
+                  .match(/^\s*at.*$/gm)
+                  .map((i) => i.trim())
+              )
+            ).join("\n")
+          );
           canClickToJob = false;
         }
       }
       if (titleFilterEnabled) {
-        if (
-          !titleFilterWords.some((word) =>
-            jobTitle.toLowerCase().includes(word.toLowerCase())
-          )
-        ) {
+        const matchedFilterWord = titleFilterWords.find((word) =>
+          jobTitle.toLowerCase().includes(word.toLowerCase())
+        );
+        if (!matchedFilterWord) {
+          debugLogInfo(
+            `skipJob: no filter word matched, skipping job`,
+            {
+              url: window.location.href,
+              companyName,
+              jobTitle,
+              reason: "titleFilter",
+            },
+            Array.from(
+              new Set(
+                new Error().stack
+                  .replace(/Error/g, "")
+                  .match(/^\s*at.*$/gm)
+                  .map((i) => i.trim())
+              )
+            ).join("\n")
+          );
           canClickToJob = false;
         }
       }
