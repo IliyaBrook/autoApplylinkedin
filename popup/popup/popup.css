@@ -128,16 +128,6 @@ button:hover {
   background-color: #30c8e3;
 }
 
-/* Debug button: dark red */
-.button-debug {
-  background-color: #8b0000;
-  color: white;
-}
-
-.button-debug:hover {
-  background-color: #a52a2a;
-}
-
 /* Export (blue) */
 .button-export {
   background-color: #0066cc;

@@ -1,103 +1,3 @@
-function debugLogPopup(message, data = null, isError = false) {
-  const timestamp = new Date().toISOString();
-
-  const stack = new Error().stack;
-  let callerInfo = "popup.js:?";
-
-  if (stack) {
-    const stackLines = stack.split("\n").filter((line) => line.trim());
-
-    let callerLine = null;
-    for (let i = 0; i < stackLines.length; i++) {
-      const line = stackLines[i];
-
-      if (line.includes("debugLogPopup")) {
-        continue;
-      }
-
-      callerLine = line;
-      break;
-    }
-
-    if (callerLine) {
-      let match = null;
-
-      match = callerLine.match(/at\s+.*?\s+\(([^)]+):(\d+):(\d+)\)/);
-
-      if (!match) {
-        match = callerLine.match(/at\s+([^:]+):(\d+):(\d+)/);
-      }
-
-      if (!match) {
-        match = callerLine.match(/\(([^)]+):(\d+):(\d+)\)/);
-      }
-
-      if (!match) {
-        match = callerLine.match(/([^\/\\]+\.(js|ts)):(\d+)/);
-      }
-
-      if (match) {
-        const filePath = match[1];
-        const lineNumber = match[2] || match[3] || "?";
-
-        const fileName = filePath.split("/").pop().split("\\").pop();
-        callerInfo = `${fileName}:${lineNumber}`;
-      } else {
-        const cleanLine = callerLine.replace(/^\s*at\s*/, "").trim();
-        if (cleanLine.length > 0 && cleanLine !== "Object.<anonymous>") {
-          callerInfo = cleanLine.substring(0, 50);
-        } else {
-          callerInfo = "popup.js:?";
-        }
-      }
-    } else {
-      callerInfo = "popup.js:?";
-    }
-  } else {
-    callerInfo = "popup.js:?";
-  }
-
-  const logType = isError ? "[ERROR]" : "[POPUP]";
-  const logMessage = `[LinkedIn AutoApply Popup] ${timestamp} [${callerInfo}]: ${logType} ${message}`;
-  console.log("[DEBUGGER](POPUP LOG): ", logMessage);
-  if (data) {
-    console.log("[DEBUGGER](POPUP DATA): ", data);
-  }
-
-  try {
-    chrome.storage.local.get("debugLogs", (result) => {
-      const logs = result.debugLogs || [];
-      logs.push({
-        timestamp,
-        message: `${logType} ${message}`,
-        data,
-        callerInfo,
-        isError: isError,
-        isCritical: isError,
-        source: "popup",
-      });
-
-      if (logs.length > 50) {
-        logs.splice(0, logs.length - 50);
-      }
-      chrome.storage.local.set({ debugLogs: logs });
-    });
-  } catch (error) {
-    console.error("[DEBUGGER](POPUP ERROR storing log): ", error);
-  }
-}
-
-function debugLogPopupError(message, error = null) {
-  const errorData = error
-    ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      }
-    : null;
-
-  debugLogPopup(message, errorData, true);
-}
 
 function changeAutoApplyButton(isRunning, selector) {
   const startIcon = document.getElementById("start-icon");
@@ -240,13 +140,7 @@ function renderSavedLinks() {
       goBtn.title = "Go";
       goBtn.onclick = () => {
         chrome.runtime.sendMessage(
-          { action: "openTabAndRunScript", url },
-          (response) => {
-            debugLogPopup(
-              "Result of opening the tab and executing the script",
-              { response }
-            );
-          }
+          { action: "openTabAndRunScript", url }
         );
       };
       item.appendChild(goBtn);
@@ -360,14 +254,8 @@ document.addEventListener("click", (event) => {
             renderSavedLinks();
           }
         } catch (error) {
-          debugLogPopupError("Cannot show links case 'show-links'", error);
+          console.error("Cannot show links case 'show-links'", error);
         }
-        break;
-      case "debug-logs-button":
-        chrome.tabs.create({
-          url: "/popup/debugLogs/debugLogs.html",
-          active: true,
-        });
         break;
       case "start-auto-apply-button":
         if (
