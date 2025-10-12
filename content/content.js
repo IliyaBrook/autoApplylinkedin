@@ -170,22 +170,6 @@ function isExtensionContextValidQuiet() {
   }
 }
 
-function safeStorageOperation(operation) {
-  if (!isExtensionContextValidQuiet()) {
-    return Promise.resolve();
-  }
-
-  return new Promise((resolve) => {
-    try {
-      operation(() => {
-        resolve();
-      });
-    } catch (error) {
-      resolve();
-    }
-  });
-}
-
 function setAutoApplyRunningSilent(value) {
   if (!isExtensionContextValidQuiet()) {
     return;
@@ -1714,21 +1698,24 @@ async function performUniversalCheckboxChecks(context = document) {
 }
 
 async function runValidations() {
-  const saveModalHandled = await handleSaveApplicationModal();
-  if (saveModalHandled) {
-    return;
-  }
-
-  await validateAndCloseConfirmationModal();
-
-  const applyModal = document.querySelector(".artdeco-modal") || document;
-  await performInputFieldChecks(applyModal);
-  await performUniversalCheckboxChecks(applyModal);
-  await performRadioButtonChecks();
-  await performDropdownChecks();
-  await performCheckBoxFieldCityCheck();
-
-  await handleSaveApplicationModal();
+	// TODO: ch
+	try {
+		const saveModalHandled = await handleSaveApplicationModal();
+		if (saveModalHandled) {
+			return;
+		}
+		
+		await validateAndCloseConfirmationModal();
+		
+		const applyModal = document.querySelector(".artdeco-modal") || document;
+		await performInputFieldChecks(applyModal);
+		await performUniversalCheckboxChecks(applyModal);
+		await performRadioButtonChecks();
+		await performDropdownChecks();
+		await performCheckBoxFieldCityCheck();
+		
+		await handleSaveApplicationModal();
+	} catch {}
 }
 
 async function uncheckFollowCompany() {
