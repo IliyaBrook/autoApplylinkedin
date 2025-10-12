@@ -1,5 +1,4 @@
 let autoApplyRunning = false;
-let userDataObject = {};
 let extensionContextCheckInterval = null;
 let saveModalCheckInterval = null;
 let isSaveModalBeingHandled = false;
@@ -19,140 +18,6 @@ let defaultFields = {
 };
 
 let prevSearchValue = "";
-
-function debugLog(message, data = null, forceLog = false, callerInfo) {
-  if (!isExtensionContextValidQuiet()) {
-    return;
-  }
-
-  if (!forceLog) {
-    try {
-      chrome.storage.local.get("autoApplyRunning", (result) => {
-        if (!isExtensionContextValidQuiet()) {
-          return;
-        }
-
-        if (chrome.runtime.lastError) {
-          return;
-        }
-        if (!result?.autoApplyRunning) {
-          return;
-        }
-        writeLog(message, data, false, "SCRIPT", callerInfo);
-      });
-    } catch (error) {
-      return null;
-    }
-  } else {
-    writeLog(message, data, true, "SCRIPT", callerInfo);
-  }
-}
-
-function debugLogError(message, error = null, callerInfo) {
-  if (!isExtensionContextValidQuiet()) {
-    return;
-  }
-
-  const errorData = error
-    ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      }
-    : null;
-
-  writeLog(message, errorData, true, "ERROR", callerInfo);
-}
-
-function debugLogCritical(message, data = null, callerInfo) {
-  if (!isExtensionContextValidQuiet()) {
-    return;
-  }
-
-  writeLog(message, data, true, "CRITICAL", callerInfo);
-}
-
-function debugLogInfo(message, data = null, callerInfo = null) {
-  if (!isExtensionContextValidQuiet()) {
-    return;
-  }
-
-  try {
-    chrome.storage.local.get("autoApplyRunning", (result) => {
-      if (!isExtensionContextValidQuiet()) {
-        return;
-      }
-
-      if (chrome.runtime.lastError) {
-        return;
-      }
-      if (!result?.autoApplyRunning) {
-        return;
-      }
-      writeLog(message, data, false, "INFO", callerInfo);
-    });
-  } catch (error) {
-    return null;
-  }
-}
-
-function writeLog(
-  message,
-  data = null,
-  isForced = false,
-  logType = "SCRIPT",
-  callerInfo = null
-) {
-  const timestamp = new Date().toISOString();
-  try {
-    if (!isExtensionContextValidQuiet()) {
-      return;
-    }
-
-    chrome.storage.local.get("debugLogs", (result) => {
-      if (!isExtensionContextValidQuiet()) {
-        return;
-      }
-
-      if (chrome.runtime.lastError) {
-        return;
-      }
-
-      const logs = result.debugLogs || [];
-
-      const enhancedData = data || {};
-      if (logType === "CRITICAL") {
-        try {
-          enhancedData.url = window.location.href;
-          enhancedData.readyState = document.readyState;
-          enhancedData.timestamp = timestamp;
-        } catch (error) {}
-      }
-
-      logs.push({
-        timestamp,
-        message,
-        data: enhancedData,
-        callerInfo,
-        logType,
-        isError: logType === "ERROR",
-        isCritical: logType === "CRITICAL" || isForced,
-      });
-
-      if (logs.length > 2000) {
-        logs.splice(0, logs.length - 2000);
-      }
-
-      if (!isExtensionContextValidQuiet()) {
-        return;
-      }
-
-      chrome.storage.local.set({ debugLogs: logs });
-    });
-  } catch (error) {
-    return null;
-  }
-}
 
 function isExtensionContextValidQuiet() {
   try {
@@ -186,24 +51,12 @@ async function updateScriptActivity() {
       await chrome.storage.local.set({ lastScriptActivity: Date.now() });
     }
   } catch (error) {
-    debugLog("Failed to update script activity timestamp", error, false);
+		console.error("Failed to update script activity timestamp", error);
   }
 }
 
 async function attemptScriptRecovery() {
   try {
-    debugLogInfo(
-      "Attempting script recovery after unexpected stop",
-      { timestamp: new Date().toISOString() },
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
 
     const storage = await chrome.storage.local.get([
       "autoApplyRunning",
@@ -221,26 +74,8 @@ async function attemptScriptRecovery() {
       isOnJobSearchPage &&
       storage.shouldRestartScript
     ) {
-      debugLogInfo(
-        "Recovery conditions met - restarting script",
-        chrome.runtime?.id
-          ? {
-              timeSinceLastActivity,
-              isOnJobSearchPage: isOnJobSearchPage ?? null,
-              shouldRestart: storage?.shouldRestartScript ?? null,
-            }
-          : null,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
-
-      await chrome.storage.local.remove([
+			
+			await chrome.storage.local.remove([
         "shouldRestartScript",
         "loopRestartUrl",
       ]);
@@ -257,18 +92,7 @@ async function attemptScriptRecovery() {
 
     return false;
   } catch (error) {
-    debugLogError(
-      "Error during script recovery attempt",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    console.error("Error during script recovery attempt", error);
     return false;
   }
 }
@@ -289,63 +113,18 @@ async function setAutoApplyRunning(value, reason = "Unknown") {
     });
 
     if (!isExtensionContextValidQuiet()) {
-      return;
+      return null;
     }
-
-    debugLogInfo(
-      `autoApplyRunning state changed to: ${value}`,
-      {
-        reason: reason,
-        timestamp: new Date().toISOString(),
-        newValue: value,
-        lastActivity: Date.now(),
-      },
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+		
   } catch (error) {
     if (isExtensionContextValidQuiet()) {
-      debugLogError(
-        `Failed to set autoApplyRunning to ${value}`,
-        error,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
+      console.trace("Error in setAutoApplyRunning", error);
     }
   }
 }
 
 async function stopScript() {
-  debugLogCritical(
-    "stopScript called - script stopping",
-    {
-      reason: "Manual stop or error",
-      timestamp: new Date().toISOString(),
-    },
-    Array.from(
-      new Set(
-        new Error().stack
-          .replace(/Error/g, "")
-          .match(/^\s*at.*$/gm)
-          .map((i) => i.trim())
-      )
-    ).join("\n")
-  );
-
   stopExtensionContextMonitoring();
-
   const modalWrapper = document.getElementById("scriptRunningOverlay");
   if (modalWrapper) {
     modalWrapper.style.display = "none";
@@ -356,18 +135,6 @@ async function stopScript() {
 
   try {
     if (!chrome || !chrome.tabs || typeof chrome.tabs.query !== "function") {
-      debugLogError(
-        "Chrome tabs API not available in stopScript",
-        null,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
       prevSearchValue = "";
       return;
     }
@@ -380,36 +147,13 @@ async function stopScript() {
       });
     }
   } catch (error) {
-    debugLogError(
-      "Error in stopScript",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    console.error("Error in stopScript", error);
   }
   prevSearchValue = "";
 }
 
 async function startScript() {
   if (!isExtensionContextValid()) {
-    debugLogError(
-      "Extension context invalid in startScript, cannot start",
-      null,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
     return false;
   }
 
@@ -419,23 +163,10 @@ async function startScript() {
 
     await chrome.runtime.sendMessage({ action: "autoApplyRunning" });
     await setAutoApplyRunning(true, "startScript called");
-
     startExtensionContextMonitoring();
 
     return true;
   } catch (error) {
-    debugLogError(
-      "Error in startScript",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
     return false;
   }
 }
@@ -458,24 +189,6 @@ async function checkAndPrepareRunState(allowAutoRecovery = false) {
             now - (lastActivity?.lastScriptActivity || 0);
 
           if (timeSinceLastActivity < 30000) {
-            debugLogInfo(
-              "checkAndPrepareRunState: script was recently active, attempting auto-recovery",
-              {
-                timeSinceLastActivity,
-                attempting: "auto-recovery",
-                storageResult: result,
-                timestamp: new Date().toISOString(),
-              },
-              Array.from(
-                new Set(
-                  new Error().stack
-                    .replace(/Error/g, "")
-                    .match(/^\s*at.*$/gm)
-                    .map((i) => i.trim())
-                )
-              ).join("\n")
-            );
-
             await setAutoApplyRunning(
               true,
               "auto-recovery from recent activity"
@@ -484,49 +197,11 @@ async function checkAndPrepareRunState(allowAutoRecovery = false) {
             return;
           }
         }
-
-        debugLogCritical(
-          "checkAndPrepareRunState: script not running, stopping process",
-          {
-            calledFrom: Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n"),
-            storageResult: result,
-            allowAutoRecovery,
-            timestamp: new Date().toISOString(),
-            url: window.location.href,
-            readyState: document.readyState,
-          },
-          Array.from(
-            new Set(
-              new Error().stack
-                .replace(/Error/g, "")
-                .match(/^\s*at.*$/gm)
-                .map((i) => i.trim())
-            )
-          ).join("\n")
-        );
+				
         resolve(false);
         prevSearchValue = "";
       }
     } catch (error) {
-      debugLogError(
-        "checkAndPrepareRunState: error during state check",
-        error,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
       resolve(false);
     }
   });
@@ -579,18 +254,7 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 
       const isRunning = await checkAndPrepareRunState();
       if (!isRunning) {
-        debugLogCritical(
-          "clickJob: script not running, aborting job processing",
-          null,
-          Array.from(
-            new Set(
-              new Error().stack
-                .replace(/Error/g, "")
-                .match(/^\s*at.*$/gm)
-                .map((i) => i.trim())
-            )
-          ).join("\n")
-        );
+        
         resolve(null);
         return;
       }
@@ -618,23 +282,6 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
               }
             }
             if (matchedBadWord) {
-              debugLogInfo(
-                `clickJob: found bad word "${matchedBadWord}", skipping job`,
-                {
-                  url: window.location.href,
-                  companyName,
-                  jobTitle,
-                  matchedBadWord,
-                },
-                Array.from(
-                  new Set(
-                    new Error().stack
-                      .replace(/Error/g, "")
-                      .match(/^\s*at.*$/gm)
-                      .map((i) => i.trim())
-                  )
-                ).join("\n")
-              );
               resolve(null);
               return;
             }
@@ -645,18 +292,6 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
       await runFindEasyApply(jobTitle, companyName);
       resolve(null);
     } catch (error) {
-      debugLogError(
-        "Error in clickJob",
-        error,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
       resolve(null);
     }
   });
@@ -687,90 +322,16 @@ async function handleCheckboxField(inputField, labelText, jobUrl, jobTitle) {
         checkboxLabel.includes(keyword.replace("&", "and"))
     );
 
-    debugLogInfo(
-      `Processing checkbox: "${labelText}"`,
-      {
-        jobUrl,
-        jobTitle,
-        checkboxLabel: labelText,
-        shouldCheck,
-        matchedKeywords: agreementKeywords.filter(
-          (keyword) =>
-            checkboxLabel.includes(keyword) ||
-            checkboxLabel.includes(keyword.replace("&", "and"))
-        ),
-        inputId: inputField.id,
-        currentlyChecked: inputField.checked,
-      },
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
-
     if (shouldCheck && !inputField.checked) {
       inputField.scrollIntoView({ behavior: "smooth", block: "center" });
       await addDelay(200);
-
       inputField.checked = true;
       inputField.dispatchEvent(new Event("change", { bubbles: true }));
       inputField.dispatchEvent(new Event("click", { bubbles: true }));
-
       await addDelay(300);
-
-      debugLogInfo(
-        `Checkbox checked automatically: "${labelText}"`,
-        {
-          jobUrl,
-          jobTitle,
-          checkboxLabel: labelText,
-          action: "checkbox_checked",
-        },
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
-    } else if (!shouldCheck) {
-      debugLogInfo(
-        `Checkbox skipped (no matching keywords): "${labelText}"`,
-        {
-          jobUrl,
-          jobTitle,
-          checkboxLabel: labelText,
-          action: "checkbox_skipped",
-        },
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
     }
   } catch (error) {
-    debugLogError(
-      `Error handling checkbox: "${labelText}"`,
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    console.error("Error handling checkbox: ", error);
   }
 }
 
@@ -871,39 +432,6 @@ async function performInputFieldChecks(context = document) {
       }
 
       const isAutocompleteField = inputField.matches('[role="combobox"]');
-      const container = inputField.closest("div, fieldset, section, form");
-      const isNewTypeContainer =
-        container?.hasAttribute(
-          "data-test-single-typeahead-entity-form-component"
-        ) || false;
-
-      debugLogInfo(
-        `Processing form field: "${labelText}"`,
-        {
-          jobUrl,
-          jobTitle,
-          isAutocomplete: isAutocompleteField,
-          isNewType: isNewTypeContainer,
-          inputType: inputField.type,
-          inputRole: inputField.getAttribute("role"),
-          inputId: inputField.id,
-          containerClass: container?.className || "no-container",
-          hasPlaceholder: !!inputField.placeholder,
-          labelSource: label
-            ? "label-element"
-            : inputField.placeholder
-            ? "placeholder"
-            : "text-search",
-        },
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
 
       if (inputField.type === "checkbox") {
         await handleCheckboxField(inputField, labelText, jobUrl, jobTitle);
@@ -942,53 +470,13 @@ async function performInputFieldChecks(context = document) {
                 inputFieldConfigsObj,
                 labelText
               );
-              if (valueFromConfigs) {
-                debugLogInfo(
-                  `Filling field from configs: "${labelText}" = "${valueFromConfigs}"`,
-                  {
-                    jobUrl,
-                    jobTitle,
-                    isAutocomplete: isAutocompleteField,
-                    isNewType: isNewTypeContainer,
-                    value: valueFromConfigs,
-                  },
-                  Array.from(
-                    new Set(
-                      new Error().stack
-                        .replace(/Error/g, "")
-                        .match(/^\s*at.*$/gm)
-                        .map((i) => i.trim())
-                    )
-                  ).join("\n")
-                );
-
-                if (isAutocompleteField) {
-                  await fillAutocompleteField(inputField, valueFromConfigs);
-                } else {
-                  setNativeValue(inputField, valueFromConfigs);
-                }
-              }
+	            if (isAutocompleteField && valueFromConfigs) {
+		            await fillAutocompleteField(inputField, valueFromConfigs);
+	            } else {
+		            setNativeValue(inputField, valueFromConfigs);
+	            }
             }
           } else {
-            debugLogInfo(
-              `Filling field from defaults: "${labelText}" = "${valueFromDefault}"`,
-              {
-                jobUrl,
-                jobTitle,
-                isAutocomplete: isAutocompleteField,
-                isNewType: isNewTypeContainer,
-                value: valueFromDefault,
-              },
-              Array.from(
-                new Set(
-                  new Error().stack
-                    .replace(/Error/g, "")
-                    .match(/^\s*at.*$/gm)
-                    .map((i) => i.trim())
-                )
-              ).join("\n")
-            );
-
             if (isAutocompleteField) {
               await fillAutocompleteField(inputField, valueFromDefault);
             } else {
@@ -997,25 +485,6 @@ async function performInputFieldChecks(context = document) {
           }
         }
         if (!inputField.value) {
-          debugLogInfo(
-            `Saving new field to storage: "${labelText}"`,
-            {
-              jobUrl,
-              jobTitle,
-              isAutocomplete: isAutocompleteField,
-              isNewType: isNewTypeContainer,
-              action: "updateInputFieldConfigsInStorage",
-            },
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
-          );
-
           await chrome.runtime.sendMessage({
             action: "updateInputFieldConfigsInStorage",
             data: labelText,
@@ -1298,18 +767,7 @@ async function validateAndCloseConfirmationModal() {
         return true;
       }
 
-      debugLogError(
-        "Save application modal found but no buttons to close it",
-        null,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
+      
     }
   }
 
@@ -1320,7 +778,7 @@ async function handleSaveApplicationModal() {
   const currentTime = Date.now();
 
   if (isSaveModalBeingHandled) {
-    debugLog("Save modal already being handled, skipping duplicate call");
+    
     return false;
   }
 
@@ -1354,49 +812,18 @@ async function handleSaveApplicationModal() {
 
   const waitTime = currentTime - saveModalDetectedTime;
   if (waitTime > MAX_SAVE_MODAL_WAIT_TIME) {
-    debugLogCritical(
-      "Save modal has been stuck for too long - stopping script",
-      {
-        waitTime,
-        maxWaitTime: MAX_SAVE_MODAL_WAIT_TIME,
-        failureCount: saveModalFailureCount,
-      }
-    );
+    
     await stopScript();
     return false;
   }
 
   if (saveModalFailureCount >= MAX_SAVE_MODAL_FAILURES) {
-    debugLogCritical(
-      "Too many save modal handling failures - stopping script",
-      {
-        failureCount: saveModalFailureCount,
-        maxFailures: MAX_SAVE_MODAL_FAILURES,
-        waitTime,
-      }
-    );
+    
     await stopScript();
     return false;
   }
 
   try {
-    const jobUrl = window.location.href;
-    const jobTitle =
-      document.querySelector("[data-job-title]")?.textContent?.trim() ||
-      document
-        .querySelector(".job-details-jobs-unified-top-card__job-title")
-        ?.textContent?.trim() ||
-      "Unknown Job";
-
-    debugLogCritical("Save application modal detected - attempting to handle", {
-      jobUrl,
-      jobTitle,
-      modalVisible: saveModal.style.display !== "none",
-      timestamp: new Date().toISOString(),
-      waitTime,
-      failureCount: saveModalFailureCount,
-    });
-
     const discardButton = saveModal.querySelector(
       "button[data-test-dialog-secondary-btn]"
     );
@@ -1404,12 +831,6 @@ async function handleSaveApplicationModal() {
       discardButton &&
       discardButton.textContent.trim().toLowerCase().includes("discard")
     ) {
-      debugLogInfo("Clicking Discard button to close save modal", {
-        jobUrl,
-        jobTitle,
-        buttonText: discardButton.textContent.trim(),
-      });
-
       discardButton.click();
       await addDelay(1500);
 
@@ -1417,18 +838,10 @@ async function handleSaveApplicationModal() {
         '[data-test-modal=""][role="alertdialog"]'
       );
       if (!modalStillExists) {
-        debugLogInfo("Save modal successfully closed with Discard button", {
-          jobUrl,
-          jobTitle,
-        });
         saveModalDetectedTime = 0;
         saveModalFailureCount = 0;
         return true;
       } else {
-        debugLogError("Save modal still exists after Discard click", {
-          jobUrl,
-          jobTitle,
-        });
         saveModalFailureCount++;
       }
     }
@@ -1437,13 +850,7 @@ async function handleSaveApplicationModal() {
       'button[aria-label="Dismiss"]'
     );
     if (dismissButton) {
-      debugLogError("No Discard button found, using Dismiss as fallback", {
-        jobUrl,
-        jobTitle,
-        availableButtons: Array.from(saveModal.querySelectorAll("button")).map(
-          (b) => b.textContent.trim()
-        ),
-      });
+      
 
       dismissButton.click();
       await addDelay(1500);
@@ -1452,39 +859,20 @@ async function handleSaveApplicationModal() {
         '[data-test-modal=""][role="alertdialog"]'
       );
       if (!modalStillExists) {
-        debugLogInfo("Save modal successfully closed with Dismiss button", {
-          jobUrl,
-          jobTitle,
-        });
+        
         saveModalDetectedTime = 0;
         saveModalFailureCount = 0;
         return true;
       } else {
-        debugLogError("Save modal still exists after Dismiss click", {
-          jobUrl,
-          jobTitle,
-        });
+        
         saveModalFailureCount++;
       }
     }
-
-    debugLogError("Save modal found but no way to close it", {
-      jobUrl,
-      jobTitle,
-      modalHTML: saveModal.outerHTML.substring(0, 500),
-      availableButtons: Array.from(saveModal.querySelectorAll("button")).map(
-        (b) => ({
-          text: b.textContent.trim(),
-          ariaLabel: b.getAttribute("aria-label"),
-          dataTest: b.getAttribute("data-test-dialog-secondary-btn"),
-        })
-      ),
-    });
-
+		
     saveModalFailureCount++;
     return false;
   } catch (error) {
-    debugLogError("Error in handleSaveApplicationModal", error);
+    
     saveModalFailureCount++;
     return false;
   } finally {
@@ -1546,14 +934,14 @@ async function terminateJobModel(context = document) {
   if (!isSaveModalBeingHandled) {
     const saveModalHandled = await handleSaveApplicationModal();
     if (saveModalHandled) {
-      debugLogInfo("terminateJobModel: save modal handled, exiting");
+      
       return;
     }
   }
 
   const dismissButton = context.querySelector('button[aria-label="Dismiss"]');
   if (dismissButton) {
-    debugLogInfo("terminateJobModel: clicking dismiss button");
+    
     dismissButton.click();
     dismissButton.dispatchEvent(new Event("change", { bubbles: true }));
     await addDelay(1000);
@@ -1561,7 +949,7 @@ async function terminateJobModel(context = document) {
     if (!isSaveModalBeingHandled) {
       const saveModalAfterDismiss = await handleSaveApplicationModal();
       if (saveModalAfterDismiss) {
-        debugLogInfo("terminateJobModel: save modal handled after dismiss");
+        
         return;
       }
     }
@@ -1570,20 +958,11 @@ async function terminateJobModel(context = document) {
       document.querySelectorAll("button[data-test-dialog-secondary-btn]")
     ).find((button) => button.textContent.trim() === "Discard");
     if (discardButton) {
-      debugLogInfo("terminateJobModel: clicking separate discard button");
+      
       discardButton.click();
       discardButton.dispatchEvent(new Event("change", { bubbles: true }));
       await addDelay(500);
     }
-  } else {
-    debugLogError("terminateJobModel: no dismiss button found", {
-      availableButtons: Array.from(context.querySelectorAll("button")).map(
-        (b) => ({
-          text: b.textContent.trim(),
-          ariaLabel: b.getAttribute("aria-label"),
-        })
-      ),
-    });
   }
 }
 
@@ -1611,23 +990,7 @@ async function performUniversalCheckboxChecks(context = document) {
 
     allCheckboxes = [...new Set(allCheckboxes)];
 
-    debugLogInfo(
-      `Found ${allCheckboxes.length} checkboxes in form`,
-      {
-        jobUrl,
-        jobTitle,
-        checkboxCount: allCheckboxes.length,
-        selectors: checkboxSelectors,
-      },
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    
 
     for (const checkbox of allCheckboxes) {
       if (checkbox.type !== "checkbox") continue;
@@ -1682,18 +1045,7 @@ async function performUniversalCheckboxChecks(context = document) {
       }
     }
   } catch (error) {
-    debugLogError(
-      "Error in performUniversalCheckboxChecks",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    console.error("Error in performUniversalCheckboxChecks", error);
   }
 }
 
@@ -1799,24 +1151,7 @@ async function runApplyModel() {
 
             submitButton.click();
             await addDelay(2000);
-
-            const saveModalAfterSubmit = await handleSaveApplicationModal();
-            if (saveModalAfterSubmit) {
-              debugLog(
-                "Save application modal handled after submit",
-                null,
-                false,
-                Array.from(
-                  new Set(
-                    new Error().stack
-                      .replace(/Error/g, "")
-                      .match(/^\s*at.*$/gm)
-                      .map((i) => i.trim())
-                  )
-                ).join("\n")
-              );
-            }
-
+            await handleSaveApplicationModal();
             const isStillRunning2 = await checkAndPrepareRunState();
             if (!isStillRunning2) {
               return;
@@ -1839,18 +1174,7 @@ async function runApplyModel() {
             const isError = await checkForFormValidationError();
 
             if (isError) {
-              debugLogError(
-                "Form validation error detected, terminating job modal",
-                null,
-                Array.from(
-                  new Set(
-                    new Error().stack
-                      .replace(/Error/g, "")
-                      .match(/^\s*at.*$/gm)
-                      .map((i) => i.trim())
-                  )
-                ).join("\n")
-              );
+              
               await terminateJobModel();
             } else {
               buttonToClick?.scrollIntoView({ block: "center" });
@@ -1860,19 +1184,7 @@ async function runApplyModel() {
               await addDelay(1000);
               const saveModalAfterNext = await handleSaveApplicationModal();
               if (saveModalAfterNext) {
-                debugLog(
-                  "Save application modal handled after next/review",
-                  null,
-                  false,
-                  Array.from(
-                    new Set(
-                      new Error().stack
-                        .replace(/Error/g, "")
-                        .match(/^\s*at.*$/gm)
-                        .map((i) => i.trim())
-                    )
-                  ).join("\n")
-                );
+                console.info("Save modal detected after next button click");
               }
 
               await runApplyModel();
@@ -1930,18 +1242,7 @@ async function runApplyModel() {
       }),
     ]);
   } catch (error) {
-    debugLogError(
-      "runApplyModel critical error",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    console.error("runApplyModel critical error", error);
   }
 }
 
@@ -1962,18 +1263,7 @@ async function runFindEasyApply(jobTitle, companyName) {
       if (alreadyAppliedElement) {
         const textContent = alreadyAppliedElement.textContent;
         if (checkIfAlreadyApplied(textContent)) {
-          debugLogInfo(
-            `Already applied to job: ${jobTitle} at ${companyName}`,
-            null,
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
-          );
+          
           resolve(null);
           return;
         }
@@ -1982,18 +1272,7 @@ async function runFindEasyApply(jobTitle, companyName) {
       const currentPageLink = window.location.href;
 
       if (!chrome || !chrome.runtime) {
-        debugLogError(
-          "Extension context invalidated in runFindEasyApply",
-          null,
-          Array.from(
-            new Set(
-              new Error().stack
-                .replace(/Error/g, "")
-                .match(/^\s*at.*$/gm)
-                .map((i) => i.trim())
-            )
-          ).join("\n")
-        );
+        
         resolve(null);
         return;
       }
@@ -2035,18 +1314,7 @@ async function runFindEasyApply(jobTitle, companyName) {
 
       resolve(null);
     } catch (error) {
-      debugLogError(
-        "Error in runFindEasyApply",
-        error,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
+      
       resolve(null);
     }
   });
@@ -2155,18 +1423,7 @@ async function closeApplicationSentModal() {
 let isNavigating = false;
 
 async function handleLoopRestart() {
-  debugLogInfo(
-    "handleLoopRestart called",
-    null,
-    Array.from(
-      new Set(
-        new Error().stack
-          .replace(/Error/g, "")
-          .match(/^\s*at.*$/gm)
-          .map((i) => i.trim())
-      )
-    ).join("\n")
-  );
+  
   try {
     const { lastJobSearchUrl, loopRunningDelay } =
       await chrome.storage.local.get(["lastJobSearchUrl", "loopRunningDelay"]);
@@ -2211,18 +1468,7 @@ async function handleLoopRestart() {
 
     window.location.href = newUrl;
   } catch (error) {
-    debugLogError(
-      "Error in handleLoopRestart",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    
     void stopScript();
   }
 }
@@ -2269,18 +1515,7 @@ async function goToNextPage() {
         timeout: 5000,
       });
     } catch (error) {
-      debugLogError(
-        "goToNextPage waitForElements error",
-        error,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
+    
     }
 
     await addDelay(1000);
@@ -2310,53 +1545,16 @@ async function goToNextPage() {
     await runScript();
     return true;
   } catch (error) {
-    debugLogError(
-      "Error navigating to next page",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    
     isNavigating = false;
     return false;
   }
 }
 
 async function runScript() {
-  debugLogInfo(
-    "runScript STARTED",
-    { url: window.location.href, readyState: document.readyState },
-    Array.from(
-      new Set(
-        new Error().stack
-          .replace(/Error/g, "")
-          .match(/^\s*at.*$/gm)
-          .map((i) => i.trim())
-      )
-    ).join("\n")
-  );
-
   try {
     await addDelay(3000);
-
     if (!isExtensionContextValid()) {
-      debugLogError(
-        "runScript: extension context invalid at start, stopping",
-        null,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
       return;
     }
 
@@ -2371,18 +1569,7 @@ async function runScript() {
 
     const scriptStarted = await startScript();
     if (!scriptStarted) {
-      debugLogError(
-        "runScript: failed to start script, stopping",
-        null,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
+      
       return;
     }
 
@@ -2390,71 +1577,22 @@ async function runScript() {
 
     const isRunning = await checkAndPrepareRunState(true);
     if (!isRunning) {
-      debugLogCritical(
-        "runScript: state check failed, script not running",
-        null,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
       return;
     }
 
     if (!isExtensionContextValid()) {
-      debugLogError(
-        "runScript: extension context invalid after state check, stopping",
-        null,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
       return;
     }
 
     await setAutoApplyRunning(true, "runScript reactivation");
-
     const fieldsComplete = await checkAndPromptFields();
     if (!fieldsComplete) {
-      debugLogCritical(
-        "runScript: default fields not configured, opening config page",
-        null,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
       await chrome.runtime.sendMessage({ action: "openDefaultInputPage" });
       return;
     }
 
     const limitReached = await checkLimitReached();
     if (limitReached) {
-      debugLogCritical(
-        "runScript: daily application limit reached, stopping",
-        null,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
       const feedbackMessageElement = document.querySelector(
         ".artdeco-inline-feedback__message"
       );
@@ -2480,36 +1618,12 @@ async function runScript() {
       elementOrSelector: ".scaffold-layout__list-item",
     });
 
-    debugLog(
-      `Processing ${listItems.length} job list items`,
-      null,
-      false,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    
 
     for (let i = 0; i < listItems.length; i++) {
       const listItem = listItems[i];
 
       if (i % 5 === 0 && !isExtensionContextValid()) {
-        debugLogError(
-          "Extension context lost during job processing",
-          null,
-          Array.from(
-            new Set(
-              new Error().stack
-                .replace(/Error/g, "")
-                .match(/^\s*at.*$/gm)
-                .map((i) => i.trim())
-            )
-          ).join("\n")
-        );
         return;
       }
 
@@ -2527,22 +1641,7 @@ async function runScript() {
       }
 
       await closeApplicationSentModal();
-
-      const saveModalBefore = await handleSaveApplicationModal();
-      if (saveModalBefore) {
-        debugLog(
-          "Save application modal handled before job processing",
-          null,
-          Array.from(
-            new Set(
-              new Error().stack
-                .replace(/Error/g, "")
-                .match(/^\s*at.*$/gm)
-                .map((i) => i.trim())
-            )
-          ).join("\n")
-        );
-      }
+      await handleSaveApplicationModal();
 
       const linksElements = await waitForElements({
         elementOrSelector:
@@ -2566,8 +1665,8 @@ async function runScript() {
       const companyNamesArray = Array.from(companyNames).map((el) =>
         el.textContent.trim()
       );
+			
       const companyName = companyNamesArray?.[0] ?? "";
-
       const jobTitle = getJobTitle(jobNameLink);
 
       if (!jobTitle) {
@@ -2579,24 +1678,6 @@ async function runScript() {
           jobTitle.toLowerCase().includes(word.toLowerCase())
         );
         if (matchedSkipWord) {
-          debugLogInfo(
-            `skipJob: found skip word "${matchedSkipWord}", skipping job`,
-            {
-              url: window.location.href,
-              companyName,
-              jobTitle,
-              matchedWord: matchedSkipWord,
-              reason: "titleSkip",
-            },
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
-          );
           canClickToJob = false;
         }
       }
@@ -2605,23 +1686,7 @@ async function runScript() {
           jobTitle.toLowerCase().includes(word.toLowerCase())
         );
         if (!matchedFilterWord) {
-          debugLogInfo(
-            `skipJob: no filter word matched, skipping job`,
-            {
-              url: window.location.href,
-              companyName,
-              jobTitle,
-              reason: "titleFilter",
-            },
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
-          );
+          
           canClickToJob = false;
         }
       }
@@ -2639,18 +1704,7 @@ async function runScript() {
             return;
           }
         } catch (error) {
-          debugLogError(
-            "Error clicking job link",
-            error,
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
-          );
+          console.error("Error clicking job link", error);
         }
       }
 
@@ -2663,18 +1717,7 @@ async function runScript() {
           canClickToJob = false;
         }
       } catch (e) {
-        debugLogError(
-          "Failed to find main job content",
-          e,
-          Array.from(
-            new Set(
-              new Error().stack
-                .replace(/Error/g, "")
-                .match(/^\s*at.*$/gm)
-                .map((i) => i.trim())
-            )
-          ).join("\n")
-        );
+        console.error("Failed to find main job content", e);
       }
 
       const stillRunning5 = await checkAndPrepareRunState();
@@ -2684,23 +1727,7 @@ async function runScript() {
 
       if (canClickToJob) {
         await clickJob(listItem, companyName, jobTitle, badWordsEnabled);
-
-        const saveModalAfter = await handleSaveApplicationModal();
-        if (saveModalAfter) {
-          debugLog(
-            "Save application modal handled after job processing",
-            null,
-            false,
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
-          );
-        }
+        await handleSaveApplicationModal();
       }
     }
 
@@ -2710,34 +1737,11 @@ async function runScript() {
     }
   } catch (error) {
     const message = "Error in runScript: " + error?.message + " script stopped";
-    debugLogError(
-      "Critical error in runScript",
-      { error: error?.message, stack: error?.stack },
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
     console.trace(message);
     await stopScript();
   }
 
-  debugLogInfo(
-    "runScript ENDED",
-    null,
-    Array.from(
-      new Set(
-        new Error().stack
-          .replace(/Error/g, "")
-          .match(/^\s*at.*$/gm)
-          .map((i) => i.trim())
-      )
-    ).join("\n")
-  );
+  
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -2833,26 +1837,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 window.addEventListener("error", function (event) {
-  if (isExtensionContextValidQuiet()) {
-    debugLogError(
-      "Window error detected",
-      {
-        message: event.error?.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        stack: event.error?.stack,
-      },
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
-  }
-
   if (
     event.error &&
     event.error.message &&
@@ -2863,7 +1847,9 @@ window.addEventListener("error", function (event) {
       if (modalWrapper) {
         modalWrapper.style.display = "none";
       }
-    } catch (error) {}
+    } catch (error) {
+			
+    }
   }
 });
 
@@ -2871,89 +1857,27 @@ function isExtensionContextValid() {
   try {
     return !!chrome?.runtime?.id;
   } catch (error) {
-    debugLogError(
-      "Extension context check failed",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
     return false;
   }
 }
 
 function startExtensionContextMonitoring() {
-  debugLogInfo(
-    "Starting enhanced extension context monitoring",
-    null,
-    Array.from(
-      new Set(
-        new Error().stack
-          .replace(/Error/g, "")
-          .match(/^\s*at.*$/gm)
-          .map((i) => i.trim())
-      )
-    ).join("\n")
-  );
-
   let contextLossCount = 0;
 
   extensionContextCheckInterval = setInterval(async () => {
     try {
       if (!isExtensionContextValid()) {
         contextLossCount++;
-
         if (contextLossCount >= 3) {
-          debugLogCritical(
-            "Extension context lost permanently after multiple checks",
-            { contextLossCount, attempts: 3 },
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
-          );
           void stopScript();
           clearInterval(extensionContextCheckInterval);
-        } else {
-          debugLogInfo(
-            `Extension context check failed (attempt ${contextLossCount}/3)`,
-            { contextLossCount },
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
-          );
         }
       } else {
         contextLossCount = 0;
         await updateScriptActivity();
       }
     } catch (error) {
-      debugLogError(
-        "Error during extension context monitoring",
-        error,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
+      console.error("Error during extension context monitoring", error);
     }
   }, 10000);
 
@@ -2961,18 +1885,7 @@ function startExtensionContextMonitoring() {
 }
 
 function stopExtensionContextMonitoring() {
-  debugLogInfo(
-    "Stopping extension context monitoring",
-    null,
-    Array.from(
-      new Set(
-        new Error().stack
-          .replace(/Error/g, "")
-          .match(/^\s*at.*$/gm)
-          .map((i) => i.trim())
-      )
-    ).join("\n")
-  );
+  
   if (extensionContextCheckInterval) {
     clearInterval(extensionContextCheckInterval);
     extensionContextCheckInterval = null;
@@ -2998,18 +1911,7 @@ function startSaveModalMonitoring() {
         titleElement &&
         titleElement.textContent.includes("Save this application?")
       ) {
-        debugLogInfo(
-          "Background monitor detected save modal - triggering handle",
-          {
-            timestamp: new Date().toISOString(),
-            modalFound: true,
-          }
-        );
-
-        const saveModalHandled = await handleSaveApplicationModal();
-        if (saveModalHandled) {
-          debugLogInfo("Save modal handled successfully by background monitor");
-        }
+        await handleSaveApplicationModal();
       }
     }
   }, 5000);
@@ -3037,24 +1939,8 @@ window.addEventListener("load", function () {
           }
 
           if (shouldRestartScript && loopRestartUrl) {
-            debugLogInfo(
-              "Window load event triggered - script restart conditions met",
-              {
-                url: window.location.href,
-              },
-              Array.from(
-                new Set(
-                  new Error().stack
-                    .replace(/Error/g, "")
-                    .match(/^\s*at.*$/gm)
-                    .map((i) => i.trim())
-                )
-              ).join("\n")
-            );
-
             const currentUrl = new URL(window.location.href);
             const savedUrl = new URL(loopRestartUrl);
-
             const isJobSearchPage =
               currentUrl.pathname.includes("/jobs/search/");
             const hasKeywords =
@@ -3065,19 +1951,6 @@ window.addEventListener("load", function () {
               !currentUrl.searchParams.has("start");
 
             if (isJobSearchPage && hasKeywords && isStartPage) {
-              debugLogInfo(
-                "Window load: conditions met, restarting script",
-                null,
-                Array.from(
-                  new Set(
-                    new Error().stack
-                      .replace(/Error/g, "")
-                      .match(/^\s*at.*$/gm)
-                      .map((i) => i.trim())
-                  )
-                ).join("\n")
-              );
-
               if (isExtensionContextValidQuiet()) {
                 chrome.storage.local.remove([
                   "loopRestartUrl",
@@ -3109,44 +1982,19 @@ window.addEventListener("load", function () {
           }
         } catch (error) {
           if (isExtensionContextValidQuiet()) {
-            debugLogError(
-              "Window load: error during processing",
-              error,
-              Array.from(
-                new Set(
-                  new Error().stack
-                    .replace(/Error/g, "")
-                    .match(/^\s*at.*$/gm)
-                    .map((i) => i.trim())
-                )
-              ).join("\n")
-            );
+            console.trace("Error in autoApplyRunning listener", error);
           }
         }
       }
     );
-  } catch (error) {}
+  } catch (error) {
+		console.trace("Error in autoApplyRunning listener", error);
+  }
 });
 
 try {
   window.addEventListener("beforeunload", function () {
     try {
-      debugLogInfo(
-        "Page beforeunload detected - preserving script state",
-        {
-          url: window.location.href,
-          reason: "page_navigation",
-        },
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
-
       chrome.storage.local.get("autoApplyRunning", (result) => {
         if (result?.autoApplyRunning) {
           chrome.storage.local.set({
@@ -3158,18 +2006,7 @@ try {
 
       stopExtensionContextMonitoring();
     } catch (error) {
-      debugLogError(
-        "Error in beforeunload handler",
-        error,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
+      console.error("Error in beforeunload handler", error);
     }
   });
 } catch (error) {}
