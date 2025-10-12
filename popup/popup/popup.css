@@ -48,6 +48,11 @@ button:hover {
   width: 100%;
 }
 
+/* Make the third button span full width */
+.main-buttons-grid > button:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
 /* Secondary buttons in horizontal row */
 .secondary-buttons-row {
   display: flex;
@@ -126,16 +131,6 @@ button:hover {
 /* External Apply: cyan */
 .button-external {
   background-color: #30c8e3;
-}
-
-/* Debug button: dark red */
-.button-debug {
-  background-color: #8b0000;
-  color: white;
-}
-
-.button-debug:hover {
-  background-color: #a52a2a;
 }
 
 /* Export (blue) */

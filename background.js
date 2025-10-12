@@ -1,52 +1,5 @@
 let currentInputFieldConfigs = [];
 
-function debugLogBackground(
-  message,
-  data = null,
-  isError = false,
-  callerInfo = null
-) {
-  const timestamp = new Date().toISOString();
-  if (!callerInfo) {
-    callerInfo = "background.js:?";
-  }
-
-  const logType = isError ? "[ERROR]" : "[BACKGROUND]";
-
-  try {
-    chrome.storage.local.get("debugLogs", (result) => {
-      const logs = result.debugLogs || [];
-      logs.push({
-        timestamp,
-        message: `${logType} ${message}`,
-        data,
-        callerInfo,
-        isError: isError,
-        isCritical: isError,
-        source: "background",
-      });
-      if (logs.length > 50) {
-        logs.splice(0, logs.length - 50);
-      }
-      chrome.storage.local.set({ debugLogs: logs });
-    });
-  } catch (error) {
-    console.error("[DEBUGGER](BACKGROUND ERROR storing log): ", error);
-  }
-}
-
-function debugLogBackgroundError(message, error = null, callerInfo = null) {
-  const errorData = error
-    ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      }
-    : null;
-
-  debugLogBackground(message, errorData, true, callerInfo);
-}
-
 function deleteInputFieldConfig(placeholder) {
   chrome.storage.local.get(["inputFieldConfigs"], (result) => {
     const inputFieldConfigs = result?.inputFieldConfigs || [];
@@ -80,7 +33,6 @@ async function saveLinkedInJobData(jobTitle, jobLink, companyName) {
     for (const item of storedData) {
       const uniqKeyLink = `${item.link}`;
       const uniqKeyTitleName = `${item.title}-${item.companyName}`;
-
       if (
         !seenLinks.has(uniqKeyLink) &&
         !seenTitleAndCompany.has(uniqKeyTitleName)
@@ -90,40 +42,9 @@ async function saveLinkedInJobData(jobTitle, jobLink, companyName) {
         uniqData.push(item);
       }
     }
-
     const sortedData = uniqData.sort((a, b) => b.time - a.time);
     await chrome.storage.local.set({ externalApplyData: sortedData });
-
-    debugLogBackground(
-      "LinkedIn job data saved successfully",
-      {
-        jobTitle,
-        companyName,
-        totalJobs: sortedData.length,
-      },
-      false,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
   } catch (error) {
-    debugLogBackgroundError(
-      "Failed to save LinkedIn job data",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
     throw error;
   }
 }
@@ -148,18 +69,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           .query({ active: true, currentWindow: true })
           .then((tabs) => {
             if (!tabs?.[0]) {
-              debugLogBackgroundError(
-                "No active tab found during startAutoApply",
-                false,
-                Array.from(
-                  new Set(
-                    new Error().stack
-                      .replace(/Error/g, "")
-                      .match(/^\s*at.*$/gm)
-                      .map((i) => i.trim())
-                  )
-                ).join("\n")
-              );
               sendResponse({ success: false, message: "No active tab found." });
               return true;
             }
@@ -194,18 +103,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       const errorMessage = err?.message || "Unknown error";
                       if (errorMessage.includes("establish connection"))
                         return false;
-                      debugLogBackgroundError(
-                        "Error showing not on job search alert",
-                        err,
-                        Array.from(
-                          new Set(
-                            new Error().stack
-                              .replace(/Error/g, "")
-                              .match(/^\s*at.*$/gm)
-                              .map((i) => i.trim())
-                          )
-                        ).join("\n")
-                      );
+                      
                       sendResponse({
                         success: false,
                         message: "Error showing alert: " + err.message,
@@ -226,18 +124,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       })
                     )
                     .catch((err) => {
-                      debugLogBackgroundError(
-                        "Error sending showFormControlAlert",
-                        err,
-                        Array.from(
-                          new Set(
-                            new Error().stack
-                              .replace(/Error/g, "")
-                              .match(/^\s*at.*$/gm)
-                              .map((i) => i.trim())
-                          )
-                        ).join("\n")
-                      );
+                      
                       sendResponse({
                         success: false,
                         message:
@@ -256,37 +143,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       func: runScriptInContent,
                     })
                     .then(() => {
-                      debugLogBackground(
-                        "Auto-apply script started successfully",
-                        {
-                          tabId: currentTabId,
-                          url: currentUrl,
-                        },
-                        false,
-                        Array.from(
-                          new Set(
-                            new Error().stack
-                              .replace(/Error/g, "")
-                              .match(/^\s*at.*$/gm)
-                              .map((i) => i.trim())
-                          )
-                        ).join("\n")
-                      );
+                      
                       sendResponse({ success: true });
                     })
                     .catch((err) => {
-                      debugLogBackgroundError(
-                        "startAutoApply executeScript Error",
-                        err,
-                        Array.from(
-                          new Set(
-                            new Error().stack
-                              .replace(/Error/g, "")
-                              .match(/^\s*at.*$/gm)
-                              .map((i) => i.trim())
-                          )
-                        ).join("\n")
-                      );
+                      
                       sendResponse({ success: false, message: err.message });
                     });
                 }
@@ -296,18 +157,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           });
         return true;
       } catch (err) {
-        debugLogBackgroundError(
-          "startAutoApply general Error",
-          err,
-          Array.from(
-            new Set(
-              new Error().stack
-                .replace(/Error/g, "")
-                .match(/^\s*at.*$/gm)
-                .map((i) => i.trim())
-            )
-          ).join("\n")
-        );
         sendResponse({ success: false, message: err.message });
       }
     } else if (request.action === "stopAutoApply") {
@@ -316,38 +165,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           .query({ active: true, currentWindow: true })
           .then((tabs) => {
             if (!tabs?.[0]) {
-              debugLogBackgroundError(
-                "No active tab found during stopAutoApply",
-                false,
-                Array.from(
-                  new Set(
-                    new Error().stack
-                      .replace(/Error/g, "")
-                      .match(/^\s*at.*$/gm)
-                      .map((i) => i.trim())
-                  )
-                ).join("\n")
-              );
               sendResponse({ success: false, message: "No active tab found." });
               return;
             }
             const currentTabId = tabs[0].id;
             chrome.tabs.get(currentTabId, (tab) => {
               if (chrome.runtime.lastError) {
-                debugLogBackgroundError(
-                  "Error getting tab info",
-                  {
-                    message: chrome?.runtime?.lastError?.message,
-                  },
-                  Array.from(
-                    new Set(
-                      new Error().stack
-                        .replace(/Error/g, "")
-                        .match(/^\s*at.*$/gm)
-                        .map((i) => i.trim())
-                    )
-                  ).join("\n")
-                );
+                
                 sendResponse({
                   success: false,
                   message: "Tab error: " + chrome.runtime.lastError.message,
@@ -356,20 +180,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               }
 
               if (!tab || !tab.url || !tab.url.includes("linkedin.com/jobs")) {
-                debugLogBackgroundError(
-                  "Tab is invalid or URL does not match",
-                  {
-                    tabUrl: tab?.url,
-                  },
-                  Array.from(
-                    new Set(
-                      new Error().stack
-                        .replace(/Error/g, "")
-                        .match(/^\s*at.*$/gm)
-                        .map((i) => i.trim())
-                    )
-                  ).join("\n")
-                );
                 sendResponse({
                   success: false,
                   message: "Tab is invalid or not a LinkedIn jobs page.",
@@ -381,21 +191,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 .sendMessage(currentTabId, { action: "hideRunningModal" })
                 .then((response) => {
                   if (response && response.success) {
-                    debugLogBackground(
-                      "Auto-apply script stopped successfully",
-                      {
-                        tabId: currentTabId,
-                      },
-                      false,
-                      Array.from(
-                        new Set(
-                          new Error().stack
-                            .replace(/Error/g, "")
-                            .match(/^\s*at.*$/gm)
-                            .map((i) => i.trim())
-                        )
-                      ).join("\n")
-                    );
+                    
                     sendResponse({ success: true });
                   } else {
                     sendResponse({
@@ -405,18 +201,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                   }
                 })
                 .catch((err) => {
-                  debugLogBackgroundError(
-                    "Error sending hideRunningModal",
-                    err,
-                    Array.from(
-                      new Set(
-                        new Error().stack
-                          .replace(/Error/g, "")
-                          .match(/^\s*at.*$/gm)
-                          .map((i) => i.trim())
-                      )
-                    ).join("\n")
-                  );
+                  
                   sendResponse({
                     success: false,
                     message: "Failed to send hideRunningModal: " + err?.message,
@@ -425,18 +210,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
           })
           .catch((err) => {
-            debugLogBackgroundError(
-              "Error querying tabs in stopAutoApply",
-              err,
-              Array.from(
-                new Set(
-                  new Error().stack
-                    .replace(/Error/g, "")
-                    .match(/^\s*at.*$/gm)
-                    .map((i) => i.trim())
-                )
-              ).join("\n")
-            );
             sendResponse({
               success: false,
               message: "Error querying tabs: " + err?.message,
@@ -446,21 +219,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       return true;
     } else if (request.action === "openTabAndRunScript") {
-      debugLogBackground(
-        "Opening new tab for auto-apply",
-        {
-          url: request.url,
-        },
-        false,
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
+      
       chrome.tabs.create({ url: request.url }, (tab) => {
         chrome.tabs.onUpdated.addListener(function listener(tabId, changeInfo) {
           if (tabId === tab.id && changeInfo.status === "complete") {
@@ -474,57 +233,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                       func: runScriptInContent,
                     })
                     .then(() => {
-                      debugLogBackground(
-                        "Auto-apply script started in new tab",
-                        {
-                          tabId: tabId,
-                          url: request.url,
-                        },
-                        false,
-                        Array.from(
-                          new Set(
-                            new Error().stack
-                              .replace(/Error/g, "")
-                              .match(/^\s*at.*$/gm)
-                              .map((i) => i.trim())
-                          )
-                        ).join("\n")
-                      );
+                      
                       sendResponse({ success: true });
                     })
                     .catch((err) => {
-                      debugLogBackgroundError(
-                        "executeScript error in openTabAndRunScript",
-                        err,
-                        Array.from(
-                          new Set(
-                            new Error().stack
-                              .replace(/Error/g, "")
-                              .match(/^\s*at.*$/gm)
-                              .map((i) => i.trim())
-                          )
-                        ).join("\n")
-                      );
+                      
                       sendResponse({ success: false, message: err.message });
                       chrome.tabs.sendMessage(tabId, {
                         action: "hideRunningModal",
                       });
                     });
                 } else {
-                  debugLogBackgroundError(
-                    "Failed to show running modal",
-                    {
-                      response: response?.message,
-                    },
-                    Array.from(
-                      new Set(
-                        new Error().stack
-                          .replace(/Error/g, "")
-                          .match(/^\s*at.*$/gm)
-                          .map((i) => i.trim())
-                      )
-                    ).join("\n")
-                  );
+                  
                   sendResponse({
                     success: false,
                     message:
@@ -533,18 +253,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 }
               })
               .catch((err) => {
-                debugLogBackgroundError(
-                  "Error sending showRunningModal in openTabAndRunScript",
-                  err,
-                  Array.from(
-                    new Set(
-                      new Error().stack
-                        .replace(/Error/g, "")
-                        .match(/^\s*at.*$/gm)
-                        .map((i) => i.trim())
-                    )
-                  ).join("\n")
-                );
+                
                 sendResponse({
                   success: false,
                   message: "Failed to send showRunningModal: " + err?.message,
@@ -561,18 +270,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       updateOrAddInputFieldValue(placeholder, value)
         .then(() => sendResponse({ success: true }))
         .catch((err) => {
-          debugLogBackgroundError(
-            "Error in updateInputFieldValue",
-            err,
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
-          );
+          
           sendResponse({ success: false, message: err?.message });
         });
       return true;
@@ -581,18 +279,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       updateInputFieldConfigsInStorage(placeholder)
         .then(() => sendResponse({ success: true }))
         .catch((err) => {
-          debugLogBackgroundError(
-            "Error in updateInputFieldConfigsInStorage",
-            err,
-            Array.from(
-              new Set(
-                new Error().stack
-                  .replace(/Error/g, "")
-                  .match(/^\s*at.*$/gm)
-                  .map((i) => i.trim())
-              )
-            ).join("\n")
-          );
+          
           sendResponse({ success: false, message: err?.message });
         });
       return true;
@@ -637,18 +324,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       return true;
     }
   } catch (e) {
-    debugLogBackgroundError(
-      "onMessage error",
-      e,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
+    
     sendResponse({ success: false, message: e.message });
   }
 });
@@ -672,21 +348,9 @@ async function updateOrAddInputFieldValue(placeholder, value) {
       };
       inputFieldConfigs.push(newConfig);
     }
-
+		
     await chrome.storage.local.set({ inputFieldConfigs });
   } catch (error) {
-    debugLogBackgroundError(
-      "Error updating or adding input field value",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
     throw error;
   }
 }
@@ -719,18 +383,6 @@ async function updateInputFieldConfigsInStorage(placeholder) {
       });
     }
   } catch (error) {
-    debugLogBackgroundError(
-      "Error updating input field configs",
-      error,
-      Array.from(
-        new Set(
-          new Error().stack
-            .replace(/Error/g, "")
-            .match(/^\s*at.*$/gm)
-            .map((i) => i.trim())
-        )
-      ).join("\n")
-    );
     throw error;
   }
 }
@@ -766,19 +418,6 @@ function updateRadioButtonValue(placeholderIncludes, newValue) {
         option.selected = option.value === newValue;
       });
       chrome.storage.local.set({ radioButtons: storedRadioButtons });
-    } else {
-      debugLogBackgroundError(
-        `Radio button config not found for placeholder: ${placeholderIncludes}`,
-        { placeholderIncludes, newValue },
-        Array.from(
-          new Set(
-            new Error().stack
-              .replace(/Error/g, "")
-              .match(/^\s*at.*$/gm)
-              .map((i) => i.trim())
-          )
-        ).join("\n")
-      );
     }
   });
 }
