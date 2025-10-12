@@ -257,7 +257,7 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 	});
 }
 
-async function handleCheckboxField(inputField, labelText, jobUrl, jobTitle) {
+async function handleCheckboxField(inputField, labelText) {
 	try {
 		const checkboxLabel = labelText.toLowerCase();
 		
@@ -301,14 +301,6 @@ async function performInputFieldChecks(context = document) {
 			chrome.runtime.sendMessage({action: "getInputFieldConfig"}, resolve);
 		});
 		
-		const jobUrl = window.location.href;
-		const jobTitle =
-			document.querySelector("[data-job-title]")?.textContent?.trim() ||
-			document
-				.querySelector(".job-details-jobs-unified-top-card__job-title")
-				?.textContent?.trim() ||
-			"Unknown Job";
-		
 		const allInputFields = context.querySelectorAll(
 			'input[type="text"]:not([placeholder*="Search"]):not([placeholder*="search"]), input[role="combobox"]:not([placeholder*="Search"]):not([placeholder*="search"]), textarea, select, input[type="checkbox"]'
 		);
@@ -317,7 +309,6 @@ async function performInputFieldChecks(context = document) {
 			if (inputField.type === "hidden" || inputField.offsetParent === null) {
 				continue;
 			}
-			
 			if (
 				inputField.closest('[class*="search"]') ||
 				inputField.closest('[class*="global-nav"]') ||
@@ -394,7 +385,7 @@ async function performInputFieldChecks(context = document) {
 			const isAutocompleteField = inputField.matches('[role="combobox"]');
 			
 			if (inputField.type === "checkbox") {
-				await handleCheckboxField(inputField, labelText, jobUrl, jobTitle);
+				await handleCheckboxField(inputField, labelText);
 				continue;
 			}
 			const foundConfig = result.find(
@@ -928,14 +919,6 @@ async function terminateJobModel(context = document) {
 
 async function performUniversalCheckboxChecks(context = document) {
 	try {
-		const jobUrl = window.location.href;
-		const jobTitle =
-			document.querySelector("[data-job-title]")?.textContent?.trim() ||
-			document
-				.querySelector(".job-details-jobs-unified-top-card__job-title")
-				?.textContent?.trim() ||
-			"Unknown Job";
-		
 		const checkboxSelectors = [
 			'input[type="checkbox"]',
 			'[data-test-text-selectable-option] input[type="checkbox"]',
@@ -1000,7 +983,7 @@ async function performUniversalCheckboxChecks(context = document) {
 			}
 			
 			if (labelText && labelText.length > 1) {
-				await handleCheckboxField(checkbox, labelText, jobUrl, jobTitle);
+				await handleCheckboxField(checkbox, labelText);
 			}
 		}
 	} catch (error) {
