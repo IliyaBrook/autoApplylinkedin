@@ -78,7 +78,7 @@ async function setAutoApplyRunning(value, reason = "Unknown") {
 		
 	} catch (error) {
 		if (isExtensionContextValidQuiet()) {
-			console.trace("Error in setAutoApplyRunning", error);
+			console.trace(`Error reason: ${reason}`, error);
 		}
 	}
 }
@@ -169,7 +169,7 @@ async function checkAndPrepareRunState(allowAutoRecovery = false) {
 
 function getJobTitle(jobNameLink) {
 	if (!jobNameLink) return "";
-	let jobTitle = "";
+	let jobTitle;
 	
 	const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]');
 	if (visibleSpan && visibleSpan.textContent.trim().length > 0) {
