@@ -157,7 +157,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           });
         return true;
       } catch (err) {
-        
         sendResponse({ success: false, message: err.message });
       }
     } else if (request.action === "stopAutoApply") {
@@ -166,7 +165,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           .query({ active: true, currentWindow: true })
           .then((tabs) => {
             if (!tabs?.[0]) {
-              
               sendResponse({ success: false, message: "No active tab found." });
               return;
             }
@@ -182,7 +180,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
               }
 
               if (!tab || !tab.url || !tab.url.includes("linkedin.com/jobs")) {
-                
                 sendResponse({
                   success: false,
                   message: "Tab is invalid or not a LinkedIn jobs page.",
@@ -213,7 +210,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
           })
           .catch((err) => {
-            
             sendResponse({
               success: false,
               message: "Error querying tabs: " + err?.message,
@@ -352,10 +348,9 @@ async function updateOrAddInputFieldValue(placeholder, value) {
       };
       inputFieldConfigs.push(newConfig);
     }
-
+		
     await chrome.storage.local.set({ inputFieldConfigs });
   } catch (error) {
-    
     throw error;
   }
 }
@@ -388,7 +383,6 @@ async function updateInputFieldConfigsInStorage(placeholder) {
       });
     }
   } catch (error) {
-    
     throw error;
   }
 }
