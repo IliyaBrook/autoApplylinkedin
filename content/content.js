@@ -466,16 +466,41 @@ async function performInputFieldChecks(context = document) {
 }
 
 async function performFillForm(inputField) {
-	const keyEvents = ["keydown", "keypress", "input", "keyup"];
-	for (const eventType of keyEvents) {
-		inputField.dispatchEvent(
-			new Event(eventType, {bubbles: true, cancelable: true})
-		);
-		await addDelay(100);
+	try {
+		const keyboardEvents = ["keydown", "keypress", "keyup"];
+		const inputEvents = ["input"];
+		
+		for (const eventType of keyboardEvents) {
+			try {
+				const keyboardEvent = new KeyboardEvent(eventType, {
+					bubbles: true,
+					cancelable: true,
+					key: "",
+					code: "",
+					keyCode: 0,
+					which: 0
+				});
+				inputField.dispatchEvent(keyboardEvent);
+			} catch (error) {
+				inputField.dispatchEvent(
+					new Event(eventType, {bubbles: true, cancelable: true})
+				);
+			}
+			await addDelay(100);
+		}
+		
+		for (const eventType of inputEvents) {
+			inputField.dispatchEvent(
+				new Event(eventType, {bubbles: true, cancelable: true})
+			);
+			await addDelay(100);
+		}
+		
+		inputField.dispatchEvent(new Event("change", {bubbles: true}));
+		await addDelay(200);
+	} catch (error) {
+		console.error("Error in performFillForm, continuing...", error?.message);
 	}
-	
-	inputField.dispatchEvent(new Event("change", {bubbles: true}));
-	await addDelay(200);
 }
 
 async function performRadioButtonChecks() {
@@ -992,7 +1017,6 @@ async function performUniversalCheckboxChecks(context = document) {
 }
 
 async function runValidations() {
-	// TODO: ch
 	try {
 		const saveModalHandled = await handleSaveApplicationModal();
 		if (saveModalHandled) {
@@ -1009,7 +1033,8 @@ async function runValidations() {
 		await performCheckBoxFieldCityCheck();
 		
 		await handleSaveApplicationModal();
-	} catch {
+	} catch (error) {
+		console.error("Error in runValidations, continuing...", error?.message);
 	}
 }
 
