@@ -426,6 +426,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const value = parseInt(loopRunningDelayInput.value) || 0;
     void chrome.storage.local.set({ loopRunningDelay: value });
   });
+
+  // Smart Select checkbox handler
+  const smartSelectCheckbox = document.getElementById("smart-select-checkbox");
+  
+  chrome.storage.local.get("smartSelectEnabled", ({ smartSelectEnabled }) => {
+    if (smartSelectCheckbox) {
+      smartSelectCheckbox.checked = Boolean(smartSelectEnabled);
+    }
+  });
+
+  if (smartSelectCheckbox) {
+    smartSelectCheckbox.addEventListener("change", () => {
+      void chrome.storage.local.set({ smartSelectEnabled: smartSelectCheckbox.checked });
+    });
+  }
 });
 
 // CV Files functionality - New inline editing approach

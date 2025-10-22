@@ -295,11 +295,51 @@ button:hover {
   background: linear-gradient(135deg, #d32f2f, #c62828);
 }
 
+.cv-files-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  width: 100%;
+  align-items: center;
+}
+
 .button-add-cv {
   background-color: #4caf50;
-  width: 100%;
+  flex: 1;
   padding: 10px;
   font-size: 14px;
+}
+
+.smart-select-container {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.smart-select-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  user-select: none;
+}
+
+.smart-select-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #4caf50;
+}
+
+.smart-select-label span {
+  font-weight: 500;
+}
+
+.smart-select-label:hover span {
+  color: #4caf50;
 }
 
 /* Auto Apply Button - Special styling */

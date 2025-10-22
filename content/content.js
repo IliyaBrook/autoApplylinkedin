@@ -1035,14 +1035,16 @@ async function runValidations() {
 	}
 }
 
-async function selectCvFile(applyModal) {
+async function selectCvFile(applyModal, jobTitle) {
 	try {
 		const attachmentElements = applyModal.querySelectorAll(".ui-attachment");
 		if (!attachmentElements || attachmentElements.length === 0) {
 			return;
 		}
-		const storageData = await chrome.storage.local.get(['cvFiles', 'selectedCvFile']);
+		
+		const storageData = await chrome.storage.local.get(['cvFiles', 'selectedCvFile', 'smartSelectEnabled']);
 		const selectedCvId = storageData.selectedCvFile;
+		const smartSelectEnabled = Boolean(storageData.smartSelectEnabled);
 		
 		if (!selectedCvId) {
 			return;
@@ -1053,13 +1055,33 @@ async function selectCvFile(applyModal) {
 			return;
 		}
 		
-		const selectedFile = cvFiles.find(f => f.id === selectedCvId);
-		if (!selectedFile || !selectedFile.name) {
-			return;
+		let targetCvName = null;
+		
+		// Smart select logic
+		if (smartSelectEnabled && jobTitle) {
+			// Extract all CV file names
+			const cvFileNames = cvFiles.map(f => f.name).filter(name => name && name.trim());
+			
+			if (cvFileNames.length > 0) {
+				// Use findBestMatch to find the best matching CV for the job title
+				const bestMatch = findBestMatch(cvFileNames, jobTitle);
+				
+				if (bestMatch) {
+					targetCvName = bestMatch.toLowerCase().trim();
+				}
+			}
 		}
 		
-		const targetCvName = selectedFile.name.toLowerCase().trim();
+		// Fallback to the existing logic if smart select is disabled or didn't find a match
+		if (!targetCvName) {
+			const selectedFile = cvFiles.find(f => f.id === selectedCvId);
+			if (!selectedFile || !selectedFile.name) {
+				return;
+			}
+			targetCvName = selectedFile.name.toLowerCase().trim();
+		}
 		
+		// Find and click the matching CV attachment
 		for (const attachmentElement of attachmentElements) {
 			const elementText = attachmentElement.textContent.toLowerCase().trim();
 			
@@ -1097,7 +1119,7 @@ async function uncheckFollowCompany() {
 	}
 }
 
-const runApplyModelLogic = async () => {
+const runApplyModelLogic = async (jobTitle) => {
 	{
 		await addDelay();
 		await performSafetyReminderCheck();
@@ -1171,7 +1193,7 @@ const runApplyModelLogic = async () => {
 			
 			if (nextButton || reviewButton) {
 				const buttonToClick = reviewButton || nextButton;
-				await selectCvFile(applyModal);
+				await selectCvFile(applyModal, jobTitle);
 				await runValidations();
 				const isError = await checkForFormValidationError();
 				if (isError) {
@@ -1230,10 +1252,10 @@ const runApplyModelLogic = async () => {
 	}
 }
 
-async function runApplyModel() {
+async function runApplyModel(jobTitle) {
 	try {
 		return await Promise.race([
-			runApplyModelLogic(),
+			runApplyModelLogic(jobTitle),
 			new Promise((resolve) => setTimeout(() => resolve(null), 30000))
 		]);
 	} catch (error) {
@@ -1284,7 +1306,7 @@ async function runFindEasyApply(jobTitle, companyName) {
 			const result = await checkAndPrepareRunState();
 			if (result) {
 				easyApplyButton.click();
-				await runApplyModel();
+				await runApplyModel(jobTitle);
 			}
 		}
 		await handleSaveApplicationModal();
