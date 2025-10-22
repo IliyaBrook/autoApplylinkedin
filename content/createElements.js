@@ -76,10 +76,10 @@ async function initElements() {
 			document.body.appendChild(notOnJobSearchAlert)
 		}
 		const formControlAlert = await createCustomElement({
-			htmlPath: '/modals/formControlModal.html',
-			cssPath: '/modals/modals.css',
+			htmlPath: 'modals/formControlModal.html',
+			cssPath: 'modals/modals.css',
 			additionalScripts: [
-				'/modals/modals.js'
+				'modals/modals.js'
 			],
 			elementId: 'formControlOverlay'
 		})

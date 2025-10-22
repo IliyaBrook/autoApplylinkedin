@@ -370,7 +370,12 @@ async function performInputFieldChecks(context = document) {
 			}
 			
 			if (label) {
-				labelText = label.textContent?.trim() || label.innerText?.trim() || "";
+				const ariaHiddenSpan = label.querySelector('span[aria-hidden="true"]');
+				if (ariaHiddenSpan) {
+					labelText = ariaHiddenSpan.textContent?.trim() || "";
+				} else {
+					labelText = label.innerText?.trim() || label.textContent?.trim() || "";
+				}
 			}
 			
 			if (labelText) {
@@ -387,9 +392,18 @@ async function performInputFieldChecks(context = document) {
 				await handleCheckboxField(inputField, labelText);
 				continue;
 			}
-			const foundConfig = result.find(
+			let foundConfig = result.find(
 				(config) => config.placeholderIncludes === labelText
 			);
+			
+			if (!foundConfig && result && result.length > 0) {
+				const placeholders = result.map(config => config.placeholderIncludes);
+				const bestMatchPlaceholder = findBestMatch(placeholders, labelText, 0.5);
+				if (bestMatchPlaceholder) {
+					foundConfig = result.find(config => config.placeholderIncludes === bestMatchPlaceholder);
+				}
+			}
+			
 			if (foundConfig && foundConfig.defaultValue) {
 				setNativeValue(inputField, foundConfig.defaultValue);
 				await performFillForm(inputField);

@@ -40,6 +40,10 @@
       "resources": [
         "popup/**",
         "assets/images/*",
+        "assets/**",
+        "modals/*.html",
+        "modals/*.css",
+        "modals/*.js",
         "modals/*"
       ],
       "matches": ["<all_urls>"]
