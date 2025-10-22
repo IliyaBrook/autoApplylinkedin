@@ -754,7 +754,6 @@ async function handleSaveApplicationModal() {
 	const currentTime = Date.now();
 	
 	if (isSaveModalBeingHandled) {
-		
 		return false;
 	}
 	
@@ -788,7 +787,6 @@ async function handleSaveApplicationModal() {
 	
 	const waitTime = currentTime - saveModalDetectedTime;
 	if (waitTime > MAX_SAVE_MODAL_WAIT_TIME) {
-		
 		await stopScript();
 		return false;
 	}
@@ -1186,9 +1184,8 @@ const runApplyModelLogic = async () => {
 			
 			if (nextButton || reviewButton) {
 				const buttonToClick = reviewButton || nextButton;
-				await runValidations();
-				await addDelay(500);
 				await selectCvFile(applyModal);
+				await runValidations();
 				const isError = await checkForFormValidationError();
 				if (isError) {
 					await terminateJobModel();
@@ -1196,13 +1193,11 @@ const runApplyModelLogic = async () => {
 					buttonToClick?.scrollIntoView({block: "center"});
 					await addDelay();
 					buttonToClick.click();
-					
 					await addDelay(1000);
 					const saveModalAfterNext = await handleSaveApplicationModal();
 					if (saveModalAfterNext) {
 						console.info("Save modal detected after next button click");
 					}
-					
 					await runApplyModel();
 				}
 				
@@ -1311,7 +1306,6 @@ async function runFindEasyApply(jobTitle, companyName) {
 	} catch (error) {
 		return null;
 	}
-	
 }
 
 let currentPage = "";
