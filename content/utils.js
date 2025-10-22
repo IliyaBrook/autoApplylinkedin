@@ -441,3 +441,199 @@ function findClosestField(defaultFields, inputString) {
   }
   return bestScore <= 0.4 ? defaultFields[bestKey] : undefined;
 }
+
+// Best match logic
+const STOP_WORDS = new Set([
+	'and', 'or', 'the', 'a', 'an', 'in', 'on', 'at', 'to', 'for',
+	'of', 'with', 'by', 'from', 'as', 'is', 'are', 'was', 'were',
+	'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did',
+	'will', 'would', 'should', 'could', 'may', 'might', 'must', 'can'
+]);
+
+function stem(word) {
+	// Убираем множественное число
+	if (word.endsWith('ies') && word.length > 4) {
+		return word.slice(0, -3) + 'y';
+	}
+	if (word.endsWith('es') && word.length > 3) {
+		return word.slice(0, -2);
+	}
+	if (word.endsWith('s') && word.length > 3) {
+		return word.slice(0, -1);
+	}
+	
+	if (word.endsWith('ing') && word.length > 5) {
+		return word.slice(0, -3);
+	}
+	if (word.endsWith('ed') && word.length > 4) {
+		return word.slice(0, -2);
+	}
+	
+	return word;
+}
+
+function tokenize(str) {
+	let processed = str
+		.replace(/([a-z])([A-Z])/g, '$1 $2')
+		.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+	
+	return processed
+		.replace(/[_\-.]+/g, ' ')
+		.replace(/[^a-z0-9\s]/gi, ' ')
+		.toLowerCase()
+		.trim()
+		.split(/\s+/)
+		.filter(token => token.length > 0)
+		.filter(token => !STOP_WORDS.has(token))
+		.map(token => stem(token));
+}
+
+function jaroWinkler(s1, s2) {
+	const m = s1.length;
+	const n = s2.length;
+	
+	if (m === 0) return n === 0 ? 1 : 0;
+	if (n === 0) return 0;
+	
+	const matchWindow = Math.floor(Math.max(m, n) / 2) - 1;
+	const s1Matches = new Array(m).fill(false);
+	const s2Matches = new Array(n).fill(false);
+	
+	let matches = 0;
+	let transpositions = 0;
+	
+	for (let i = 0; i < m; i++) {
+		const start = Math.max(0, i - matchWindow);
+		const end = Math.min(i + matchWindow + 1, n);
+		
+		for (let j = start; j < end; j++) {
+			if (s2Matches[j] || s1[i] !== s2[j]) continue;
+			s1Matches[i] = true;
+			s2Matches[j] = true;
+			matches++;
+			break;
+		}
+	}
+	
+	if (matches === 0) return 0;
+	
+	let k = 0;
+	for (let i = 0; i < m; i++) {
+		if (!s1Matches[i]) continue;
+		while (!s2Matches[k]) k++;
+		if (s1[i] !== s2[k]) transpositions++;
+		k++;
+	}
+	
+	const jaro = (matches / m + matches / n + (matches - transpositions / 2) / matches) / 3;
+	
+	let prefix = 0;
+	for (let i = 0; i < Math.min(4, Math.min(m, n)); i++) {
+		if (s1[i] === s2[i]) prefix++;
+		else break;
+	}
+	
+	return jaro + prefix * 0.1 * (1 - jaro);
+}
+
+function tokenSimilarity(tokens1, tokens2) {
+	if (tokens1.length === 0 || tokens2.length === 0) return 0;
+	
+	let bestMatches = 0;
+	const used = new Set();
+	
+	for (const t1 of tokens1) {
+		let bestScore = 0;
+		let bestIdx = -1;
+		
+		for (let i = 0; i < tokens2.length; i++) {
+			if (used.has(i)) continue;
+			
+			let score = 0;
+			
+			if (t1 === tokens2[i]) {
+				score = 1.0;
+			}
+			else if (t1.includes(tokens2[i]) || tokens2[i].includes(t1)) {
+				const overlap = Math.min(t1.length, tokens2[i].length);
+				const maxLen = Math.max(t1.length, tokens2[i].length);
+				score = 0.8 * (overlap / maxLen);
+			}
+			else {
+				const similarity = jaroWinkler(t1, tokens2[i]);
+				if (similarity > 0.85) {
+					score = 0.7 * similarity;
+				}
+			}
+			
+			if (score > bestScore) {
+				bestScore = score;
+				bestIdx = i;
+			}
+		}
+		
+		if (bestIdx !== -1) {
+			bestMatches += bestScore;
+			used.add(bestIdx);
+		}
+	}
+	
+	return bestMatches / Math.max(tokens1.length, tokens2.length);
+}
+
+function ngramSimilarity(s1, s2, n = 2) {
+	if (s1.length < n || s2.length < n) return 0;
+	
+	const getNgrams = (str) => {
+		const ngrams = new Set();
+		for (let i = 0; i <= str.length - n; i++) {
+			ngrams.add(str.slice(i, i + n));
+		}
+		return ngrams;
+	};
+	
+	const ngrams1 = getNgrams(s1);
+	const ngrams2 = getNgrams(s2);
+	
+	let intersection = 0;
+	for (const ngram of ngrams1) {
+		if (ngrams2.has(ngram)) intersection++;
+	}
+	
+	const union = ngrams1.size + ngrams2.size - intersection;
+	return union > 0 ? intersection / union : 0;
+}
+
+function calculateSimilarity(query, candidate) {
+	const queryTokens = tokenize(query);
+	const candidateTokens = tokenize(candidate);
+	
+	const tokenScore = tokenSimilarity(queryTokens, candidateTokens);
+	
+	const normalizedQuery = queryTokens.join('');
+	const normalizedCandidate = candidateTokens.join('');
+	const stringScore = jaroWinkler(normalizedQuery, normalizedCandidate);
+	
+	const ngramScore = ngramSimilarity(normalizedQuery, normalizedCandidate, 2);
+	
+	return tokenScore * 0.4 + stringScore * 0.35 + ngramScore * 0.25;
+}
+// The best match logic checks for the most similar element passed in the second argument against the array.
+function findBestMatch(array, searchString, threshold = 0.3) {
+	if (!array || array.length === 0) return null;
+	if (!searchString || searchString.trim() === '') return null;
+	
+	let bestMatch = null;
+	let bestScore = -1;
+	
+	for (const item of array) {
+		const score = calculateSimilarity(searchString, item);
+		
+		if (score > bestScore) {
+			bestScore = score;
+			bestMatch = item;
+		}
+	}
+	
+	return bestScore >= threshold ? bestMatch : null;
+}
