@@ -1017,7 +1017,17 @@ async function selectCvFile(applyModal, jobTitle) {
 		if (!attachmentElements || attachmentElements.length === 0) {
 			return;
 		}
-		
+		const moreResumesButtonXpath = `//button[
+	    contains(
+	      translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'),
+	      'more resumes'
+	    )
+    ]`
+		const resumeButton = getVisibleElementByXPath({xpath: moreResumesButtonXpath});
+		if (resumeButton) {
+			resumeButton.click();
+			await addDelay(1000);
+		}
 		const storageData = await chrome.storage.local.get(['cvFiles', 'selectedCvFile', 'smartSelectEnabled']);
 		const selectedCvId = storageData.selectedCvFile;
 		const smartSelectEnabled = Boolean(storageData.smartSelectEnabled);
