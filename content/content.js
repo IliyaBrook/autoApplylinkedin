@@ -1037,6 +1037,60 @@ async function runValidations() {
 	}
 }
 
+async function selectCvFile(applyModal) {
+	try {
+		// Проверяем наличие элементов .ui-attachment в модальном окне
+		const attachmentElements = applyModal.querySelectorAll(".ui-attachment");
+		console.log("[attachmentElements .ui-attachment]:", attachmentElements)
+		
+		if (!attachmentElements || attachmentElements.length === 0) {
+			console.log("[NO ATTACHMENT ELEMENT]")
+			
+			return; // Нет элементов для выбора CV - ничего не делаем
+		}
+		
+		// Получаем данные из chrome.storage.local
+		const storageData = await chrome.storage.local.get(['cvFiles', 'selectedCvFile']);
+		const selectedCvId = storageData.selectedCvFile;
+		
+		if (!selectedCvId) {
+			return; // Нет выбранного CV - ничего не делаем
+		}
+		
+		const cvFiles = storageData.cvFiles;
+		if (!cvFiles || !Array.isArray(cvFiles) || cvFiles.length === 0) {
+			return; // Нет списка CV файлов - ничего не делаем
+		}
+		
+		// Находим выбранный CV файл по ID
+		const selectedFile = cvFiles.find(f => f.id === selectedCvId);
+		if (!selectedFile || !selectedFile.name) {
+			return; // Не найден CV файл с таким ID
+		}
+		
+		const targetCvName = selectedFile.name.toLowerCase().trim();
+		
+		// Ищем соответствующий элемент .ui-attachment
+		for (const attachmentElement of attachmentElements) {
+			// Получаем весь текст из элемента и его вложенных элементов
+			const elementText = attachmentElement.textContent.toLowerCase().trim();
+			
+			// Проверяем совпадение с названием CV
+			if (elementText.includes(targetCvName)) {
+				// Найдено совпадение - кликаем на элемент
+				attachmentElement.scrollIntoView({behavior: "smooth", block: "center"});
+				await addDelay(300);
+				attachmentElement.click();
+				await addDelay(500);
+				return; // Выход после успешного клика
+			}
+		}
+	} catch (error) {
+		console.error("Error in selectCvFile:", error);
+		// Продолжаем работу даже при ошибке
+	}
+}
+
 async function uncheckFollowCompany() {
 	const followCheckboxWait = await waitForElements({
 		elementOrSelector: "#follow-company-checkbox",
@@ -1137,6 +1191,10 @@ async function runApplyModel() {
 					
 					if (nextButton || reviewButton) {
 						const buttonToClick = reviewButton || nextButton;
+						
+						// Выбираем CV файл перед нажатием кнопки Next/Review
+						await selectCvFile(applyModal);
+						
 						await runValidations();
 						const isError = await checkForFormValidationError();
 						
