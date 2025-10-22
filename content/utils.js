@@ -171,14 +171,7 @@ async function clickElement({
 }
 
 async function fillAutocompleteField(element, value) {
-  console.log(`[AUTOCOMPLETE] Filling field with value: "${value}"`);
-  console.log(
-    `[AUTOCOMPLETE] Element ID: ${element.id}, Role: ${element.getAttribute(
-      "role"
-    )}`
-  );
-
-  element.focus();
+	element.focus();
   await addDelay(100);
   setNativeValue(element, value);
   await addDelay(300);
@@ -189,16 +182,9 @@ async function fillAutocompleteField(element, value) {
     element.getAttribute("aria-controls") || element.getAttribute("aria-owns");
   if (dropdownId) {
     dropdownContainer = document.getElementById(dropdownId);
-    console.log(
-      `[AUTOCOMPLETE] Found dropdown via aria-controls/aria-owns: ${dropdownId}`
-    );
   }
 
   if (!dropdownContainer || dropdownContainer.offsetHeight === 0) {
-    console.log(
-      `[AUTOCOMPLETE] Searching for dropdown using universal approach`
-    );
-
     const searchContainers = [
       element.closest("div"),
       element.parentElement,

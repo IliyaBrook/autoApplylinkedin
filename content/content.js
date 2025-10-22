@@ -308,15 +308,17 @@ async function performInputFieldChecks(context = document) {
 			if (inputField.type === "hidden" || inputField.offsetParent === null) {
 				continue;
 			}
-			if (
-				inputField.closest('[class*="search"]') ||
-				inputField.closest('[class*="global-nav"]') ||
+			const isJobSearchBox =
 				inputField.closest('[class*="jobs-search-box"]') ||
 				inputField.closest('[data-test="jobs-search-box"]') ||
+				inputField.closest('[class*="global-nav"]');
+			
+			const isSearchField =
 				inputField.placeholder?.toLowerCase().includes("search") ||
 				(inputField.placeholder?.toLowerCase().includes("company") &&
-					inputField.placeholder?.toLowerCase().includes("title"))
-			) {
+					inputField.placeholder?.toLowerCase().includes("title"));
+			
+			if (isJobSearchBox || isSearchField) {
 				continue;
 			}
 			
@@ -403,10 +405,13 @@ async function performInputFieldChecks(context = document) {
 					foundConfig = result.find(config => config.placeholderIncludes === bestMatchPlaceholder);
 				}
 			}
-			
-			if (foundConfig && foundConfig.defaultValue) {
-				setNativeValue(inputField, foundConfig.defaultValue);
-				await performFillForm(inputField);
+			if (foundConfig && foundConfig?.defaultValue) {
+				if (isAutocompleteField) {
+					await fillAutocompleteField(inputField, foundConfig.defaultValue);
+				} else {
+					setNativeValue(inputField, foundConfig.defaultValue);
+					await performFillForm(inputField);
+				}
 			} else {
 				const defaultFields = (await chrome.storage.local.get("defaultFields"))
 					?.defaultFields;
