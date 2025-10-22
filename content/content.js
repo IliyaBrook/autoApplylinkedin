@@ -1031,7 +1031,6 @@ async function runValidations() {
 		await performRadioButtonChecks();
 		await performDropdownChecks();
 		await performCheckBoxFieldCityCheck();
-		
 		await handleSaveApplicationModal();
 	} catch (error) {
 		console.error("Error in runValidations, continuing...", error?.message);
