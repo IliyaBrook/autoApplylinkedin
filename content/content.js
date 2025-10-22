@@ -91,7 +91,6 @@ async function stopScript() {
 	}
 	
 	await setAutoApplyRunning(false, "stopScript called");
-	await chrome.storage.local.remove(["loopRestartUrl", "shouldRestartScript"]);
 	
 	try {
 		if (!chrome || !chrome.tabs || typeof chrome.tabs.query !== "function") {
@@ -440,23 +439,11 @@ async function performInputFieldChecks(context = document) {
 						action: "updateInputFieldConfigsInStorage",
 						data: labelText,
 					});
-					const isStopScript = Boolean(
-						(await chrome.storage.local.get("stopIfNotExistInFormControl"))
-							?.stopIfNotExistInFormControl
-					);
-					if (!isStopScript) {
-						if (!foundConfig && inputField.value.trim() !== "") {
-							continue;
-						}
-						setNativeValue(inputField, "");
-						await performFillForm(inputField);
-					} else {
-						await stopScript();
-						alert(
-							`Field with label "${labelText}" is not filled. Please fill it in the form control settings.`
-						);
-						return;
+					if (!foundConfig && inputField.value.trim() !== "") {
+						continue;
 					}
+					setNativeValue(inputField, "");
+					await performFillForm(inputField);
 				}
 			}
 		}
@@ -588,17 +575,6 @@ async function performRadioButtonChecks() {
 				storedRadioButtons.push(newRadioButtonInfo);
 				
 				await chrome.storage.local.set({radioButtons: storedRadioButtons});
-			}
-			const isStopScript = Boolean(
-				(await chrome.storage.local.get("stopIfNotExistInFormControl"))
-					?.stopIfNotExistInFormControl
-			);
-			if (isStopScript) {
-				await stopScript();
-				alert(
-					`Field with label "${placeholderText}" is not filled. Please fill it in the form control settings.`
-				);
-				return;
 			}
 		}
 	}
@@ -1419,57 +1395,6 @@ async function closeApplicationSentModal() {
 
 let isNavigating = false;
 
-async function handleLoopRestart() {
-	
-	try {
-		const {lastJobSearchUrl, loopRunningDelay} =
-			await chrome.storage.local.get(["lastJobSearchUrl", "loopRunningDelay"]);
-		
-		const delayInMs = (loopRunningDelay || 0) * 60 * 1000;
-		
-		if (delayInMs > 0) {
-			await addDelay(delayInMs);
-		}
-		
-		const urlToUse = lastJobSearchUrl || window.location.href;
-		const url = new URL(urlToUse);
-		url.searchParams.set("start", "1");
-		
-		const baseSearchParams = new URLSearchParams();
-		const importantParams = [
-			"keywords",
-			"geoId",
-			"f_TPR",
-			"sortBy",
-			"origin",
-			"refresh",
-		];
-		
-		importantParams.forEach((param) => {
-			if (url.searchParams.has(param)) {
-				baseSearchParams.set(param, url.searchParams.get(param));
-			}
-		});
-		baseSearchParams.set("start", "1");
-		
-		const newUrl = `${url.origin}${
-			url.pathname
-		}?${baseSearchParams.toString()}`;
-		
-		if (chrome.runtime?.id) {
-			await chrome.storage.local.set({
-				loopRestartUrl: newUrl,
-				shouldRestartScript: true,
-			});
-		}
-		
-		window.location.href = newUrl;
-	} catch (error) {
-		
-		void stopScript();
-	}
-}
-
 async function goToNextPage() {
 	await addDelay();
 	if (isNavigating) {
@@ -1493,12 +1418,7 @@ async function goToNextPage() {
 		
 		if (!nextButton) {
 			isNavigating = false;
-			const {loopRunning} = await chrome.storage.local.get("loopRunning");
-			if (loopRunning) {
-				await handleLoopRestart();
-			} else {
-				stopScript();
-			}
+			stopScript();
 			return false;
 		}
 		
@@ -1919,87 +1839,15 @@ function stopSaveModalMonitoring() {
 	}
 }
 
-window.addEventListener("load", function () {
-	if (!isExtensionContextValidQuiet()) {
-		return;
-	}
-	
-	try {
-		chrome.storage.local.get(
-			["shouldRestartScript", "loopRestartUrl"],
-			({shouldRestartScript, loopRestartUrl}) => {
-				try {
-					if (!isExtensionContextValidQuiet()) {
-						return;
-					}
-					
-					if (shouldRestartScript && loopRestartUrl) {
-						const currentUrl = new URL(window.location.href);
-						const savedUrl = new URL(loopRestartUrl);
-						const isJobSearchPage =
-							currentUrl.pathname.includes("/jobs/search/");
-						const hasKeywords =
-							currentUrl.searchParams.has("keywords") ||
-							savedUrl.searchParams.has("keywords");
-						const isStartPage =
-							currentUrl.searchParams.get("start") === "1" ||
-							!currentUrl.searchParams.has("start");
-						
-						if (isJobSearchPage && hasKeywords && isStartPage) {
-							if (isExtensionContextValidQuiet()) {
-								chrome.storage.local.remove([
-									"loopRestartUrl",
-									"shouldRestartScript",
-								]);
-							}
-							setTimeout(() => {
-								void runScript();
-							}, 3000);
-						} else if (currentUrl.href.includes("JOBS_HOME")) {
-							setTimeout(() => {
-								window.location.href = loopRestartUrl;
-							}, 2000);
-						} else {
-							if (isExtensionContextValidQuiet()) {
-								void chrome.storage.local.remove([
-									"loopRestartUrl",
-									"shouldRestartScript",
-								]);
-							}
-							setAutoApplyRunningSilent(false);
-						}
-					} else {
-						setAutoApplyRunningSilent(false);
-						void chrome.storage.local.remove(["lastScriptActivity"]);
-					}
-				} catch (error) {
-					if (isExtensionContextValidQuiet()) {
-						console.trace("Error in autoApplyRunning listener", error);
-					}
-				}
-			}
-		);
-	} catch (error) {
-		console.trace("Error in autoApplyRunning listener", error);
-	}
-});
 
 try {
 	window.addEventListener("beforeunload", function () {
 		try {
-			chrome.storage.local.get("autoApplyRunning", (result) => {
-				if (result?.autoApplyRunning) {
-					void chrome.storage.local.set({
-						shouldRestartScript: true,
-						loopRestartUrl: window.location.href,
-					});
-				}
-			});
+			if (!isExtensionContextValidQuiet()) {
+				return;
+			}
 			
 			stopExtensionContextMonitoring();
-		} catch (error) {
-			console.error("Error in beforeunload handler", error);
-		}
+		} catch{}
 	});
-} catch (error) {
-}
+} catch {}

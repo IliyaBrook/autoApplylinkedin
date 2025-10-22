@@ -384,49 +384,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  const switchInput = document.getElementById(
-    "stop-if-not-exist-in-form-control"
-  );
-
-  chrome.storage.local.get(
-    "stopIfNotExistInFormControl",
-    ({ stopIfNotExistInFormControl }) => {
-      switchInput.checked = Boolean(stopIfNotExistInFormControl);
-    }
-  );
-
-  switchInput.addEventListener("change", () => {
-    void chrome.storage.local.set({
-      stopIfNotExistInFormControl: switchInput.checked,
-    });
-  });
-
-  const loopRunningInput = document.getElementById("loop-running");
-
-  chrome.storage.local.get("loopRunning", ({ loopRunning }) => {
-    loopRunningInput.checked = Boolean(loopRunning);
-  });
-
-  loopRunningInput.addEventListener("change", () => {
-    void chrome.storage.local.set({ loopRunning: loopRunningInput.checked });
-  });
-
-  const loopRunningDelayInput = document.getElementById("loop-running-delay");
-
-  chrome.storage.local.get("loopRunningDelay", ({ loopRunningDelay }) => {
-    let delayInMinutes = loopRunningDelay || 0;
-    if (delayInMinutes > 60) {
-      delayInMinutes = Math.round(delayInMinutes / 60);
-      chrome.storage.local.set({ loopRunningDelay: delayInMinutes });
-    }
-    loopRunningDelayInput.value = delayInMinutes;
-  });
-
-  loopRunningDelayInput.addEventListener("input", () => {
-    const value = parseInt(loopRunningDelayInput.value) || 0;
-    void chrome.storage.local.set({ loopRunningDelay: value });
-  });
-
   // Smart Select checkbox handler
   const smartSelectCheckbox = document.getElementById("smart-select-checkbox");
   

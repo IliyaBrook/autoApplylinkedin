@@ -451,7 +451,6 @@ const STOP_WORDS = new Set([
 ]);
 
 function stem(word) {
-	// Убираем множественное число
 	if (word.endsWith('ies') && word.length > 4) {
 		return word.slice(0, -3) + 'y';
 	}
