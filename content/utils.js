@@ -16,6 +16,37 @@ function getTime() {
   return { day, month, year, hour, minute };
 }
 
+function getVisibleElementByXPath({ xpath, context = document }) {
+	const result = document.evaluate(
+		xpath,
+		context,
+		null,
+		XPathResult.ORDERED_NODE_ITERATOR_TYPE,
+		null
+	);
+	
+	let node = result.iterateNext();
+	
+	while (node) {
+		if (node instanceof HTMLElement && isElementVisible(node)) {
+			return node;
+		}
+		node = result.iterateNext();
+	}
+	
+	return null;
+}
+
+function isElementVisible(element) {
+	return (
+		element.offsetParent !== null &&
+		element.offsetWidth > 0 &&
+		element.offsetHeight > 0 &&
+		getComputedStyle(element).visibility !== 'hidden' &&
+		getComputedStyle(element).display !== 'none'
+	);
+}
+
 function getElementsByXPath({ xpath, context = document }) {
   const result = document.evaluate(
     xpath,

@@ -1112,159 +1112,147 @@ async function uncheckFollowCompany() {
 	}
 }
 
-async function runApplyModel() {
-	try {
-		return await Promise.race([
-			new Promise(async (resolve) => {
-				await addDelay();
-				await performSafetyReminderCheck();
+const runApplyModelLogic = async () => {
+	{
+		await addDelay();
+		await performSafetyReminderCheck();
+		
+		const saveModalHandled = await handleSaveApplicationModal();
+		if (saveModalHandled) {
+			return;
+		}
+		const applyModalWait = await waitForElements({
+			elementOrSelector: ".artdeco-modal",
+			timeout: 3000,
+		});
+		
+		if (Array.isArray(applyModalWait)) {
+			const applyModal = applyModalWait[0];
+			const continueApplyingButton = applyModal?.querySelector(
+				'button[aria-label="Continue applying"]'
+			);
+			
+			if (continueApplyingButton) {
+				continueApplyingButton?.scrollIntoView({block: "center"});
+				await addDelay(300);
+				continueApplyingButton.click();
+				await runApplyModel();
+			}
+			
+			const nextButton =
+				applyModal?.querySelectorAll &&
+				Array.from(applyModal.querySelectorAll("button")).find((button) =>
+					button.textContent.includes("Next")
+				);
+			const reviewButtonWait = await waitForElements({
+				elementOrSelector: 'button[aria-label="Review your application"]',
+				timeout: 2000,
+			});
+			const reviewButton = reviewButtonWait?.[0];
+			const submitButtonWait = await waitForElements({
+				elementOrSelector: 'button[aria-label="Submit application"]',
+				timeout: 2000,
+			});
+			const submitButton = submitButtonWait?.[0];
+			
+			if (submitButton) {
+				await uncheckFollowCompany();
+				submitButton?.scrollIntoView({block: "center"});
+				await addDelay(300);
 				
-				const saveModalHandled = await handleSaveApplicationModal();
-				if (saveModalHandled) {
-					resolve(null);
+				const isStillRunning = await checkAndPrepareRunState();
+				if (!isStillRunning) {
 					return;
 				}
 				
-				const applyModalWait = await waitForElements({
-					elementOrSelector: ".artdeco-modal",
-					timeout: 3000,
-				});
-				
-				if (Array.isArray(applyModalWait)) {
-					const applyModal = applyModalWait[0];
-					
-					const continueApplyingButton = applyModal?.querySelector(
-						'button[aria-label="Continue applying"]'
-					);
-					
-					if (continueApplyingButton) {
-						continueApplyingButton?.scrollIntoView({block: "center"});
-						await addDelay(300);
-						continueApplyingButton.click();
-						await runApplyModel();
-					}
-					
-					const nextButton =
-						applyModal?.querySelectorAll &&
-						Array.from(applyModal.querySelectorAll("button")).find((button) =>
-							button.textContent.includes("Next")
-						);
-					const reviewButtonWait = await waitForElements({
-						elementOrSelector: 'button[aria-label="Review your application"]',
-						timeout: 2000,
-					});
-					const reviewButton = reviewButtonWait?.[0];
-					const submitButtonWait = await waitForElements({
-						elementOrSelector: 'button[aria-label="Submit application"]',
-						timeout: 2000,
-					});
-					const submitButton = submitButtonWait?.[0];
-					
-					if (submitButton) {
-						await uncheckFollowCompany();
-						submitButton?.scrollIntoView({block: "center"});
-						await addDelay(300);
-						
-						const isStillRunning = await checkAndPrepareRunState();
-						if (!isStillRunning) {
-							return;
-						}
-						
-						submitButton.click();
-						await addDelay(2000);
-						await handleSaveApplicationModal();
-						const isStillRunning2 = await checkAndPrepareRunState();
-						if (!isStillRunning2) {
-							return;
-						}
-						
-						const modalCloseButton = document.querySelector(
-							".artdeco-modal__dismiss"
-						);
-						if (modalCloseButton) {
-							modalCloseButton?.scrollIntoView({block: "center"});
-							await addDelay(300);
-							modalCloseButton.click();
-						}
-						await clickDoneIfExist();
-					}
-					
-					if (nextButton || reviewButton) {
-						const buttonToClick = reviewButton || nextButton;
-						
-						// Выбираем CV файл перед нажатием кнопки Next/Review
-						await selectCvFile(applyModal);
-						
-						await runValidations();
-						const isError = await checkForFormValidationError();
-						
-						if (isError) {
-							
-							await terminateJobModel();
-						} else {
-							buttonToClick?.scrollIntoView({block: "center"});
-							await addDelay();
-							buttonToClick.click();
-							
-							await addDelay(1000);
-							const saveModalAfterNext = await handleSaveApplicationModal();
-							if (saveModalAfterNext) {
-								console.info("Save modal detected after next button click");
-							}
-							
-							await runApplyModel();
-						}
-						
-						if (
-							document
-								?.querySelector("button[data-test-dialog-secondary-btn]")
-								?.innerText.includes("Discard")
-						) {
-							await terminateJobModel();
-							resolve(null);
-						}
-					}
-				}
-				
+				submitButton.click();
+				await addDelay(2000);
 				await handleSaveApplicationModal();
-				
-				if (!document?.querySelector(".artdeco-modal")) {
-					resolve(null);
-				} else {
-					const modalsToClose = Array.from(
-						document.querySelectorAll(".artdeco-modal")
-					);
-					for (const modal of modalsToClose) {
-						await addDelay(1000);
-						await terminateJobModel(modal);
-					}
+				const isStillRunning2 = await checkAndPrepareRunState();
+				if (!isStillRunning2) {
+					return;
 				}
-				await addDelay(1000);
-				return new Promise((resolve) => {
-					const artdecoModal = document.querySelector(
-						'[class*="artdeco-modal"]'
-					);
-					if (artdecoModal) {
-						const buttons = artdecoModal.querySelectorAll("button");
-						for (const button of buttons) {
-							if (
-								"textContent" in button &&
-								button?.textContent?.trim()?.includes("No thanks")
-							) {
-								button.click();
-								resolve(null);
-								break;
-							}
-						}
-						resolve(null);
+				
+				const modalCloseButton = document.querySelector(
+					".artdeco-modal__dismiss"
+				);
+				if (modalCloseButton) {
+					modalCloseButton?.scrollIntoView({block: "center"});
+					await addDelay(300);
+					modalCloseButton.click();
+				}
+				await clickDoneIfExist();
+			}
+			
+			if (nextButton || reviewButton) {
+				const buttonToClick = reviewButton || nextButton;
+				await runValidations();
+				await addDelay(500);
+				await selectCvFile(applyModal);
+				const isError = await checkForFormValidationError();
+				if (isError) {
+					await terminateJobModel();
+				} else {
+					buttonToClick?.scrollIntoView({block: "center"});
+					await addDelay();
+					buttonToClick.click();
+					
+					await addDelay(1000);
+					const saveModalAfterNext = await handleSaveApplicationModal();
+					if (saveModalAfterNext) {
+						console.info("Save modal detected after next button click");
 					}
-				}).catch(() => resolve(null));
-			}),
-			new Promise((resolve) => {
-				setTimeout(() => {
-					resolve(null);
-				}, 30000);
-			}),
+					
+					await runApplyModel();
+				}
+				
+				if (
+					document
+						?.querySelector("button[data-test-dialog-secondary-btn]")
+						?.innerText.includes("Discard")
+				) {
+					await terminateJobModel();
+				  return null;
+				}
+			}
+		}
+		
+		await handleSaveApplicationModal();
+		
+		if (!document?.querySelector(".artdeco-modal")) {
+			return null
+		} else {
+			const modalsToClose = Array.from(
+				document.querySelectorAll(".artdeco-modal")
+			);
+			for (const modal of modalsToClose) {
+				await addDelay(1000);
+				await terminateJobModel(modal);
+			}
+		}
+		await addDelay(1000);
+		
+		const artdecoModal = document.querySelector(
+			'[class*="artdeco-modal"]'
+		);
+		if (artdecoModal) {
+			const buttons = artdecoModal.querySelectorAll("button");
+			for (const button of buttons) {
+				if ("textContent" in button && button?.textContent?.trim()?.includes("No thanks")) {
+					button.click();
+					return null;
+				}
+			}
+			return null;
+		}
+	}
+}
+
+async function runApplyModel() {
+	try {
+		return await Promise.race([
+			runApplyModelLogic(),
+			new Promise((resolve) => setTimeout(() => resolve(null), 30000))
 		]);
 	} catch (error) {
 		console.error("runApplyModel critical error", error);
@@ -1272,77 +1260,58 @@ async function runApplyModel() {
 }
 
 async function runFindEasyApply(jobTitle, companyName) {
-	return new Promise(async (resolve) => {
-		try {
-			await addDelay(1000);
-			
-			const saveModalHandled = await handleSaveApplicationModal();
-			if (saveModalHandled) {
-				resolve(null);
-				return;
-			}
-			
-			const alreadyAppliedElement = document.querySelector(
-				".artdeco-inline-feedback__message"
-			);
-			if (alreadyAppliedElement) {
-				const textContent = alreadyAppliedElement.textContent;
-				if (checkIfAlreadyApplied(textContent)) {
-					
-					resolve(null);
-					return;
-				}
-			}
-			
-			const currentPageLink = window.location.href;
-			
-			if (!chrome || !chrome.runtime) {
-				
-				resolve(null);
-				return;
-			}
-			
-			const externalApplyElements = getElementsByXPath({
-				xpath: not_easy_apply_button,
-			});
-			
-			if (externalApplyElements.length > 0) {
-				await chrome.runtime.sendMessage({
-					action: "externalApplyAction",
-					data: {jobTitle, currentPageLink, companyName},
-				});
-			}
-			
-			const easyApplyElements = getElementsByXPath({
-				xpath: easy_apply_button,
-			});
-			
-			if (easyApplyElements.length > 0) {
-				const buttonPromises = Array.from(easyApplyElements).map(
-					async (button) => {
-						return await new Promise((resolve) => {
-							checkAndPrepareRunState().then((result) => {
-								if (!result) {
-									resolve(null);
-									return;
-								}
-								button.click();
-								resolve(runApplyModel());
-							});
-						});
-					}
-				);
-				await Promise.race(buttonPromises);
-			}
-			
-			await handleSaveApplicationModal();
-			
-			resolve(null);
-		} catch (error) {
-			
-			resolve(null);
+	try {
+		await addDelay(1000);
+		const saveModalHandled = await handleSaveApplicationModal();
+		if (saveModalHandled) {
+			return null;
 		}
-	});
+		
+		const alreadyAppliedElement = document.querySelector(
+			".artdeco-inline-feedback__message"
+		);
+		if (alreadyAppliedElement) {
+			const textContent = alreadyAppliedElement.textContent;
+			if (checkIfAlreadyApplied(textContent)) {
+				return null;
+			}
+		}
+		
+		const currentPageLink = window.location.href;
+		
+		if (!chrome || !chrome.runtime) {
+			return null;
+		}
+		
+		const externalApplyElements = getElementsByXPath({
+			xpath: not_easy_apply_button,
+		});
+		
+		if (externalApplyElements.length > 0) {
+			await chrome.runtime.sendMessage({
+				action: "externalApplyAction",
+				data: {jobTitle, currentPageLink, companyName},
+			});
+		}
+		
+		const easyApplyButton = getVisibleElementByXPath({
+			xpath: easy_apply_button,
+		});
+		
+		if (easyApplyButton) {
+			const result = await checkAndPrepareRunState();
+			if (result) {
+				easyApplyButton.click();
+				await runApplyModel();
+			}
+		}
+		await handleSaveApplicationModal();
+		
+		return null;
+	} catch (error) {
+		return null;
+	}
+	
 }
 
 let currentPage = "";
