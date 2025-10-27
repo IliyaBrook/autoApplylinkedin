@@ -1116,6 +1116,22 @@ async function uncheckFollowCompany() {
 		await addDelay(200);
 	}
 }
+async function toggleBlinkingBorder(element) {
+	return new Promise(async (resolve) => {
+		let count = 0;
+		const intervalId = setInterval(async () => {
+			element.style.border = count % 2 === 0 ? "2px solid red" : "none";
+			count++;
+			if (count === 10) {
+				clearInterval(intervalId);
+				await waitForLoaderToDisappear();
+				element.style.border = "none";
+				resolve();
+			}
+		}, 500);
+	});
+}
+
 
 const runApplyModelLogic = async (jobTitle) => {
 	{
@@ -1139,7 +1155,7 @@ const runApplyModelLogic = async (jobTitle) => {
 			
 			if (continueApplyingButton) {
 				continueApplyingButton?.scrollIntoView({block: "center"});
-				await addDelay();
+				await addDelay(500);
 				continueApplyingButton.click();
 				await runApplyModel(jobTitle);
 			}
@@ -1322,6 +1338,7 @@ async function runFindEasyApply(jobTitle, companyName) {
 			if (result) {
 				easyApplyButton.click();
 				await runApplyModel(jobTitle);
+				await waitForLoaderToDisappear();
 			}
 		}
 		await handleSaveApplicationModal();
@@ -1335,17 +1352,6 @@ async function runFindEasyApply(jobTitle, companyName) {
 
 let currentPage = "";
 
-function toggleBlinkingBorder(element) {
-	let count = 0;
-	const intervalId = setInterval(() => {
-		element.style.border = count % 2 === 0 ? "2px solid red" : "none";
-		count++;
-		if (count === 10) {
-			clearInterval(intervalId);
-			element.style.border = "none";
-		}
-	}, 500);
-}
 
 async function checkLimitReached() {
 	return new Promise((resolve) => {
@@ -1552,7 +1558,7 @@ async function runScript() {
 			const feedbackMessageElement = document.querySelector(
 				".artdeco-inline-feedback__message"
 			);
-			toggleBlinkingBorder(feedbackMessageElement);
+			await toggleBlinkingBorder(feedbackMessageElement);
 			return;
 		}
 		

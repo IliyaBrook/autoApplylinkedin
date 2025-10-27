@@ -658,3 +658,28 @@ function findBestMatch({array, searchString, threshold = 0.3, exactMatchData = n
 	
 	return bestScore >= threshold ? bestMatch : null;
 }
+
+
+async function waitForLoaderToDisappear(timeout = 15000) {
+	const startTime = Date.now();
+	
+	while (Date.now() - startTime < timeout) {
+		const loaders = document.querySelectorAll('[class*="loader"]');
+		let hasVisibleLoader = false;
+		
+		for (const loader of loaders) {
+			if (isElementVisible(loader)) {
+				hasVisibleLoader = true;
+				break;
+			}
+		}
+		
+		if (!hasVisibleLoader) {
+			return true;
+		}
+		
+		await addDelay(500);
+	}
+	
+	return false;
+}
