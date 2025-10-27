@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CV Files Manager</title>
+    <link rel="stylesheet" href="../global.css">
+    <link rel="stylesheet" href="cvManager.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CV Files Manager</h1>
+        </header>
+
+        <div class="main-content">
+            <div class="cv-list-section">
+                <div class="section-header">
+                    <h2>CV Files</h2>
+                    <button id="addCvBtn" class="btn-primary">+ Add CV File</button>
+                </div>
+                <div id="cvFilesList" class="cv-files-list"></div>
+            </div>
+
+            <div class="filters-section" id="filtersSection" style="display: none;">
+                <div class="section-header">
+                    <h2>Job Title Filters for: <span id="selectedCvName"></span></h2>
+                    <button id="addFilterBtn" class="btn-primary">+ Add Filter</button>
+                </div>
+                <div id="filtersList" class="filters-list"></div>
+            </div>
+        </div>
+
+        <div id="addCvModal" class="modal">
+            <div class="modal-content">
+                <h3>Add CV File</h3>
+                <input type="text" id="cvFileInput" placeholder="Enter CV filename (e.g., FullStack-Developer-IB.pdf)">
+                <div class="modal-actions">
+                    <button id="saveCvBtn" class="btn-primary">Save</button>
+                    <button id="cancelCvBtn" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="editCvModal" class="modal">
+            <div class="modal-content">
+                <h3>Edit CV File</h3>
+                <input type="text" id="editCvFileInput" placeholder="Enter CV filename">
+                <div class="modal-actions">
+                    <button id="saveEditCvBtn" class="btn-primary">Save</button>
+                    <button id="cancelEditCvBtn" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="addFilterModal" class="modal">
+            <div class="modal-content">
+                <h3>Add Job Title Filter</h3>
+                <input type="text" id="filterInput" placeholder="Enter job title (e.g., Full Stack Developer)">
+                <div class="modal-actions">
+                    <button id="saveFilterBtn" class="btn-primary">Save</button>
+                    <button id="cancelFilterBtn" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="editFilterModal" class="modal">
+            <div class="modal-content">
+                <h3>Edit Job Title Filter</h3>
+                <input type="text" id="editFilterInput" placeholder="Enter job title">
+                <div class="modal-actions">
+                    <button id="saveEditFilterBtn" class="btn-primary">Save</button>
+                    <button id="cancelEditFilterBtn" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="cvManager.js"></script>
+</body>
+</html>
