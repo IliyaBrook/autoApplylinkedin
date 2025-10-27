@@ -400,9 +400,8 @@ async function performInputFieldChecks(context = document) {
 			
 			if (!foundConfig && result && result.length > 0) {
 				const placeholders = result.map(config => config.placeholderIncludes);
-		
-				const bestMatchPlaceholder = findBestMatch(placeholders, labelText, 0.5);
-				console.log("findBestMatch called 1")
+				
+				const bestMatchPlaceholder = findBestMatch({array: placeholders, searchString: labelText, threshold: 0.5});
 				if (bestMatchPlaceholder) {
 					foundConfig = result.find(config => config.placeholderIncludes === bestMatchPlaceholder);
 				}
@@ -1053,8 +1052,7 @@ async function selectCvFile(applyModal, jobTitle) {
 		const selectedCvId = storageData.selectedCvFile;
 		const smartSelectEnabled = Boolean(storageData.smartSelectEnabled);
 		const selectedCvFileFilters = storageData?.selectedCvFileFilters;
-		console.log("[LOG 1] all keys: 'cvFiles', 'selectedCvFile', 'smartSelectEnabled', 'selectedCvFileFilters':", storageData);
-
+		
 		if (!selectedCvId) {
 			return;
 		}
@@ -1067,21 +1065,16 @@ async function selectCvFile(applyModal, jobTitle) {
 		let targetCvName = null;
 		
 		// Smart select logic
-		console.log("[if smartSelectEnabled]:", smartSelectEnabled);
-		console.log("[if jobTitle exists]:", jobTitle);
 		if (smartSelectEnabled && jobTitle) {
 			// Extract all CV file names
 			const cvFileNames = cvFiles.map(f => f.name).filter(name => name && name.trim());
-			console.log("cvFileNames 1:", cvFileNames);
 			if (cvFileNames.length > 0) {
 				// Use findBestMatch to find the best matching CV for the job title
-				const findBestMatchProps = [cvFileNames, jobTitle]
-		
-				if (selectedCvFileFilters && typeof selectedCvFileFilters === 'object' && Object.values(selectedCvFileFilters).every(value => Array.isArray(value) && value.length === 0)) {
-					findBestMatchProps.push(selectedCvFileFilters);
+				const findBestMatchProps = {array: cvFileNames, searchString: jobTitle}
+				if (selectedCvFileFilters && typeof selectedCvFileFilters === 'object' && Object.values(selectedCvFileFilters).some(value => Array.isArray(value) && value.length > 0)) {
+					findBestMatchProps['exactMatchData'] = selectedCvFileFilters
 				}
-				const bestMatch = findBestMatch(...findBestMatchProps);
-				console.log("findBestMatch called 2")
+				const bestMatch = findBestMatch(findBestMatchProps);
 				if (bestMatch) {
 					targetCvName = bestMatch.toLowerCase().trim();
 				}
@@ -1232,7 +1225,7 @@ const runApplyModelLogic = async (jobTitle) => {
 						?.innerText.includes("Discard")
 				) {
 					await terminateJobModel();
-				  return null;
+					return null;
 				}
 			}
 		}
@@ -1888,6 +1881,8 @@ try {
 			}
 			
 			stopExtensionContextMonitoring();
-		} catch{}
+		} catch {
+		}
 	});
-} catch {}
+} catch {
+}

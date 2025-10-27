@@ -604,8 +604,7 @@ function calculateSimilarity(query, candidate) {
 	return tokenScore * 0.4 + stringScore * 0.35 + ngramScore * 0.25;
 }
 
-function findBestMatch(array, searchString, threshold = 0.3, exactMatchData = null) {
-	console.log("findBestMatch exactMatchData:", exactMatchData)
+function findBestMatch({array, searchString, threshold = 0.3, exactMatchData = null}) {
 	if (!array || array.length === 0) return null;
 	if (!searchString || searchString.trim() === '') return null;
 	
