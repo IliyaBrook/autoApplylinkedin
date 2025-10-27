@@ -35,17 +35,6 @@ function isExtensionContextValidQuiet() {
 	}
 }
 
-function setAutoApplyRunningSilent(value) {
-	if (!isExtensionContextValidQuiet()) {
-		return;
-	}
-	
-	try {
-		void chrome.storage.local.set({autoApplyRunning: value});
-	} catch (error) {
-	}
-}
-
 async function updateScriptActivity() {
 	try {
 		if (isExtensionContextValidQuiet()) {
