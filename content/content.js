@@ -1150,7 +1150,7 @@ const runApplyModelLogic = async (jobTitle) => {
 			
 			if (continueApplyingButton) {
 				continueApplyingButton?.scrollIntoView({block: "center"});
-				await addDelay(300);
+				await addDelay();
 				continueApplyingButton.click();
 				await runApplyModel(jobTitle);
 			}
