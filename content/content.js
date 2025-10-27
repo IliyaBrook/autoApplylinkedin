@@ -1173,15 +1173,30 @@ const runApplyModelLogic = async (jobTitle) => {
 			
 			if (submitButton) {
 				await uncheckFollowCompany();
-				submitButton?.scrollIntoView({block: "center"});
-				await addDelay(300);
 				
 				const isStillRunning = await checkAndPrepareRunState();
 				if (!isStillRunning) {
 					return;
 				}
 				
-				submitButton.click();
+				if (!isElementVisible(submitButton)) {
+					submitButton.scrollIntoView({block: "center", behavior: "smooth"});
+					await addDelay(1000);
+				}
+				
+				let clickAttempts = 0;
+				const maxAttempts = 3;
+				while (clickAttempts < maxAttempts) {
+					if (isElementVisible(submitButton)) {
+						await clickElement({elementOrSelector: submitButton});
+						break;
+					} else {
+						submitButton.scrollIntoView({block: "center", behavior: "smooth"});
+						await addDelay(800);
+						clickAttempts++;
+					}
+				}
+				
 				await addDelay(2000);
 				await handleSaveApplicationModal();
 				const isStillRunning2 = await checkAndPrepareRunState();
@@ -1208,9 +1223,11 @@ const runApplyModelLogic = async (jobTitle) => {
 				if (isError) {
 					await terminateJobModel();
 				} else {
-					buttonToClick?.scrollIntoView({block: "center"});
-					await addDelay();
-					buttonToClick.click();
+					if (!isElementVisible(buttonToClick)) {
+						buttonToClick.scrollIntoView({block: "center", behavior: "smooth"});
+						await addDelay(1000);
+					}
+					await clickElement({elementOrSelector: buttonToClick});
 					await addDelay(1000);
 					const saveModalAfterNext = await handleSaveApplicationModal();
 					if (saveModalAfterNext) {
