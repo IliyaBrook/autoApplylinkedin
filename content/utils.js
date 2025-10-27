@@ -605,6 +605,7 @@ function calculateSimilarity(query, candidate) {
 }
 
 function findBestMatch(array, searchString, threshold = 0.3, exactMatchData = null) {
+	console.log("findBestMatch exactMatchData:", exactMatchData)
 	if (!array || array.length === 0) return null;
 	if (!searchString || searchString.trim() === '') return null;
 	

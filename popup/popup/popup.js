@@ -364,18 +364,5 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Smart Select checkbox handler
-  const smartSelectCheckbox = document.getElementById("smart-select-checkbox");
-  
-  chrome.storage.local.get("smartSelectEnabled", ({ smartSelectEnabled }) => {
-    if (smartSelectCheckbox) {
-      smartSelectCheckbox.checked = Boolean(smartSelectEnabled);
-    }
-  });
-
-  if (smartSelectCheckbox) {
-    smartSelectCheckbox.addEventListener("change", () => {
-      void chrome.storage.local.set({ smartSelectEnabled: smartSelectCheckbox.checked });
-    });
-  }
 });
 

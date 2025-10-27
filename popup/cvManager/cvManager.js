@@ -5,6 +5,7 @@ let currentActiveCv = null;
 document.addEventListener('DOMContentLoaded', () => {
     loadCvFiles();
     initializeEventListeners();
+    initializeSmartSelectCheckbox();
 });
 
 function initializeEventListeners() {
@@ -55,6 +56,22 @@ function initializeEventListeners() {
     });
 }
 
+function initializeSmartSelectCheckbox() {
+    const smartSelectCheckbox = document.getElementById('smart-select-checkbox');
+    
+    chrome.storage.local.get('smartSelectEnabled', ({ smartSelectEnabled }) => {
+        if (smartSelectCheckbox) {
+            smartSelectCheckbox.checked = Boolean(smartSelectEnabled);
+        }
+    });
+
+    if (smartSelectCheckbox) {
+        smartSelectCheckbox.addEventListener('change', () => {
+            chrome.storage.local.set({ smartSelectEnabled: smartSelectCheckbox.checked });
+        });
+    }
+}
+
 function loadCvFiles() {
     chrome.storage.local.get(['cvFiles', 'selectedCvFile', 'selectedCvFileFilters'], (result) => {
         const cvFiles = result.cvFiles || [];
@@ -66,7 +83,7 @@ function loadCvFiles() {
         if (selectedCvFile && !currentActiveCv) {
             const selectedCvObj = cvFiles.find(f => f.id === selectedCvFile);
             if (selectedCvObj) {
-                manageFilters(selectedCvFile, selectedCvObj.name);
+                manageFilters(selectedCvObj.name);
             }
         }
     });
@@ -90,11 +107,7 @@ function renderCvFiles(cvFiles, selectedCvFile, filters) {
             cvFileItem.classList.add('selected');
         }
 
-        if (cvFileObj.id === currentActiveCv) {
-            cvFileItem.classList.add('active');
-        }
-
-        const filterCount = filters[cvFileObj.id] ? filters[cvFileObj.id].length : 0;
+        const filterCount = filters[cvFileObj.name] ? filters[cvFileObj.name].length : 0;
 
         cvFileItem.innerHTML = `
             <div class="cv-file-content">
@@ -111,7 +124,7 @@ function renderCvFiles(cvFiles, selectedCvFile, filters) {
 
         cvFileItem.querySelector('.btn-manage').addEventListener('click', (e) => {
             e.stopPropagation();
-            manageFilters(cvFileObj.id, cvFileObj.name);
+            manageFilters(cvFileObj.name);
         });
 
         cvFileItem.querySelector('.btn-select').addEventListener('click', (e) => {
@@ -183,16 +196,21 @@ function saveEditedCvFile() {
 
     chrome.storage.local.get(['cvFiles', 'selectedCvFile', 'selectedCvFileFilters'], (result) => {
         const cvFiles = result.cvFiles || [];
-        const selectedCvFile = result.selectedCvFile;
         let filters = result.selectedCvFileFilters || {};
 
         const currentFile = cvFiles.find(f => f.id === currentEditingCv);
         if (!currentFile) return;
 
+        const oldName = currentFile.name;
         const exists = cvFiles.some(f => f.id !== currentEditingCv && f.name === newCvFileName);
         if (exists) {
             alert('This CV file already exists');
             return;
+        }
+
+        if (filters[oldName]) {
+            filters[newCvFileName] = filters[oldName];
+            delete filters[oldName];
         }
 
         currentFile.name = newCvFileName;
@@ -200,7 +218,8 @@ function saveEditedCvFile() {
         const updateData = { cvFiles, selectedCvFileFilters: filters };
 
         chrome.storage.local.set(updateData, () => {
-            if (currentActiveCv === currentEditingCv) {
+            if (currentActiveCv === oldName) {
+                currentActiveCv = newCvFileName;
                 document.getElementById('selectedCvName').textContent = newCvFileName;
             }
             currentEditingCv = null;
@@ -226,8 +245,8 @@ function deleteCvFile(cvId, cvName) {
             cvFiles.splice(index, 1);
         }
 
-        if (filters[cvId]) {
-            delete filters[cvId];
+        if (filters[cvName]) {
+            delete filters[cvName];
         }
 
         const updateData = { cvFiles, selectedCvFileFilters: filters };
@@ -237,7 +256,7 @@ function deleteCvFile(cvId, cvName) {
         }
 
         chrome.storage.local.set(updateData, () => {
-            if (currentActiveCv === cvId) {
+            if (currentActiveCv === cvName) {
                 currentActiveCv = null;
                 document.getElementById('filtersSection').style.display = 'none';
             }
@@ -252,21 +271,20 @@ function selectCvFile(cvId) {
     });
 }
 
-function manageFilters(cvId, cvName) {
-    currentActiveCv = cvId;
+function manageFilters(cvName) {
+    currentActiveCv = cvName;
     document.getElementById('selectedCvName').textContent = cvName;
     document.getElementById('filtersSection').style.display = 'block';
-    loadFilters(cvId);
+    loadFilters(cvName);
 }
 
-function loadFilters(cvId) {
+function loadFilters(cvName) {
     chrome.storage.local.get(['selectedCvFileFilters'], (result) => {
         const filters = result.selectedCvFileFilters || {};
-        const cvFilters = filters[cvId] || [];
+        const cvFilters = filters[cvName] || [];
         renderFilters(cvFilters);
     });
 }
-
 function renderFilters(filters) {
     const filtersList = document.getElementById('filtersList');
 
