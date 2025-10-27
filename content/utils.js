@@ -603,10 +603,46 @@ function calculateSimilarity(query, candidate) {
 	
 	return tokenScore * 0.4 + stringScore * 0.35 + ngramScore * 0.25;
 }
-// The best match logic checks for the most similar element passed in the second argument against the array.
-function findBestMatch(array, searchString, threshold = 0.3) {
+
+function findBestMatch(array, searchString, threshold = 0.3, exactMatchData = null) {
 	if (!array || array.length === 0) return null;
 	if (!searchString || searchString.trim() === '') return null;
+	
+	if (exactMatchData && typeof exactMatchData === 'object') {
+		const searchStringLower = searchString.toLowerCase().trim();
+		const searchWords = searchString.trim().split(/\s+/);
+		const firstWord = searchWords[0]?.toLowerCase();
+		
+		for (const [key, values] of Object.entries(exactMatchData)) {
+			if (!array.includes(key)) continue;
+			
+			if (Array.isArray(values)) {
+				for (const value of values) {
+					if (value && value.toLowerCase().trim() === searchStringLower) {
+						return key;
+					}
+				}
+			}
+		}
+		
+		if (firstWord) {
+			for (const [key, values] of Object.entries(exactMatchData)) {
+				if (!array.includes(key)) continue;
+				
+				if (Array.isArray(values)) {
+					for (const value of values) {
+						if (value) {
+							const valueWords = value.trim().split(/\s+/);
+							const valueFirstWord = valueWords[0]?.toLowerCase();
+							if (valueFirstWord === firstWord) {
+								return key;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 	
 	let bestMatch = null;
 	let bestScore = -1;
