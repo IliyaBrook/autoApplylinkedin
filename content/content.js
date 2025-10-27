@@ -1007,7 +1007,6 @@ async function runValidations() {
 		}
 		
 		await validateAndCloseConfirmationModal();
-		
 		const applyModal = document.querySelector(".artdeco-modal") || document;
 		await performInputFieldChecks(applyModal);
 		await performUniversalCheckboxChecks(applyModal);
@@ -1226,6 +1225,7 @@ const runApplyModelLogic = async (jobTitle) => {
 				await runValidations();
 				const isError = await checkForFormValidationError();
 				if (isError) {
+					console.log("[terminating job model]: due to form validation error");
 					await terminateJobModel();
 				} else {
 					if (!isElementVisible(buttonToClick)) {
@@ -1246,6 +1246,7 @@ const runApplyModelLogic = async (jobTitle) => {
 						?.querySelector("button[data-test-dialog-secondary-btn]")
 						?.innerText.includes("Discard")
 				) {
+					console.log("[terminating job model]: due to discard button");
 					await terminateJobModel();
 					return null;
 				}
@@ -1287,7 +1288,7 @@ async function runApplyModel(jobTitle) {
 	try {
 		return await Promise.race([
 			runApplyModelLogic(jobTitle),
-			new Promise((resolve) => setTimeout(() => resolve(null), 30000))
+			new Promise((resolve) => setTimeout(() => resolve(null), 60000))
 		]);
 	} catch (error) {
 		console.error("runApplyModel critical error", error);
