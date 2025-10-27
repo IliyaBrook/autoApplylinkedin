@@ -62,6 +62,13 @@ function loadCvFiles() {
         const filters = result.selectedCvFileFilters || {};
 
         renderCvFiles(cvFiles, selectedCvFile, filters);
+
+        if (selectedCvFile && !currentActiveCv) {
+            const selectedCvObj = cvFiles.find(f => f.id === selectedCvFile);
+            if (selectedCvObj) {
+                manageFilters(selectedCvFile, selectedCvObj.name);
+            }
+        }
     });
 }
 

@@ -7,20 +7,20 @@ body {
 }
 
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
 }
 
 header {
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-bottom: 30px;
+    margin: 0;
     background: rgba(255, 255, 255, 0.95);
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 30px 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 header h1 {
@@ -32,8 +32,11 @@ header h1 {
 .main-content {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    min-height: calc(100vh - 150px);
+    gap: 30px;
+    min-height: calc(100vh - 100px);
+    padding: 30px;
+    max-width: 1400px;
+    margin: 0 auto;
 }
 
 .cv-list-section,
