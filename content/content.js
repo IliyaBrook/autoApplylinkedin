@@ -753,7 +753,7 @@ async function handleSaveApplicationModal() {
 		return false;
 	}
 	
-	if (currentTime - lastSaveModalHandleTime < 2000) {
+	if (currentTime - lastSaveModalHandleTime < 4000) {
 		return false;
 	}
 	
@@ -1336,6 +1336,7 @@ async function runFindEasyApply(jobTitle, companyName) {
 			}
 		}
 		await handleSaveApplicationModal();
+		await addDelay(2000);
 		
 		return null;
 	} catch (error) {
