@@ -158,7 +158,7 @@ async function checkAndPrepareRunState(allowAutoRecovery = false) {
 function getJobTitle(jobNameLink) {
 	if (!jobNameLink) return "";
 	let jobTitle;
-	
+
 	const visibleSpan = jobNameLink.querySelector('span[aria-hidden="true"]');
 	if (visibleSpan && visibleSpan.textContent.trim().length > 0) {
 		jobTitle = visibleSpan.textContent.trim();
@@ -169,6 +169,26 @@ function getJobTitle(jobNameLink) {
 		}
 	}
 	return jobTitle.toLowerCase();
+}
+
+function matchesFilter(text, word) {
+	if (!text || !word) return false;
+
+	const lowerText = text.toLowerCase();
+	const lowerWord = word.toLowerCase().trim();
+
+	if (!lowerWord) return false;
+
+	// For short words (<=4 characters) - use whole word boundaries
+	if (lowerWord.length <= 4) {
+		// Escape special regex characters
+		const escaped = lowerWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+		return regex.test(text);
+	}
+
+	// For longer words - use substring matching (current behavior)
+	return lowerText.includes(lowerWord);
 }
 
 async function clickDoneIfExist() {
@@ -1637,9 +1657,8 @@ async function runScript() {
 
 			if (titleSkipEnabled && titleSkipWords?.length > 0) {
 				const matchedSkipWord = titleSkipWords.find((word) => {
-					const lowerWord = word.toLowerCase();
-					return jobTitle.toLowerCase().includes(lowerWord) ||
-					       companyName.toLowerCase().includes(lowerWord);
+					return matchesFilter(jobTitle, word) ||
+					       matchesFilter(companyName, word);
 				});
 				if (matchedSkipWord) {
 					canClickToJob = false;
@@ -1647,9 +1666,8 @@ async function runScript() {
 			}
 			if (titleFilterEnabled && titleFilterWords?.length > 0) {
 				const matchedFilterWord = titleFilterWords.find((word) => {
-					const lowerWord = word.toLowerCase();
-					return jobTitle.toLowerCase().includes(lowerWord) ||
-					       companyName.toLowerCase().includes(lowerWord);
+					return matchesFilter(jobTitle, word) ||
+					       matchesFilter(companyName, word);
 				});
 				if (!matchedFilterWord) {
 
