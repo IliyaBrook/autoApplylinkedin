@@ -1622,31 +1622,35 @@ async function runScript() {
 			if (jobFooter && jobFooter.textContent.trim() === "Applied") {
 				canClickToJob = false;
 			}
-			
+
+			const jobTitle = getJobTitle(jobNameLink);
+
 			const companyNames = listItem.querySelectorAll('[class*="subtitle"]');
 			const companyNamesArray = Array.from(companyNames).map((el) =>
 				el.textContent.trim()
 			);
-			
 			const companyName = companyNamesArray?.[0] ?? "";
-			const jobTitle = getJobTitle(jobNameLink);
-			
+
 			if (!jobTitle) {
 				canClickToJob = false;
 			}
-			
+
 			if (titleSkipEnabled && titleSkipWords?.length > 0) {
-				const matchedSkipWord = titleSkipWords.find((word) =>
-					jobTitle.toLowerCase().includes(word.toLowerCase())
-				);
+				const matchedSkipWord = titleSkipWords.find((word) => {
+					const lowerWord = word.toLowerCase();
+					return jobTitle.toLowerCase().includes(lowerWord) ||
+					       companyName.toLowerCase().includes(lowerWord);
+				});
 				if (matchedSkipWord) {
 					canClickToJob = false;
 				}
 			}
 			if (titleFilterEnabled && titleFilterWords?.length > 0) {
-				const matchedFilterWord = titleFilterWords.find((word) =>
-					jobTitle.toLowerCase().includes(word.toLowerCase())
-				);
+				const matchedFilterWord = titleFilterWords.find((word) => {
+					const lowerWord = word.toLowerCase();
+					return jobTitle.toLowerCase().includes(lowerWord) ||
+					       companyName.toLowerCase().includes(lowerWord);
+				});
 				if (!matchedFilterWord) {
 
 					canClickToJob = false;
