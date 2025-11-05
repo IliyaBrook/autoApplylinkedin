@@ -1249,7 +1249,12 @@ const runApplyModelLogic = async (jobTitle) => {
 						buttonToClick.scrollIntoView({block: "center", behavior: "smooth"});
 						await addDelay(1000);
 					}
-					await clickElement({elementOrSelector: buttonToClick});
+					// Re-check visibility before clicking (element may have changed)
+					if (buttonToClick && buttonToClick.isConnected && isElementVisible(buttonToClick)) {
+						await clickElement({elementOrSelector: buttonToClick});
+					} else {
+						console.log("[runApplyModel]: Button no longer visible, skipping click");
+					}
 					await addDelay(1000);
 					const saveModalAfterNext = await handleSaveApplicationModal();
 					if (saveModalAfterNext) {
@@ -1651,24 +1656,51 @@ async function runScript() {
 			if (!jobTitle) {
 				canClickToJob = false;
 			}
-
 			if (titleSkipEnabled && titleSkipWords?.length > 0) {
 				const matchedSkipWord = titleSkipWords.find((word) => {
-					return matchesFilter(jobTitle, word) ||
-					       matchesFilter(companyName, word);
+					const jobMatch = matchesFilter(jobTitle, word);
+					const companyMatch = matchesFilter(companyName, word);
+					if (jobMatch || companyMatch) {
+						console.log(`🔴 SKIP FILTER: Word "${word}" found in:`, {
+							jobTitle,
+							companyName,
+							matchedIn: jobMatch ? 'jobTitle' : 'companyName',
+							jobLink: getJobLink(jobNameLink),
+						});
+					}
+					return jobMatch || companyMatch;
 				});
 				if (matchedSkipWord) {
 					canClickToJob = false;
+					console.log("❌ Job SKIPPED by word: ", {
+						jobTitle,
+						companyName,
+						matchedIn: 'titleSkipWords',
+						jobLink: getJobLink(jobNameLink),
+					});
 				}
 			}
 			if (titleFilterEnabled && titleFilterWords?.length > 0) {
 				const matchedFilterWord = titleFilterWords.find((word) => {
-					return matchesFilter(jobTitle, word) ||
-					       matchesFilter(companyName, word);
+					const jobMatch = matchesFilter(jobTitle, word);
+					const companyMatch = matchesFilter(companyName, word);
+					if (jobMatch || companyMatch) {
+						console.log(`✅ MUST CONTAIN: Word "${word}" found in:`, {
+							jobTitle,
+							companyName,
+							matchedIn: jobMatch ? 'jobTitle' : 'companyName',
+							jobLink: getJobLink(jobNameLink),
+						});
+					}
+					return jobMatch || companyMatch;
 				});
 				if (!matchedFilterWord) {
-
 					canClickToJob = false;
+					console.log(`❌ Job REJECTED: No required words found in`, {
+						jobTitle,
+						companyName,
+						jobLink: getJobLink(jobNameLink),
+					});
 				}
 			}
 			

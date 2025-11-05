@@ -157,7 +157,8 @@ async function clickElement({
       }
 
       if (element.offsetParent === null || !element.isConnected) {
-        console.trace("Element is not visible or not connected");
+        console.log("Element is not visible or not connected, skipping click");
+        resolve(null);
         return;
       }
       element?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -682,4 +683,9 @@ async function waitForLoaderToDisappear(timeout = 15000) {
 	}
 	
 	return false;
+}
+
+function getJobLink(link) {
+	const href = link.getAttribute('href');
+	return 'https://www.linkedin.com' + href;
 }
