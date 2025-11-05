@@ -1635,7 +1635,7 @@ async function runScript() {
 				canClickToJob = false;
 			}
 			
-			if (titleSkipEnabled) {
+			if (titleSkipEnabled && titleSkipWords?.length > 0) {
 				const matchedSkipWord = titleSkipWords.find((word) =>
 					jobTitle.toLowerCase().includes(word.toLowerCase())
 				);
@@ -1643,12 +1643,12 @@ async function runScript() {
 					canClickToJob = false;
 				}
 			}
-			if (titleFilterEnabled) {
+			if (titleFilterEnabled && titleFilterWords?.length > 0) {
 				const matchedFilterWord = titleFilterWords.find((word) =>
 					jobTitle.toLowerCase().includes(word.toLowerCase())
 				);
 				if (!matchedFilterWord) {
-					
+
 					canClickToJob = false;
 				}
 			}
