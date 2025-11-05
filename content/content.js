@@ -247,6 +247,12 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 							}
 						}
 						if (matchedBadWord) {
+							// console.log("🔴 BAD WORD FILTER: Word found in job content", {
+							// 	word: matchedBadWord,
+							// 	jobTitle,
+							// 	companyName
+							// });
+							// console.log("❌ Job SKIPPED by bad word:", matchedBadWord);
 							resolve(null);
 							return;
 						}
@@ -1242,7 +1248,6 @@ const runApplyModelLogic = async (jobTitle) => {
 				await runValidations();
 				const isError = await checkForFormValidationError();
 				if (isError) {
-					console.log("[terminating job model]: due to form validation error");
 					await terminateJobModel();
 				} else {
 					if (!isElementVisible(buttonToClick)) {
@@ -1252,8 +1257,6 @@ const runApplyModelLogic = async (jobTitle) => {
 					// Re-check visibility before clicking (element may have changed)
 					if (buttonToClick && buttonToClick.isConnected && isElementVisible(buttonToClick)) {
 						await clickElement({elementOrSelector: buttonToClick});
-					} else {
-						console.log("[runApplyModel]: Button no longer visible, skipping click");
 					}
 					await addDelay(1000);
 					const saveModalAfterNext = await handleSaveApplicationModal();
@@ -1268,7 +1271,6 @@ const runApplyModelLogic = async (jobTitle) => {
 						?.querySelector("button[data-test-dialog-secondary-btn]")
 						?.innerText.includes("Discard")
 				) {
-					console.log("[terminating job model]: due to discard button");
 					await terminateJobModel();
 					return null;
 				}
@@ -1635,14 +1637,13 @@ async function runScript() {
 			});
 			const jobNameLink = linksElements?.[0];
 			if (!jobNameLink) {
-				canClickToJob = false;
-			} else {
-				jobNameLink?.scrollIntoView({behavior: "smooth", block: "center"});
+				continue; // Skip if no job link found
 			}
-			
+			jobNameLink?.scrollIntoView({behavior: "smooth", block: "center"});
+
 			const jobFooter = listItem.querySelector('[class*="footer"]');
 			if (jobFooter && jobFooter.textContent.trim() === "Applied") {
-				canClickToJob = false;
+				continue; // Skip already applied jobs
 			}
 
 			const jobTitle = getJobTitle(jobNameLink);
@@ -1654,94 +1655,103 @@ async function runScript() {
 			const companyName = companyNamesArray?.[0] ?? "";
 
 			if (!jobTitle) {
-				canClickToJob = false;
+				continue; // Skip if no job title found
 			}
+
+			// Priority 1: titleSkipWords - highest priority
+			// If found, skip this job immediately without checking other filters
 			if (titleSkipEnabled && titleSkipWords?.length > 0) {
 				const matchedSkipWord = titleSkipWords.find((word) => {
 					const jobMatch = matchesFilter(jobTitle, word);
 					const companyMatch = matchesFilter(companyName, word);
-					if (jobMatch || companyMatch) {
-						console.log(`🔴 SKIP FILTER: Word "${word}" found in:`, {
-							jobTitle,
-							companyName,
-							matchedIn: jobMatch ? 'jobTitle' : 'companyName',
-							jobLink: getJobLink(jobNameLink),
-						});
-					}
+					// if (jobMatch || companyMatch) {
+					// 	console.log(`🔴 SKIP FILTER: Word "${word}" found in:`, {
+					// 		jobTitle,
+					// 		companyName,
+					// 		matchedIn: jobMatch ? 'jobTitle' : 'companyName',
+					// 		jobLink: getJobLink(jobNameLink),
+					// 	});
+					// }
 					return jobMatch || companyMatch;
 				});
 				if (matchedSkipWord) {
-					canClickToJob = false;
-					console.log("❌ Job SKIPPED by word: ", {
-						jobTitle,
-						companyName,
-						matchedIn: 'titleSkipWords',
-						jobLink: getJobLink(jobNameLink),
-					});
+					// console.log("❌ Job SKIPPED by word: ", {
+					// 	word: matchedSkipWord,
+					// 	jobTitle,
+					// 	companyName,
+					// 	jobLink: getJobLink(jobNameLink),
+					// });
+					continue; // Skip this job, don't check other filters
 				}
 			}
+
+			// Priority 2: titleFilterWords - only checked if skip filter passed
+			// If not found, skip this job and don't check badWords
 			if (titleFilterEnabled && titleFilterWords?.length > 0) {
 				const matchedFilterWord = titleFilterWords.find((word) => {
 					const jobMatch = matchesFilter(jobTitle, word);
 					const companyMatch = matchesFilter(companyName, word);
-					if (jobMatch || companyMatch) {
-						console.log(`✅ MUST CONTAIN: Word "${word}" found in:`, {
-							jobTitle,
-							companyName,
-							matchedIn: jobMatch ? 'jobTitle' : 'companyName',
-							jobLink: getJobLink(jobNameLink),
-						});
-					}
+					// if (jobMatch || companyMatch) {
+					// 	console.log(`✅ MUST CONTAIN: Word "${word}" found in:`, {
+					// 		jobTitle,
+					// 		companyName,
+					// 		matchedIn: jobMatch ? 'jobTitle' : 'companyName',
+					// 		jobLink: getJobLink(jobNameLink),
+					// 	});
+					// }
 					return jobMatch || companyMatch;
 				});
 				if (!matchedFilterWord) {
-					canClickToJob = false;
-					console.log(`❌ Job REJECTED: No required words found in`, {
-						jobTitle,
-						companyName,
-						jobLink: getJobLink(jobNameLink),
-					});
+					// console.log(`❌ Job REJECTED: No required words found in`, {
+					// 	jobTitle,
+					// 	companyName,
+					// 	jobLink: getJobLink(jobNameLink),
+					// });
+					continue; // Skip this job, don't check badWords
 				}
 			}
+
+			// Priority 3: badWords will be checked later in clickJob() if canClickToJob is true
 			
 			const stillRunning3 = await checkAndPrepareRunState();
 			if (!stillRunning3) {
 				return;
 			}
-			
-			if (canClickToJob) {
-				try {
-					await clickElement({elementOrSelector: jobNameLink});
-					const stillRunning4 = await checkAndPrepareRunState();
-					if (!stillRunning4) {
-						return;
-					}
-				} catch (error) {
-					console.error("Error clicking job link", error);
+
+			// All filters passed - click on job to open details
+			try {
+				await clickElement({elementOrSelector: jobNameLink});
+				const stillRunning4 = await checkAndPrepareRunState();
+				if (!stillRunning4) {
+					return;
 				}
+			} catch (error) {
+				console.error("Error clicking job link", error);
+				continue; // Skip this job if click failed
 			}
-			
+
+			// Wait for job content to load
 			try {
 				const mainContentElementWait = await waitForElements({
 					elementOrSelector: ".jobs-details__main-content",
 				});
 				const mainContentElement = mainContentElementWait?.[0];
 				if (!mainContentElement) {
-					canClickToJob = false;
+					continue;
 				}
 			} catch (e) {
 				console.error("Failed to find main job content", e);
+				continue;
 			}
-			
+
 			const stillRunning5 = await checkAndPrepareRunState();
 			if (!stillRunning5) {
 				return;
 			}
-			
-			if (canClickToJob) {
-				await clickJob(listItem, companyName, jobTitle, badWordsEnabled);
-				await handleSaveApplicationModal();
-			}
+
+			// Priority 3: badWords check happens inside clickJob()
+			await clickJob(listItem, companyName, jobTitle, badWordsEnabled);
+			await handleSaveApplicationModal();
 		}
 		
 		const finalRunCheck = await checkAndPrepareRunState();
