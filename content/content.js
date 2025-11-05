@@ -1619,8 +1619,6 @@ async function runScript() {
 			}
 			
 			await addDelay(300);
-			let canClickToJob = true;
-			
 			const stillRunning2 = await checkAndPrepareRunState();
 			if (!stillRunning2) {
 				return;
@@ -1710,8 +1708,6 @@ async function runScript() {
 					continue; // Skip this job, don't check badWords
 				}
 			}
-
-			// Priority 3: badWords will be checked later in clickJob() if canClickToJob is true
 			
 			const stillRunning3 = await checkAndPrepareRunState();
 			if (!stillRunning3) {
