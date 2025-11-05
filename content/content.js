@@ -179,15 +179,12 @@ function matchesFilter(text, word) {
 
 	if (!lowerWord) return false;
 
-	// For short words (<=4 characters) - use whole word boundaries
 	if (lowerWord.length <= 4) {
-		// Escape special regex characters
 		const escaped = lowerWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 		const regex = new RegExp(`\\b${escaped}\\b`, 'i');
 		return regex.test(text);
 	}
 
-	// For longer words - use substring matching (current behavior)
 	return lowerText.includes(lowerWord);
 }
 
