@@ -14,19 +14,16 @@ const ignoreList = [
 	'privacy_policy.md',
 	'pack-extension.js',
 	'pack-extension-firefox.js',
-	'pack-extension-firefox-mobile.js',
 	'update.xml',
 	'build',
 	'cheatsheet',
-	'tests',
-	'.yarnrc.yml',
-	'package.json'
+	'tests'
 ];
 
 const srcDir = path.resolve('.');
 const buildDir = path.resolve('./build');
-const firefoxTempDir = path.resolve(buildDir, 'firefox_desktop_temp');
-const xpiFile = path.resolve(buildDir, 'autoApplylinkedin_firefox.xpi');
+const firefoxTempDir = path.resolve(buildDir, 'firefox_temp');
+const zipFile = path.resolve(buildDir, 'autoApplylinkedin_firefox.zip');
 
 async function copyPolyfill() {
 	const srcPolyfill = path.join(srcDir, 'browser-polyfill.js');
@@ -42,22 +39,22 @@ async function copyPolyfill() {
 }
 
 function modifyManifestForFirefox(manifestPath) {
-	console.log('Modifying manifest.json for Firefox Desktop...');
+	console.log('Modifying manifest.json for Firefox...');
 	
 	const manifest = fs.readJsonSync(manifestPath);
 	
-	// Firefox Desktop требует использования scripts вместо service_worker
 	if (manifest.background) {
-		const backgroundScript = manifest.background.service_worker || 'background.js';
 		manifest.background = {
-			scripts: [backgroundScript]
+			service_worker: manifest.background.service_worker || 'background.js',
+			scripts: [manifest.background.service_worker || 'background.js']
 		};
+		delete manifest.background.type;
 	}
 	
-	// Добавляем browser-polyfill.js в content_scripts
 	if (manifest.content_scripts && Array.isArray(manifest.content_scripts)) {
 		manifest.content_scripts.forEach(script => {
 			if (script.js && Array.isArray(script.js)) {
+				// Добавить browser-polyfill.js в начало, если его ещё нет
 				if (!script.js.includes('browser-polyfill.js')) {
 					script.js.unshift('browser-polyfill.js');
 				}
@@ -65,46 +62,20 @@ function modifyManifestForFirefox(manifestPath) {
 		});
 	}
 	
-	// Добавляем обязательный блок browser_specific_settings для Firefox
 	if (!manifest.browser_specific_settings) {
 		manifest.browser_specific_settings = {
 			gecko: {
 				id: 'easyapply@linkedin.extension',
-				strict_min_version: '109.0'
+				strict_min_version: '128.0'
+			},
+			gecko_android: {
+				strict_min_version: '128.0'
 			}
 		};
 	}
 	
 	fs.writeJsonSync(manifestPath, manifest, { spaces: 2 });
-	console.log('✓ manifest.json modified for Firefox Desktop');
-}
-
-async function createBackgroundWrapper() {
-	console.log('Creating background wrapper for Firefox compatibility...');
-	
-	const wrapperPath = path.join(firefoxTempDir, 'background-wrapper.js');
-	const originalBackgroundPath = path.join(firefoxTempDir, 'background.js');
-	const backgroundOriginalName = 'background-original.js';
-	const backgroundOriginalPath = path.join(firefoxTempDir, backgroundOriginalName);
-	
-	// Переименовываем оригинальный background.js
-	await fs.move(originalBackgroundPath, backgroundOriginalPath);
-	
-	// Создаём wrapper, который будет работать в Firefox
-	const wrapperContent = `// Firefox compatibility wrapper
-// Загружаем browser-polyfill для совместимости API
-if (typeof browser === "undefined") {
-	var browser = chrome;
-}
-
-// Импортируем оригинальный background script
-importScripts('${backgroundOriginalName}');
-`;
-	
-	await fs.writeFile(wrapperPath, wrapperContent);
-	await fs.move(wrapperPath, originalBackgroundPath);
-	
-	console.log('✓ Background wrapper created');
+	console.log('✓ manifest.json modified for Firefox');
 }
 
 async function copyFiles() {
@@ -150,24 +121,16 @@ async function packExtension() {
 		const manifestPath = path.join(firefoxTempDir, 'manifest.json');
 		modifyManifestForFirefox(manifestPath);
 		
-		// Создать wrapper для background script
-		await createBackgroundWrapper();
-		
-		console.log('Creating Firefox .xpi file...');
-		const output = fs.createWriteStream(xpiFile);
+		console.log('Creating Firefox .zip file...');
+		const output = fs.createWriteStream(zipFile);
 		const archive = archiver('zip', {
 			zlib: { level: 9 },
 		});
 		
 		output.on('close', () => {
-			console.log(`✓ Firefox .xpi file created: ${xpiFile} (${archive.pointer()} bytes)`);
-			console.log('\n🎉 Firefox Desktop extension is ready!');
-			console.log(`📦 Location: ${xpiFile}`);
-			console.log('\nInstallation instructions:');
-			console.log('1. Open Firefox');
-			console.log('2. Go to about:addons');
-			console.log('3. Click the gear icon and select "Install Add-on From File..."');
-			console.log('4. Select the .xpi file');
+			console.log(`✓ Firefox .zip file created: ${zipFile} (${archive.pointer()} bytes)`);
+			console.log('\n🎉 Firefox Android extension is ready!');
+			console.log(`📦 Location: ${zipFile}`);
 		});
 		
 		archive.on('error', (err) => {
