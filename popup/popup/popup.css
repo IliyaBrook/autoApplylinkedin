@@ -84,7 +84,6 @@ button:hover {
   border-radius: 5px;
   cursor: pointer;
   font-size: 14px;
-  min-width: var(--button-min-width);
   transition: background-color 0.3s ease;
   text-align: center;
   color: #fff;
