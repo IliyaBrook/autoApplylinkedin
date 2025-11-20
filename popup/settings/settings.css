@@ -1,0 +1,203 @@
+:root {
+  --primary-color: #2196f3;
+  --primary-hover: #1976d2;
+  --bg-color: #f4f7f6;
+  --card-bg: #ffffff;
+  --text-color: #333;
+  --text-secondary: #666;
+  --border-radius: 12px;
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --transition: all 0.3s ease;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.settings-container {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+h1 {
+  font-size: 2rem;
+  color: var(--text-color);
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  margin-top: 5px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background-color: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 25px;
+  box-shadow: var(--shadow);
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-icon {
+  background-color: rgba(33, 150, 243, 0.1);
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  color: var(--primary-color);
+}
+
+.card-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.card-description {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+  flex-grow: 1;
+}
+
+.btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.btn-secondary:hover {
+  background-color: #d5d5d5;
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 2px solid var(--primary-color);
+  color: var(--primary-color);
+}
+
+.btn-outline:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Specific card accents */
+.card.form-control .card-icon {
+  color: #4caf50;
+  background-color: rgba(76, 175, 80, 0.1);
+}
+.card.form-control .btn {
+  background-color: #4caf50;
+  color: white;
+}
+.card.form-control .btn:hover {
+  background-color: #43a047;
+}
+
+.card.filter-settings .card-icon {
+  color: #9c27b0;
+  background-color: rgba(156, 39, 176, 0.1);
+}
+.card.filter-settings .btn {
+  background-color: #9c27b0;
+  color: white;
+}
+.card.filter-settings .btn:hover {
+  background-color: #7b1fa2;
+}
+
+.card.cv-files .card-icon {
+  color: #673ab7;
+  background-color: rgba(103, 58, 183, 0.1);
+}
+.card.cv-files .btn {
+  background-color: #673ab7;
+  color: white;
+}
+.card.cv-files .btn:hover {
+  background-color: #5e35b1;
+}
+
+.card.data-management .card-icon {
+  color: #ff9800;
+  background-color: rgba(255, 152, 0, 0.1);
+}
+.actions-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+.actions-row .btn {
+  flex: 1;
+}
+
+.btn-export {
+  background-color: #0066cc;
+  color: white;
+}
+.btn-export:hover {
+  background-color: #005bb5;
+}
+
+.btn-import {
+  background-color: #ff9900;
+  color: white;
+}
+.btn-import:hover {
+  background-color: #e68a00;
+}
+
+

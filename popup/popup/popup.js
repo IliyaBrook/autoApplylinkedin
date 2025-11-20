@@ -41,7 +41,7 @@ const getCurrentUrl = () => {
   });
 };
 
-// Modal state
+
 let editingLinkName = null;
 
 function openLinkModal({ edit = false, name = "", url = "" } = {}) {
@@ -92,7 +92,7 @@ document.getElementById("saveLinkModalBtn").onclick = function () {
       return;
     }
     if (editingLinkName) {
-      // Edit mode: rename or update url
+
       const updatedLinks = { ...savedLinks };
       if (editingLinkName !== name) delete updatedLinks[editingLinkName];
       updatedLinks[name] = url;
@@ -101,7 +101,7 @@ document.getElementById("saveLinkModalBtn").onclick = function () {
         renderSavedLinks();
       });
     } else {
-      // Add mode
+
       chrome.storage.local.set(
         { savedLinks: { ...savedLinks, [name]: url } },
         () => {
@@ -132,7 +132,7 @@ function renderSavedLinks() {
       const nameEl = document.createElement("span");
       nameEl.textContent = name;
       item.appendChild(nameEl);
-      // Go icon button
+
       const goBtn = document.createElement("button");
       goBtn.className = "icon-btn go-btn";
       goBtn.innerHTML =
@@ -144,7 +144,7 @@ function renderSavedLinks() {
         );
       };
       item.appendChild(goBtn);
-      // Edit icon button
+
       const editBtn = document.createElement("button");
       editBtn.className = "icon-btn edit-btn";
       editBtn.innerHTML =
@@ -154,7 +154,7 @@ function renderSavedLinks() {
         openLinkModal({ edit: true, name, url });
       };
       item.appendChild(editBtn);
-      // Delete icon button
+
       const delBtn = document.createElement("button");
       delBtn.className = "icon-btn delete-btn";
       delBtn.innerHTML =
@@ -180,41 +180,20 @@ document.addEventListener("click", (event) => {
     const buttonId = event.target.id;
     const button = document.getElementById(buttonId);
     switch (buttonId) {
-      case "form-control-button":
-        chrome.tabs.create({ url: "/popup/formControl/formControl.html" });
-        break;
-      case "filter-settings-button":
-        chrome.tabs.create({
-          url: "/popup/filterSettings/filterSettings.html",
-        });
-        break;
+
+
       case "external-apply-button":
         chrome.tabs.create({ url: "/popup/externalApply/externalApply.html" });
         break;
-      case "export-button":
-        chrome.storage.local.get(null, function (data) {
-          const jsonData = JSON.stringify(data, null, 2);
-          const blob = new Blob([jsonData], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-
-          const link = document.createElement("a");
-          link.href = url;
-          const { day, hour, minute, month } = getTime();
-          link.download = `autoapply_settings_${day}_${month}_[${hour}_${minute}].json`;
-          link.click();
-
-          URL.revokeObjectURL(url);
-        });
+      case "settings-button":
+        chrome.tabs.create({ url: "/popup/settings/settings.html" });
         break;
-      case "import-button":
-        document.getElementById("import-file").click();
-        break;
+
+
       case "save-link":
-        // This case is now handled by the new modal logic
+
         break;
-      case "cv-files-toggle":
-        chrome.tabs.create({ url: chrome.runtime.getURL("popup/cvManager/cvManager.html") });
-        break;
+
       case "show-links":
         try {
           let accordion = document.getElementById("linksAccordion");
@@ -315,28 +294,7 @@ document.addEventListener("click", (event) => {
   }
 });
 
-document
-  .getElementById("import-file")
-  .addEventListener("change", function (event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      try {
-        if (e?.target?.result && typeof e.target.result === "string") {
-          const importedData = JSON.parse(e.target.result);
-          chrome.storage.local.set(importedData, function () {
-            alert("Settings imported successfully!");
-          });
-        } else {
-          alert("Error reading file.");
-        }
-      } catch (err) {
-        alert("Parsing error JSON. " + err);
-      }
-    };
-    reader.readAsText(file);
-  });
+
 
 document.addEventListener("DOMContentLoaded", () => {
   const autoApplyButton = document.getElementById("start-auto-apply-button");
@@ -363,6 +321,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Smart Select checkbox handler
+
 });
 
