@@ -1,5 +1,4 @@
 body {
-  width: var(--container-min-width);
   background-color: #ffffff;
   font-family: Arial, sans-serif;
   overflow-x: hidden; /* Prevent horizontal scroll */
@@ -19,7 +18,7 @@ button:hover {
   display: flex;
   flex-direction: column;
   gap: 15px;
-  width: 100%;
+	width: 420px;
   padding: 15px;
 }
 
