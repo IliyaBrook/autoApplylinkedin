@@ -1101,18 +1101,29 @@ async function selectCvFile(applyModal, jobTitle) {
 			targetCvName = selectedFile.name.toLowerCase().trim();
 		}
 		
-		// Find and click the matching CV attachment
-		for (const attachmentElement of attachmentElements) {
-			const elementText = attachmentElement.textContent.toLowerCase().trim();
+			// Find the matching CV attachment and check if it needs to be selected
+	for (const attachmentElement of attachmentElements) {
+		const h3Element = attachmentElement.querySelector('h3.jobs-document-upload-redesign-card__file-name');
+		if (!h3Element) continue;
+		
+		const cvFileName = h3Element.textContent.toLowerCase().trim();
+		
+		if (cvFileName.includes(targetCvName)) {
+			const isAlreadySelected =
+				attachmentElement.classList.contains('jobs-document-upload-redesign-card__container--selected') ||
+				attachmentElement.getAttribute('aria-label')?.toLowerCase() === 'selected';
 			
-			if (elementText.includes(targetCvName)) {
-				attachmentElement.scrollIntoView({behavior: "smooth", block: "center"});
-				await addDelay(300);
-				attachmentElement.click();
-				await addDelay(500);
+			if (isAlreadySelected) {
 				return;
 			}
+			
+			attachmentElement.scrollIntoView({behavior: "smooth", block: "center"});
+			await addDelay(300);
+			attachmentElement.click();
+			await addDelay(500);
+			return;
 		}
+	}
 	} catch (error) {
 		console.error("Error in selectCvFile:", error);
 	}

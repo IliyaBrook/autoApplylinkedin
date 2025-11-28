@@ -13,7 +13,6 @@ button:hover {
   filter: brightness(0.8);
 }
 
-
 .popup-container {
   display: flex;
   flex-direction: column;
