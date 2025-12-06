@@ -217,6 +217,8 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 		try {
 			await updateScriptActivity();
 			
+			await waitForJobsLoaderToDisappear();
+			
 			const isRunning = await checkAndPrepareRunState();
 			if (!isRunning) {
 				
@@ -1158,6 +1160,7 @@ async function toggleBlinkingBorder(element) {
 			if (count === 10) {
 				clearInterval(intervalId);
 				await waitForLoaderToDisappear();
+				await waitForJobsLoaderToDisappear();
 				element.style.border = "none";
 				resolve();
 			}
@@ -1235,7 +1238,8 @@ const runApplyModelLogic = async (jobTitle) => {
 					}
 				}
 				
-				await addDelay(2000);
+									await waitForJobsLoaderToDisappear();
+					await addDelay(2000);
 				await handleSaveApplicationModal();
 				const isStillRunning2 = await checkAndPrepareRunState();
 				if (!isStillRunning2) {
@@ -1268,6 +1272,7 @@ const runApplyModelLogic = async (jobTitle) => {
 					// Re-check visibility before clicking (element may have changed)
 					if (buttonToClick && buttonToClick.isConnected && isElementVisible(buttonToClick)) {
 						await clickElement({elementOrSelector: buttonToClick});
+						await waitForJobsLoaderToDisappear();
 					}
 					await addDelay(1000);
 					const saveModalAfterNext = await handleSaveApplicationModal();
@@ -1369,14 +1374,15 @@ async function runFindEasyApply(jobTitle, companyName) {
 			xpath: easy_apply_button,
 		});
 		
-		if (easyApplyButton) {
-			const result = await checkAndPrepareRunState();
-			if (result) {
-				easyApplyButton.click();
-				await runApplyModel(jobTitle);
-				await waitForLoaderToDisappear();
+					if (easyApplyButton) {
+				const result = await checkAndPrepareRunState();
+				if (result) {
+					easyApplyButton.click();
+					await waitForJobsLoaderToDisappear();
+					await runApplyModel(jobTitle);
+					await waitForLoaderToDisappear();
+				}
 			}
-		}
 		await handleSaveApplicationModal();
 		await addDelay(2000);
 		
@@ -1472,6 +1478,7 @@ async function closeApplicationSentModal() {
 	) {
 		modal.querySelector(".artdeco-modal__dismiss")?.click();
 		await addDelay(500);
+		await waitForJobsLoaderToDisappear();
 	}
 }
 
@@ -1486,6 +1493,8 @@ async function goToNextPage() {
 	isNavigating = true;
 	
 	try {
+		await waitForJobsLoaderToDisappear();
+		
 		const isStillRunning = await checkAndPrepareRunState();
 		if (!isStillRunning) {
 			isNavigating = false;
@@ -1756,15 +1765,17 @@ async function runScript() {
 				return;
 			}
 
-			// Priority 3: badWords check happens inside clickJob()
 			await clickJob(listItem, companyName, jobTitle, badWordsEnabled);
 			await handleSaveApplicationModal();
+			
+			await waitForJobsLoaderToDisappear();
 		}
 		
-		const finalRunCheck = await checkAndPrepareRunState();
-		if (finalRunCheck) {
-			await goToNextPage();
-		}
+			const finalRunCheck = await checkAndPrepareRunState();
+	if (finalRunCheck) {
+		await waitForJobsLoaderToDisappear();
+		await goToNextPage();
+	}
 	} catch (error) {
 		const message = "Error in runScript: " + error?.message + " script stopped";
 		console.trace(message);

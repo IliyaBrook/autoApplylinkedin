@@ -685,6 +685,30 @@ async function waitForLoaderToDisappear(timeout = 15000) {
 	return false;
 }
 
+async function waitForJobsLoaderToDisappear(timeout = 15000) {
+	const startTime = Date.now();
+	
+	while (Date.now() - startTime < timeout) {
+		const jobsLoaders = document.querySelectorAll('.jobs-loader, [class*="jobs-loader"]');
+		let hasVisibleJobsLoader = false;
+		
+		for (const loader of jobsLoaders) {
+			if (isElementVisible(loader)) {
+				hasVisibleJobsLoader = true;
+				break;
+			}
+		}
+		
+		if (!hasVisibleJobsLoader) {
+			return true;
+		}
+		
+		await addDelay(500);
+	}
+	
+	return false;
+}
+
 function getJobLink(link) {
 	const href = link.getAttribute('href');
 	return 'https://www.linkedin.com' + href;
