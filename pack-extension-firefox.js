@@ -46,7 +46,6 @@ function modifyManifestForFirefox(manifestPath) {
 	
 	const manifest = fs.readJsonSync(manifestPath);
 	
-	// Firefox Desktop требует использования scripts вместо service_worker
 	if (manifest.background) {
 		const backgroundScript = manifest.background.service_worker || 'background.js';
 		manifest.background = {
@@ -54,7 +53,6 @@ function modifyManifestForFirefox(manifestPath) {
 		};
 	}
 	
-	// Добавляем browser-polyfill.js в content_scripts
 	if (manifest.content_scripts && Array.isArray(manifest.content_scripts)) {
 		manifest.content_scripts.forEach(script => {
 			if (script.js && Array.isArray(script.js)) {
@@ -65,7 +63,6 @@ function modifyManifestForFirefox(manifestPath) {
 		});
 	}
 	
-	// Добавляем обязательный блок browser_specific_settings для Firefox
 	if (!manifest.browser_specific_settings) {
 		manifest.browser_specific_settings = {
 			gecko: {
