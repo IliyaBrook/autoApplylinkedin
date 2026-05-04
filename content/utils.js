@@ -741,12 +741,48 @@ async function handleDiscardConfirmDialog() {
 	return false;
 }
 
+// ============================================================================
+// Easy Apply modal lookup
+// ----------------------------------------------------------------------------
+// LinkedIn used to mark the in-app apply modal with `.jobs-easy-apply-modal`.
+// As LinkedIn rolls out the new SDUI flow, that secondary class is not always
+// present, so we layer multiple detection strategies — class first, then a
+// structural one based on the artdeco modal that owns an apply form/button.
+// ============================================================================
+function findEasyApplyModal() {
+	// 1. Original specific class — still present on the legacy UI.
+	const byClass = document.querySelector('.artdeco-modal.jobs-easy-apply-modal');
+	if (byClass) return byClass;
+
+	// 2. Any artdeco modal with an "Easy Apply"-flavoured aria-label or content type.
+	const byAria = document.querySelector(
+		'.artdeco-modal[aria-labelledby*="apply"], [class*="jobs-easy-apply"]'
+	);
+	if (byAria instanceof HTMLElement) {
+		return byAria.closest('.artdeco-modal') || byAria;
+	}
+
+	// 3. Heuristic: an artdeco modal in the open document containing a
+	//    Submit/Review/Next/Continue applying button — the apply flow buttons.
+	const modals = Array.from(document.querySelectorAll('.artdeco-modal'));
+	for (const m of modals) {
+		if (
+			m.querySelector(
+				'button[aria-label="Submit application"], button[aria-label="Review your application"], button[aria-label="Continue applying"]'
+			)
+		) {
+			return m;
+		}
+	}
+	return null;
+}
+
 async function ensureNoApplicationModalOpen(maxAttempts = 10) {
 	for (let i = 0; i < maxAttempts; i++) {
 		// Check if any application modal is open
 		const saveModal = document.querySelector('[data-test-modal=""][role="alertdialog"]');
 		const confirmDialog = document.querySelector('.artdeco-modal__actionbar--confirm-dialog');
-		const easyApplyModal = document.querySelector('.artdeco-modal.jobs-easy-apply-modal');
+		const easyApplyModal = findEasyApplyModal();
 
 		if (!saveModal && !confirmDialog && !easyApplyModal) {
 			return true; // No modal open
@@ -771,8 +807,10 @@ async function ensureNoApplicationModalOpen(maxAttempts = 10) {
 	}
 
 	// Final check
-	const anyModal = document.querySelector('[data-test-modal=""][role="alertdialog"], .artdeco-modal__actionbar--confirm-dialog, .artdeco-modal.jobs-easy-apply-modal');
-	return !anyModal;
+	const stillSave = document.querySelector('[data-test-modal=""][role="alertdialog"]');
+	const stillConfirm = document.querySelector('.artdeco-modal__actionbar--confirm-dialog');
+	const stillEasy = findEasyApplyModal();
+	return !stillSave && !stillConfirm && !stillEasy;
 }
 
 async function waitForJobsLoaderToDisappearAndHandle(initialTimeout = 5000) {
@@ -801,7 +839,7 @@ async function waitForJobsLoaderToDisappearAndHandle(initialTimeout = 5000) {
 	const jobsLoader = document.querySelector('.jobs-loader');
 	if (jobsLoader && isElementVisible(jobsLoader)) {
 		// Loader still visible after timeout - click outside modal
-		const modal = document.querySelector('.artdeco-modal.jobs-easy-apply-modal');
+		const modal = findEasyApplyModal();
 		if (modal) {
 			const modalRect = modal.getBoundingClientRect();
 			const clickX = modalRect.left - 10;
@@ -827,6 +865,323 @@ async function waitForJobsLoaderToDisappearAndHandle(initialTimeout = 5000) {
 }
 
 function getJobLink(link) {
+	if (!link) return '';
 	const href = link.getAttribute('href');
+	if (!href) return '';
+	if (/^https?:/i.test(href)) return href;
 	return 'https://www.linkedin.com' + href;
+}
+
+// ============================================================================
+// Debug logging
+// ----------------------------------------------------------------------------
+// Toggle from DevTools at runtime: window.__autoApplyDebug = false
+// ============================================================================
+const AA_DEBUG_DEFAULT = true;
+function aaDebugEnabled() {
+	try {
+		if (typeof window === 'undefined') return AA_DEBUG_DEFAULT;
+		if (window.__autoApplyDebug === undefined) return AA_DEBUG_DEFAULT;
+		return !!window.__autoApplyDebug;
+	} catch {
+		return AA_DEBUG_DEFAULT;
+	}
+}
+function aaLog(tag, ...args) {
+	if (aaDebugEnabled()) console.log('[AutoApply]', tag, ...args);
+}
+function aaWarn(tag, ...args) {
+	if (aaDebugEnabled()) console.warn('[AutoApply]', tag, ...args);
+}
+function aaError(tag, ...args) {
+	console.error('[AutoApply]', tag, ...args);
+}
+
+// ============================================================================
+// LinkedIn jobs UI detection
+// ----------------------------------------------------------------------------
+// LinkedIn now ships two distinct jobs-search UIs:
+//   - "legacy" : `/jobs/search/`         (artdeco classes, .scaffold-layout__list-item, etc.)
+//   - "new"    : `/jobs/search-results/` (obfuscated CSS classes; uses data-component-type
+//                                         and aria-label attributes)
+// Detection prefers DOM signals (most reliable) and falls back to URL.
+// ============================================================================
+const AA_UI_LEGACY = 'legacy';
+const AA_UI_NEW = 'new';
+const AA_UI_UNKNOWN = 'unknown';
+
+function detectJobsUI() {
+	const newSignal =
+		!!document.querySelector('[data-component-type="LazyColumn"]') &&
+		!!document.querySelector('button[aria-label^="Dismiss "][aria-label$=" job"]');
+	if (newSignal) return AA_UI_NEW;
+
+	const legacySignal = !!document.querySelector(
+		'[data-occludable-job-id], .scaffold-layout__list-item'
+	);
+	if (legacySignal) return AA_UI_LEGACY;
+
+	const path = (window.location && window.location.pathname) || '';
+	if (path.startsWith('/jobs/search-results')) return AA_UI_NEW;
+	if (path.startsWith('/jobs/search')) return AA_UI_LEGACY;
+	return AA_UI_UNKNOWN;
+}
+
+function isJobsSearchPage() {
+	const path = (window.location && window.location.pathname) || '';
+	return (
+		path.startsWith('/jobs/search') ||
+		path.startsWith('/jobs/collections') ||
+		!!document.querySelector('[data-component-type="LazyColumn"]') ||
+		!!document.querySelector('.scaffold-layout__list-item')
+	);
+}
+
+// New-UI helper: locate the LazyColumn that holds the job list
+// (there are usually 3 LazyColumns; only one contains "Dismiss <title> job" buttons)
+function getNewUiJobsListColumn() {
+	const cols = document.querySelectorAll('[data-component-type="LazyColumn"]');
+	for (const col of cols) {
+		if (col.querySelector('button[aria-label^="Dismiss "][aria-label$=" job"]')) {
+			return col;
+		}
+	}
+	return null;
+}
+
+// Returns the array of job-item elements for the active UI.
+// For legacy: `<li class="scaffold-layout__list-item">` (or `[data-occludable-job-id]`).
+// For new:    the closest `[role="button"]` ancestor of each Dismiss button,
+//             which is the clickable card.
+function getJobItems() {
+	const ui = detectJobsUI();
+
+	if (ui === AA_UI_LEGACY) {
+		// Prefer stable data-attribute, fall back to class for older snapshots.
+		const occludable = document.querySelectorAll('[data-occludable-job-id]');
+		if (occludable.length > 0) return Array.from(occludable);
+		return Array.from(document.querySelectorAll('.scaffold-layout__list-item'));
+	}
+
+	if (ui === AA_UI_NEW) {
+		const col = getNewUiJobsListColumn();
+		if (!col) return [];
+		const dismissBtns = Array.from(
+			col.querySelectorAll('button[aria-label^="Dismiss "][aria-label$=" job"]')
+		);
+		const cards = [];
+		const seen = new Set();
+		for (const btn of dismissBtns) {
+			let cur = btn.parentElement;
+			while (cur && cur !== col) {
+				if (cur.getAttribute('role') === 'button') break;
+				cur = cur.parentElement;
+			}
+			if (cur && cur !== col && cur.getAttribute('role') === 'button' && !seen.has(cur)) {
+				seen.add(cur);
+				cards.push(cur);
+			}
+		}
+		return cards;
+	}
+
+	return [];
+}
+
+// Returns the Dismiss button related to a job item (used to read the title in new UI).
+function getDismissButtonForItem(item) {
+	if (!item) return null;
+	let btn = item.querySelector('button[aria-label^="Dismiss "][aria-label$=" job"]');
+	if (btn) return btn;
+	// On new UI the dismiss button can sit just outside the role=button card
+	let cur = item.parentElement;
+	for (let i = 0; i < 4 && cur; i++) {
+		btn = cur.querySelector('button[aria-label^="Dismiss "][aria-label$=" job"]');
+		if (btn) return btn;
+		cur = cur.parentElement;
+	}
+	return null;
+}
+
+// Extract job title from an item, regardless of UI.
+function extractJobTitleFromItem(item) {
+	if (!item) return '';
+
+	// Try new-UI signal first: dismiss button aria-label encodes the title.
+	const dismissBtn = getDismissButtonForItem(item);
+	if (dismissBtn) {
+		const al = dismissBtn.getAttribute('aria-label') || '';
+		const m = al.match(/^Dismiss\s+(.+?)\s+job$/i);
+		if (m && m[1]) return m[1].trim().toLowerCase();
+	}
+
+	// Legacy-UI signals.
+	const link = item.querySelector(
+		'.artdeco-entity-lockup__title .job-card-container__link, .artdeco-entity-lockup__title a, a[href*="/jobs/view/"]'
+	);
+	if (link) {
+		const visible = link.querySelector('span[aria-hidden="true"]');
+		if (visible && visible.textContent && visible.textContent.trim()) {
+			return visible.textContent.trim().toLowerCase();
+		}
+		const al = link.getAttribute('aria-label') || link.textContent || '';
+		return al.trim().toLowerCase();
+	}
+
+	return '';
+}
+
+// Click target — what to click to load the details panel for this item.
+// Legacy: the `<a>` link inside the item.
+// New:    the role="button" card itself.
+function getJobItemClickTarget(item) {
+	if (!item) return null;
+	const link = item.querySelector(
+		'.artdeco-entity-lockup__title .job-card-container__link, .artdeco-entity-lockup__title a, a[href*="/jobs/view/"]'
+	);
+	if (link) return link;
+	if (item.getAttribute && item.getAttribute('role') === 'button') return item;
+	return null;
+}
+
+// Best-effort company name lookup, used only for filtering (not for storage).
+function extractCompanyNameFromItem(item) {
+	if (!item) return '';
+
+	// Legacy UI exposed a `[class*="subtitle"]` element with the company name.
+	const legacy = item.querySelectorAll('[class*="subtitle"]');
+	if (legacy.length > 0) {
+		const txt = legacy[0].textContent || '';
+		return txt.trim();
+	}
+
+	// New UI: walk text nodes inside the card. The first non-title text is normally the company.
+	// We exclude the title (already known via dismiss button).
+	const dismissBtn = getDismissButtonForItem(item);
+	const titleAl = dismissBtn ? (dismissBtn.getAttribute('aria-label') || '') : '';
+	const titleMatch = titleAl.match(/^Dismiss\s+(.+?)\s+job$/i);
+	const titleText = titleMatch ? titleMatch[1].trim() : '';
+
+	const candidateNodes = item.querySelectorAll('p, span, div');
+	for (const n of candidateNodes) {
+		const t = (n.textContent || '').trim();
+		if (!t || t.length > 80) continue;
+		if (titleText && t.toLowerCase() === titleText.toLowerCase()) continue;
+		// Heuristic: skip obvious meta strings.
+		if (/^(promoted|applied|viewed|easy apply|on-site|hybrid|remote)\b/i.test(t)) continue;
+		if (/\d{1,2}\s*(day|week|month|hour|minute)/i.test(t)) continue;
+		return t;
+	}
+
+	return '';
+}
+
+// True if this item already shows the "Applied" footer state.
+function isItemAlreadyApplied(item) {
+	if (!item) return false;
+	const legacyFooter = item.querySelector('[class*="footer"]');
+	if (legacyFooter && legacyFooter.textContent.trim() === 'Applied') return true;
+	// New UI shows "Applied" as plain text inside the card.
+	const text = (item.textContent || '').toLowerCase();
+	return /\bapplied\b\s*(·|$|\d)/i.test(text) && !/be the first to apply/i.test(text);
+}
+
+// Pagination — locates the active page indicator and the "next" trigger for either UI.
+function getPaginationInfo() {
+	const ui = detectJobsUI();
+
+	if (ui === AA_UI_LEGACY) {
+		const pagination = document.querySelector('.jobs-search-pagination');
+		const activeBtn = pagination?.querySelector(
+			'.jobs-search-pagination__indicator-button--active'
+		);
+		const nextBtn = pagination?.querySelector("button[aria-label*='next']");
+		return {
+			ui,
+			activePageText: activeBtn?.innerText || '',
+			nextButton: nextBtn || null,
+		};
+	}
+
+	if (ui === AA_UI_NEW) {
+		// New UI exposes data-testid="pagination-controls-list" with indicators
+		// and "pagination-controls-next-button-visible".
+		const list = document.querySelector('[data-testid="pagination-controls-list"]');
+		const indicators = list ? Array.from(list.querySelectorAll('[data-testid^="pagination-indicator-"]')) : [];
+		const activeIndicator = indicators.find(
+			(el) => el.getAttribute('aria-current') === 'page' || el.getAttribute('aria-current') === 'true'
+		);
+		const nextBtn =
+			document.querySelector('[data-testid="pagination-controls-next-button-visible"]') ||
+			document.querySelector('[data-testid^="pagination-controls-next-button"]:not([data-testid$="hidden"])');
+		return {
+			ui,
+			activePageText: activeIndicator?.textContent?.trim() || '',
+			nextButton: nextBtn instanceof HTMLElement ? nextBtn : null,
+		};
+	}
+
+	return { ui, activePageText: '', nextButton: null };
+}
+
+// Wait for job items to appear in the DOM (works on both UIs).
+async function waitForJobItems(timeout = 8000) {
+	const start = Date.now();
+	while (Date.now() - start < timeout) {
+		const items = getJobItems();
+		if (items.length > 0) return items;
+		await addDelay(300);
+	}
+	return getJobItems();
+}
+
+// Wait for the job details main content to render after clicking a card.
+// On the legacy UI this is `.jobs-details__main-content` AND the apply control.
+// On the new UI we look for stable signals — apply control or the Save button —
+// while explicitly excluding the search-filter pill (which has aria-label
+// "LinkedIn Apply" but role="radio" / class*="artdeco-pill").
+async function waitForJobDetailsLoaded(timeout = 8000) {
+	const start = Date.now();
+	while (Date.now() - start < timeout) {
+		// Apply controls — must NOT be the filter pill.
+		const applyControl = document.querySelector(
+			'[aria-label^="LinkedIn Apply to"]:not([role="radio"]):not([class*="artdeco-pill"]),'
+			+ ' [aria-label="Apply on company website"],'
+			+ ' a[href*="openSDUIApplyFlow=true"]'
+		);
+		if (applyControl) return true;
+
+		// Save button is also a reliable per-job signal once details are rendered.
+		if (document.querySelector('button[aria-label="Save the job"]')) return true;
+
+		// Legacy main-content container with at least some children rendered.
+		const main = document.querySelector('.jobs-details__main-content');
+		if (main && main.children && main.children.length > 0) return true;
+
+		await addDelay(250);
+	}
+	return false;
+}
+
+// Scrollable container used to lazy-load more job items as we iterate.
+function getJobsListScrollContainer() {
+	const ui = detectJobsUI();
+	if (ui === AA_UI_LEGACY) {
+		return document.querySelector('.scaffold-layout__list > div') || null;
+	}
+	if (ui === AA_UI_NEW) {
+		const col = getNewUiJobsListColumn();
+		if (!col) return null;
+		// Walk up to the closest scrollable ancestor.
+		let cur = col;
+		for (let i = 0; i < 6 && cur; i++) {
+			const cs = getComputedStyle(cur);
+			if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll') && cur.scrollHeight > cur.clientHeight + 1) {
+				return cur;
+			}
+			cur = cur.parentElement;
+		}
+		return col;
+	}
+	return null;
 }

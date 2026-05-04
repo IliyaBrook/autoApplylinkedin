@@ -1358,54 +1358,80 @@ async function runFindEasyApply(jobTitle, companyName) {
 		await addDelay(1000);
 		const saveModalHandled = await handleSaveApplicationModal();
 		if (saveModalHandled) {
+			aaLog('runFindEasyApply', 'save modal was handled - bailing', { jobTitle });
 			return null;
 		}
-		
+
 		const alreadyAppliedElement = document.querySelector(
 			".artdeco-inline-feedback__message"
 		);
 		if (alreadyAppliedElement) {
 			const textContent = alreadyAppliedElement.textContent;
 			if (checkIfAlreadyApplied(textContent)) {
+				aaLog('runFindEasyApply', 'already applied - skipping', { jobTitle });
 				return null;
 			}
 		}
-		
+
 		const currentPageLink = window.location.href;
-		
+
 		if (!chrome || !chrome.runtime) {
+			aaWarn('runFindEasyApply', 'chrome.runtime missing');
 			return null;
 		}
-		
-		const externalApplyElements = getElementsByXPath({
-			xpath: not_easy_apply_button,
-		});
-		
-		if (externalApplyElements.length > 0) {
-			await chrome.runtime.sendMessage({
-				action: "externalApplyAction",
-				data: {jobTitle, currentPageLink, companyName},
-			});
-		}
-		
+
+		// Easy Apply detection FIRST — if this job is Easy Apply we don't want to
+		// also save it as an external apply (the legacy XPath matched both because
+		// every apply button has class jobs-apply-button now).
 		const easyApplyButton = getVisibleElementByXPath({
 			xpath: easy_apply_button,
 		});
-		
-					if (easyApplyButton) {
-				const result = await checkAndPrepareRunState();
-				if (result) {
-					easyApplyButton.click();
-					await waitForJobsLoaderToDisappear();
-					await runApplyModel(jobTitle);
-					await waitForLoaderToDisappear();
-				}
+
+		if (!easyApplyButton) {
+			// No Easy Apply found. Treat as external apply if such a control exists.
+			const externalApplyElements = getElementsByXPath({
+				xpath: not_easy_apply_button,
+			});
+
+			aaLog('runFindEasyApply', 'no easy-apply button found', {
+				jobTitle,
+				externalApplyMatches: externalApplyElements.length,
+			});
+
+			if (externalApplyElements.length > 0) {
+				await chrome.runtime.sendMessage({
+					action: "externalApplyAction",
+					data: {jobTitle, currentPageLink, companyName},
+				});
 			}
+			return null;
+		}
+
+		aaLog('runFindEasyApply', 'easy-apply button found', {
+			jobTitle,
+			tag: easyApplyButton.tagName,
+			ariaLabel: (easyApplyButton.getAttribute('aria-label') || '').slice(0, 60),
+			hasJobsApplyClass: (easyApplyButton.className || '').includes('jobs-apply-button'),
+			hrefHasSDUI: (easyApplyButton.getAttribute('href') || '').includes('openSDUIApplyFlow'),
+		});
+
+		const result = await checkAndPrepareRunState();
+		if (!result) {
+			aaWarn('runFindEasyApply', 'auto-apply paused before clicking');
+			return null;
+		}
+
+		easyApplyButton.click();
+		await waitForJobsLoaderToDisappear();
+		await runApplyModel(jobTitle);
+		await waitForLoaderToDisappear();
+
 		await handleSaveApplicationModal();
 		await addDelay(2000);
-		
+
 		return null;
 	} catch (error) {
+		aaError('runFindEasyApply', 'unhandled error', error?.message);
 		return null;
 	}
 }
@@ -1507,53 +1533,47 @@ async function goToNextPage() {
 	if (isNavigating) {
 		return false;
 	}
-	
+
 	isNavigating = true;
-	
+
 	try {
 		await waitForJobsLoaderToDisappear();
-		
+
 		const isStillRunning = await checkAndPrepareRunState();
 		if (!isStillRunning) {
 			isNavigating = false;
 			return false;
 		}
-		
-		const pagination = document?.querySelector(".jobs-search-pagination");
-		const paginationPage = pagination?.querySelector(
-			".jobs-search-pagination__indicator-button--active"
-		)?.innerText;
-		const nextButton = pagination?.querySelector("button[aria-label*='next']");
-		
-		if (!nextButton) {
+
+		const pageInfo = getPaginationInfo();
+		aaLog('goToNextPage', 'pagination state', {
+			ui: pageInfo.ui,
+			activePage: pageInfo.activePageText,
+			hasNext: !!pageInfo.nextButton,
+		});
+
+		if (!pageInfo.nextButton) {
+			aaLog('goToNextPage', 'no next button - stopping script');
 			isNavigating = false;
 			stopScript();
 			return false;
 		}
-		
-		nextButton.scrollIntoView({behavior: "smooth", block: "center"});
+
+		pageInfo.nextButton.scrollIntoView({behavior: "smooth", block: "center"});
 		await addDelay(1000);
-		nextButton.click();
-		
-		try {
-			await waitForElements({
-				elementOrSelector: ".scaffold-layout__list-item",
-				timeout: 5000,
-			});
-		} catch (error) {
-		
-		}
-		
+		pageInfo.nextButton.click();
+
+		// Wait for the next page's items to load (UI-aware).
+		await waitForJobItems(5000);
+
 		await addDelay(1000);
-		const scrollElement = document?.querySelector(
-			".scaffold-layout__list > div"
-		);
+		const scrollElement = getJobsListScrollContainer();
 		if (scrollElement) {
-			scrollElement?.scrollTo({
+			scrollElement.scrollTo({
 				top: scrollElement.scrollHeight,
 			});
 		}
-		
+
 		await new Promise((resolve) => {
 			const checkPageLoaded = () => {
 				if (document.readyState === "complete") {
@@ -1564,14 +1584,14 @@ async function goToNextPage() {
 			};
 			checkPageLoaded();
 		});
-		
-		currentPage = paginationPage;
+
+		currentPage = pageInfo.activePageText;
 		isNavigating = false;
-		
+
 		await runScript();
 		return true;
 	} catch (error) {
-		
+		aaError('goToNextPage', error?.message);
 		isNavigating = false;
 		return false;
 	}
@@ -1581,50 +1601,60 @@ async function runScript() {
 	try {
 		await addDelay(3000);
 		if (!isExtensionContextValid()) {
+			aaWarn('runScript', 'extension context invalid on entry');
 			return;
 		}
-		
+
 		const currentUrl = window.location.href;
-		
+		const ui = detectJobsUI();
+		aaLog('runScript', 'starting', { url: currentUrl, ui, path: window.location.pathname });
+
+		if (ui === AA_UI_UNKNOWN || !isJobsSearchPage()) {
+			aaWarn('runScript', 'not a jobs search page or unknown UI - aborting', { ui });
+			return;
+		}
+
 		if (
-			currentUrl.includes("/jobs/search/") &&
-			currentUrl.includes("keywords=")
+			(currentUrl.includes('/jobs/search/') || currentUrl.includes('/jobs/search-results/')) &&
+			currentUrl.includes('keywords=')
 		) {
 			await chrome.storage.local.set({lastJobSearchUrl: currentUrl});
 		}
-		
+
 		const scriptStarted = await startScript();
 		if (!scriptStarted) {
+			aaWarn('runScript', 'startScript() returned false');
 			return;
 		}
-		
+
 		await fillSearchFieldIfEmpty();
-		
+
 		const isRunning = await checkAndPrepareRunState(true);
 		if (!isRunning) {
+			aaWarn('runScript', 'auto-apply not running after start');
 			return;
 		}
-		
-		if (!isExtensionContextValid()) {
-			return;
-		}
-		
+
+		if (!isExtensionContextValid()) return;
+
 		await setAutoApplyRunning(true, "runScript reactivation");
 		const fieldsComplete = await checkAndPromptFields();
 		if (!fieldsComplete) {
+			aaWarn('runScript', 'default fields incomplete - opening config page');
 			await chrome.runtime.sendMessage({action: "openDefaultInputPage"});
 			return;
 		}
-		
+
 		const limitReached = await checkLimitReached();
 		if (limitReached) {
+			aaWarn('runScript', 'daily application limit reached');
 			const feedbackMessageElement = document.querySelector(
 				".artdeco-inline-feedback__message"
 			);
 			await toggleBlinkingBorder(feedbackMessageElement);
 			return;
 		}
-		
+
 		const {
 			titleSkipEnabled,
 			titleFilterEnabled,
@@ -1638,64 +1668,60 @@ async function runScript() {
 			"titleFilterWords",
 			"titleSkipWords",
 		]);
-		
-		const listItems = await waitForElements({
-			elementOrSelector: ".scaffold-layout__list-item",
-		});
-		
-		
+
+		// Wait until job items are present in either UI variant.
+		let listItems = await waitForJobItems(8000);
+		if (!listItems || listItems.length === 0) {
+			aaError('runScript', 'no job items found on page', {
+				ui,
+				lazyColumns: document.querySelectorAll('[data-component-type="LazyColumn"]').length,
+				dismissButtons: document.querySelectorAll('button[aria-label^="Dismiss "][aria-label$=" job"]').length,
+				scaffoldItems: document.querySelectorAll('.scaffold-layout__list-item').length,
+			});
+			await stopScript();
+			return;
+		}
+		aaLog('runScript', `processing ${listItems.length} job items (${ui} UI)`);
+
 		for (let i = 0; i < listItems.length; i++) {
 			const listItem = listItems[i];
-			
+
 			if (i % 5 === 0 && !isExtensionContextValid()) {
+				aaWarn('runScript', 'extension context invalid mid-loop', { i });
 				return;
 			}
-			
+
 			const stillRunning = await checkAndPrepareRunState();
-			if (!stillRunning) {
-				return;
-			}
-			
+			if (!stillRunning) return;
+
 			await addDelay(300);
 			const stillRunning2 = await checkAndPrepareRunState();
-			if (!stillRunning2) {
-				return;
-			}
-			
+			if (!stillRunning2) return;
+
 			await closeApplicationSentModal();
 			await handleSaveApplicationModal();
-
-			// Ensure all application modals are closed before processing next job
 			await ensureNoApplicationModalOpen();
 
-			const linksElements = await waitForElements({
-				elementOrSelector:
-					".artdeco-entity-lockup__title .job-card-container__link",
-				timeout: 5000,
-				contextNode: listItem,
-			});
-			const jobNameLink = linksElements?.[0];
-			if (!jobNameLink) {
-				continue; // Skip if no job link found
+			const clickTarget = getJobItemClickTarget(listItem);
+			if (!clickTarget) {
+				aaWarn('iterate', `item #${i}: no click target`, { ui });
+				continue;
 			}
-			jobNameLink?.scrollIntoView({behavior: "smooth", block: "center"});
+			clickTarget?.scrollIntoView({behavior: "smooth", block: "center"});
 
-			const jobFooter = listItem.querySelector('[class*="footer"]');
-			if (jobFooter && jobFooter.textContent.trim() === "Applied") {
-				continue; // Skip already applied jobs
+			if (isItemAlreadyApplied(listItem)) {
+				aaLog('iterate', `item #${i}: already applied - skipping`);
+				continue;
 			}
 
-			const jobTitle = getJobTitle(jobNameLink);
-
-			const companyNames = listItem.querySelectorAll('[class*="subtitle"]');
-			const companyNamesArray = Array.from(companyNames).map((el) =>
-				el.textContent.trim()
-			);
-			const companyName = companyNamesArray?.[0] ?? "";
+			const jobTitle = extractJobTitleFromItem(listItem);
+			const companyName = extractCompanyNameFromItem(listItem);
 
 			if (!jobTitle) {
-				continue; // Skip if no job title found
+				aaWarn('iterate', `item #${i}: empty job title - skipping`);
+				continue;
 			}
+			aaLog('iterate', `item #${i}`, { jobTitle, companyName });
 
 			// Priority 1: titleSkipWords - highest priority
 			// If found, skip this job immediately without checking other filters
@@ -1755,29 +1781,22 @@ async function runScript() {
 				return;
 			}
 
-			// All filters passed - click on job to open details
+			// All filters passed - click on job card to open details panel.
 			try {
-				await clickElement({elementOrSelector: jobNameLink});
+				await clickElement({elementOrSelector: clickTarget});
 				const stillRunning4 = await checkAndPrepareRunState();
 				if (!stillRunning4) {
 					return;
 				}
 			} catch (error) {
-				console.error("Error clicking job link", error);
-				continue; // Skip this job if click failed
+				aaError('iterate', `item #${i}: click failed`, error?.message);
+				continue;
 			}
 
-			// Wait for job content to load
-			try {
-				const mainContentElementWait = await waitForElements({
-					elementOrSelector: ".jobs-details__main-content",
-				});
-				const mainContentElement = mainContentElementWait?.[0];
-				if (!mainContentElement) {
-					continue;
-				}
-			} catch (e) {
-				console.error("Failed to find main job content", e);
+			// Wait for job details to render (UI-aware).
+			const detailsLoaded = await waitForJobDetailsLoaded(8000);
+			if (!detailsLoaded) {
+				aaWarn('iterate', `item #${i}: job details did not load - skipping`);
 				continue;
 			}
 
