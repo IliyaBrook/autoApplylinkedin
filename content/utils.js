@@ -779,23 +779,30 @@ function findEasyApplyModal() {
 
 async function ensureNoApplicationModalOpen(maxAttempts = 10) {
 	for (let i = 0; i < maxAttempts; i++) {
-		// Check if any application modal is open
 		const saveModal = document.querySelector('[data-test-modal=""][role="alertdialog"]');
 		const confirmDialog = document.querySelector('.artdeco-modal__actionbar--confirm-dialog');
 		const easyApplyModal = findEasyApplyModal();
+		const sduiModal = typeof findSduiApplyModal === 'function' ? findSduiApplyModal() : null;
 
-		if (!saveModal && !confirmDialog && !easyApplyModal) {
-			return true; // No modal open
+		if (!saveModal && !confirmDialog && !easyApplyModal && !sduiModal) {
+			return true;
 		}
 
-		// Try to close the modal
+		// Try the legacy discard flow first.
 		const handled = await handleDiscardConfirmDialog();
 		if (handled) {
 			await addDelay(1000);
-			continue; // Check again if modal is closed
+			continue;
 		}
 
-		// If handleDiscardConfirmDialog didn't work, try clicking dismiss button
+		// SDUI shadow-DOM modal — has its own dismiss button inside the shadow tree.
+		if (sduiModal && typeof dismissSduiApplyModal === 'function') {
+			await dismissSduiApplyModal();
+			await addDelay(800);
+			continue;
+		}
+
+		// Legacy artdeco dismiss as last resort.
 		const dismissButton = document.querySelector('.artdeco-modal__dismiss');
 		if (dismissButton) {
 			dismissButton.click();
@@ -806,11 +813,11 @@ async function ensureNoApplicationModalOpen(maxAttempts = 10) {
 		await addDelay(500);
 	}
 
-	// Final check
 	const stillSave = document.querySelector('[data-test-modal=""][role="alertdialog"]');
 	const stillConfirm = document.querySelector('.artdeco-modal__actionbar--confirm-dialog');
 	const stillEasy = findEasyApplyModal();
-	return !stillSave && !stillConfirm && !stillEasy;
+	const stillSdui = typeof findSduiApplyModal === 'function' ? findSduiApplyModal() : null;
+	return !stillSave && !stillConfirm && !stillEasy && !stillSdui;
 }
 
 async function waitForJobsLoaderToDisappearAndHandle(initialTimeout = 5000) {
@@ -1077,13 +1084,76 @@ function extractCompanyNameFromItem(item) {
 }
 
 // True if this item already shows the "Applied" footer state.
+// Two shapes to handle:
+//   Legacy: `[class*="footer"]` whose text is exactly "Applied" (or starts with it).
+//   New:    a leaf <p>/<span>/<div> whose text is exactly "Applied" or
+//           starts with "Applied " (e.g. "Applied 3 days ago", "Applied · just now").
+// Concatenated textContent regex doesn't work because adjacent elements glue
+// without whitespace ("AppliedFull Stack…"), breaking word-boundary checks.
 function isItemAlreadyApplied(item) {
 	if (!item) return false;
+
 	const legacyFooter = item.querySelector('[class*="footer"]');
-	if (legacyFooter && legacyFooter.textContent.trim() === 'Applied') return true;
-	// New UI shows "Applied" as plain text inside the card.
-	const text = (item.textContent || '').toLowerCase();
-	return /\bapplied\b\s*(·|$|\d)/i.test(text) && !/be the first to apply/i.test(text);
+	if (legacyFooter) {
+		const ft = (legacyFooter.textContent || '').trim();
+		if (ft === 'Applied' || /^Applied(\s|$)/.test(ft)) return true;
+	}
+
+	// New UI: scan small leaf elements for an exact "Applied" badge.
+	const leaves = item.querySelectorAll('p, span, div, time');
+	for (const el of leaves) {
+		const t = (el.textContent || '').trim();
+		if (!t || t.length > 60) continue;
+		if (/^Applied(\s|$|\d|·)/.test(t)) return true;
+	}
+
+	return false;
+}
+
+// ============================================================================
+// SDUI shadow-DOM modal detection (new UI)
+// ----------------------------------------------------------------------------
+// On `/jobs/search-results/`, the in-app apply control is an <a> with
+// `href*=openSDUIApplyFlow=true`. Clicking it opens a dialog INSIDE the
+// shadow root at `[data-testid="interop-shadowdom"]`. The legacy artdeco
+// form-filling logic cannot reach into that shadow tree, so the safest
+// behaviour is: detect the SDUI modal, dismiss it, and skip the job with
+// a clear warning until the form-filler is shadow-aware.
+// ============================================================================
+function getInteropShadowRoot() {
+	const host = document.querySelector('[data-testid="interop-shadowdom"]');
+	return host && host.shadowRoot ? host.shadowRoot : null;
+}
+
+function findSduiApplyModal() {
+	const sr = getInteropShadowRoot();
+	if (!sr) return null;
+	const dialog = sr.querySelector('[role="dialog"], [role="alertdialog"]');
+	if (!dialog) return null;
+	const r = dialog.getBoundingClientRect();
+	if (r.width < 100 || r.height < 100) return null;
+	return dialog;
+}
+
+async function dismissSduiApplyModal() {
+	const dialog = findSduiApplyModal();
+	if (!dialog) return false;
+	// Try the visible Dismiss button.
+	const dismissBtn = dialog.querySelector('button[aria-label="Dismiss"], button[aria-label="Close"]');
+	if (dismissBtn) {
+		dismissBtn.click();
+		await addDelay(800);
+	}
+	// Some flows show a confirm dialog ("discard application?"). Try the discard option.
+	const sr = getInteropShadowRoot();
+	if (sr) {
+		const discardBtn = sr.querySelector('button[aria-label*="Discard"], button[data-test-dialog-secondary-btn]');
+		if (discardBtn) {
+			discardBtn.click();
+			await addDelay(800);
+		}
+	}
+	return !findSduiApplyModal();
 }
 
 // Pagination — locates the active page indicator and the "next" trigger for either UI.
@@ -1137,19 +1207,26 @@ async function waitForJobItems(timeout = 8000) {
 
 // Wait for the job details main content to render after clicking a card.
 // On the legacy UI this is `.jobs-details__main-content` AND the apply control.
-// On the new UI we look for stable signals — apply control or the Save button —
-// while explicitly excluding the search-filter pill (which has aria-label
-// "LinkedIn Apply" but role="radio" / class*="artdeco-pill").
-async function waitForJobDetailsLoaded(timeout = 8000) {
+// On the new UI we look for stable signals — apply control, Save button, or
+// the URL `currentJobId` matching the card we just clicked — while excluding
+// the search-filter pill (aria-label="LinkedIn Apply" + role="radio").
+//
+// `expectedJobId` (optional): the job id of the card just clicked. When provided
+// we accept "URL updated to currentJobId=<id>" as a positive signal — important
+// for already-applied jobs that don't render any apply / save control.
+async function waitForJobDetailsLoaded(timeout = 8000, expectedJobId = null) {
 	const start = Date.now();
 	while (Date.now() - start < timeout) {
 		// Apply controls — must NOT be the filter pill.
-		const applyControl = document.querySelector(
-			'[aria-label^="LinkedIn Apply to"]:not([role="radio"]):not([class*="artdeco-pill"]),'
-			+ ' [aria-label="Apply on company website"],'
-			+ ' a[href*="openSDUIApplyFlow=true"]'
-		);
-		if (applyControl) return true;
+		if (
+			document.querySelector(
+				'[aria-label^="LinkedIn Apply to"]:not([role="radio"]):not([class*="artdeco-pill"]),'
+				+ ' [aria-label="Apply on company website"],'
+				+ ' a[href*="openSDUIApplyFlow=true"]'
+			)
+		) {
+			return true;
+		}
 
 		// Save button is also a reliable per-job signal once details are rendered.
 		if (document.querySelector('button[aria-label="Save the job"]')) return true;
@@ -1158,9 +1235,36 @@ async function waitForJobDetailsLoaded(timeout = 8000) {
 		const main = document.querySelector('.jobs-details__main-content');
 		if (main && main.children && main.children.length > 0) return true;
 
+		// URL-based signal — cheap, reliable, and works for already-applied jobs
+		// that show no apply/save control at all.
+		if (expectedJobId) {
+			const params = new URLSearchParams(window.location.search);
+			if (params.get('currentJobId') === String(expectedJobId)) {
+				// Give LinkedIn a moment to repaint after the URL update.
+				await addDelay(400);
+				return true;
+			}
+		}
+
 		await addDelay(250);
 	}
 	return false;
+}
+
+// Extract LinkedIn job id from a card element. New UI uses the
+// `componentkey="job-card-component-ref-<id>"` attribute. Legacy uses
+// `[data-occludable-job-id]`. Return null if neither is present.
+function getJobIdFromItem(item) {
+	if (!item) return null;
+	const occ = item.getAttribute('data-occludable-job-id');
+	if (occ) return occ;
+	const key = item.getAttribute('componentkey') || '';
+	const m = key.match(/job-card-component-ref-(\d+)/);
+	if (m) return m[1];
+	// Fallback: nested data-job-id child.
+	const child = item.querySelector('[data-job-id]');
+	if (child) return child.getAttribute('data-job-id');
+	return null;
 }
 
 // Scrollable container used to lazy-load more job items as we iterate.

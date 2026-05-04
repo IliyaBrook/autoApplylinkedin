@@ -1407,12 +1407,13 @@ async function runFindEasyApply(jobTitle, companyName) {
 			return null;
 		}
 
+		const isSdui = (easyApplyButton.getAttribute('href') || '').includes('openSDUIApplyFlow');
 		aaLog('runFindEasyApply', 'easy-apply button found', {
 			jobTitle,
 			tag: easyApplyButton.tagName,
 			ariaLabel: (easyApplyButton.getAttribute('aria-label') || '').slice(0, 60),
 			hasJobsApplyClass: (easyApplyButton.className || '').includes('jobs-apply-button'),
-			hrefHasSDUI: (easyApplyButton.getAttribute('href') || '').includes('openSDUIApplyFlow'),
+			hrefHasSDUI: isSdui,
 		});
 
 		const result = await checkAndPrepareRunState();
@@ -1423,6 +1424,23 @@ async function runFindEasyApply(jobTitle, companyName) {
 
 		easyApplyButton.click();
 		await waitForJobsLoaderToDisappear();
+
+		// New SDUI flow renders the apply modal INSIDE a shadow root, where our
+		// existing form-filling logic cannot reach. Detect, dismiss, and tell
+		// the user to switch to the legacy URL until shadow-aware filling lands.
+		await addDelay(2000);
+		if (findSduiApplyModal()) {
+			aaWarn(
+				'runFindEasyApply',
+				'SDUI apply modal opened (shadow DOM) — form-filling not yet supported. '
+				+ 'Switch to legacy URL: https://www.linkedin.com/jobs/search/?…  Dismissing & skipping.',
+				{ jobTitle }
+			);
+			await dismissSduiApplyModal();
+			await addDelay(1000);
+			return null;
+		}
+
 		await runApplyModel(jobTitle);
 		await waitForLoaderToDisappear();
 
@@ -1614,6 +1632,20 @@ async function runScript() {
 			return;
 		}
 
+		// One-time heads-up for the new UI: the in-app apply modal renders inside
+		// a shadow root we cannot reach with the legacy form-filler. Iteration,
+		// filtering, and external-apply detection still work — we simply skip
+		// the SDUI modal and the user must use the legacy URL to actually apply.
+		if (ui === AA_UI_NEW) {
+			aaWarn(
+				'runScript',
+				'new UI (/jobs/search-results/) detected — SDUI apply modal lives in a shadow DOM '
+				+ 'and is not yet form-fillable. For full auto-apply please use the legacy URL: '
+				+ 'https://www.linkedin.com/jobs/search/?<same query params>. '
+				+ 'External-apply jobs will still be saved.'
+			);
+		}
+
 		if (
 			(currentUrl.includes('/jobs/search/') || currentUrl.includes('/jobs/search-results/')) &&
 			currentUrl.includes('keywords=')
@@ -1793,10 +1825,13 @@ async function runScript() {
 				continue;
 			}
 
-			// Wait for job details to render (UI-aware).
-			const detailsLoaded = await waitForJobDetailsLoaded(8000);
+			// Wait for job details to render (UI-aware). Pass the card's job id so
+			// that already-applied jobs (no apply/save control) are still counted
+			// as "loaded" once the URL `currentJobId` updates.
+			const expectedJobId = getJobIdFromItem(listItem);
+			const detailsLoaded = await waitForJobDetailsLoaded(12000, expectedJobId);
 			if (!detailsLoaded) {
-				aaWarn('iterate', `item #${i}: job details did not load - skipping`);
+				aaWarn('iterate', `item #${i}: job details did not load - skipping`, { expectedJobId });
 				continue;
 			}
 
