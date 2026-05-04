@@ -1273,6 +1273,8 @@ const AA_REASONS = Object.freeze({
 	CLICK_FAILED:      'clickFailed',       // The click itself threw
 	DETAILS_NOT_LOADED:'detailsNotLoaded',  // Right panel didn't render
 	LIMIT_REACHED:     'limitReached',      // Daily LinkedIn limit exceeded
+	SUBMIT_NOT_CONFIRMED: 'submitNotConfirmed', // Submit clicked but no "Your application was sent" modal seen
+	NO_SUBMIT_BUTTON:  'noSubmitButton',     // Reached the modal but never found a Submit button
 	ERROR:             'error',             // Unexpected exception thrown
 	OTHER:             'other',
 });
@@ -1325,6 +1327,63 @@ async function recordApplyHistoryEntry(params) {
 		// Tracking should never break the main flow.
 		try { console.warn('[AutoApply] recordApplyHistoryEntry failed', e?.message); } catch {}
 	}
+}
+
+// Re-fetch a card element from the DOM by job id. The new-UI LazyColumn
+// re-renders rows as the user scrolls, so the listItem captured at the start
+// of an iteration may be stale by the time we evaluate "is this applied?"
+// Returns null if no matching card is currently in the DOM.
+function findJobItemByJobId(jobId) {
+	if (!jobId) return null;
+	const id = String(jobId);
+
+	// New UI: card has componentkey="job-card-component-ref-<id>"
+	const newCard = document.querySelector(`[componentkey="job-card-component-ref-${id}"]`);
+	if (newCard) return newCard;
+
+	// Legacy: <li data-occludable-job-id="<id>">
+	const legacyLi = document.querySelector(`li[data-occludable-job-id="${id}"]`);
+	if (legacyLi) return legacyLi;
+
+	// Final fallback: any element exposing data-job-id="<id>"
+	const dataAttr = document.querySelector(`[data-job-id="${id}"]`);
+	return dataAttr;
+}
+
+// Locate the post-submit success modal, regardless of UI variant.
+// Legacy: `.artdeco-modal` whose text starts with "Your application was sent"
+//         or contains "Application sent".
+// New SDUI: same heading rendered inside `[data-testid="interop-shadowdom"]`.
+// Returns the matching modal element (in main DOM or shadow root) or null.
+function findApplicationSentModal() {
+	const matches = (txt) => /your application was sent|application sent/i.test(txt || '');
+
+	// Legacy artdeco
+	for (const m of document.querySelectorAll('.artdeco-modal')) {
+		if (matches(m.textContent)) return m;
+	}
+
+	// SDUI shadow root
+	const sr = document.querySelector('[data-testid="interop-shadowdom"]')?.shadowRoot;
+	if (sr) {
+		const dialogs = sr.querySelectorAll('[role="dialog"], [role="alertdialog"], [class*="modal"]');
+		for (const d of dialogs) {
+			if (matches(d.textContent)) return d;
+		}
+	}
+
+	return null;
+}
+
+// Wait briefly for the success modal to show up after we click Submit.
+async function waitForApplicationSentModal(timeout = 8000) {
+	const start = Date.now();
+	while (Date.now() - start < timeout) {
+		const m = findApplicationSentModal();
+		if (m) return m;
+		await addDelay(250);
+	}
+	return null;
 }
 
 // Extract LinkedIn job id from a card element. New UI uses the

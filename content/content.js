@@ -8,6 +8,20 @@ let saveModalFailureCount = 0;
 const MAX_SAVE_MODAL_WAIT_TIME = 30000;
 const MAX_SAVE_MODAL_FAILURES = 5;
 
+// Per-application outcome tracker. Reset before each Easy-Apply attempt
+// inside runFindEasyApply, mutated by runApplyModelLogic when it actually
+// finds and clicks the Submit button (and again when it sees the success
+// "Your application was sent" modal). Used to decide whether to record
+// `applied: true` or `submitNotConfirmed`.
+let __aaApplyOutcome = {
+	submitClicked: false,
+	sentModalDetected: false,
+	reachedModal: false,
+};
+function resetApplyOutcome() {
+	__aaApplyOutcome = { submitClicked: false, sentModalDetected: false, reachedModal: false };
+}
+
 let defaultFields = {
 	YearsOfExperience: "",
 	City: "",
@@ -1216,17 +1230,18 @@ const runApplyModelLogic = async (jobTitle) => {
 		
 		if (Array.isArray(applyModalWait)) {
 			const applyModal = applyModalWait[0];
+			__aaApplyOutcome.reachedModal = true;
 			const continueApplyingButton = applyModal?.querySelector(
 				'button[aria-label="Continue applying"]'
 			);
-			
+
 			if (continueApplyingButton) {
 				continueApplyingButton?.scrollIntoView({block: "center"});
 				await addDelay(500);
 				continueApplyingButton.click();
 				await runApplyModel(jobTitle);
 			}
-			
+
 			const nextButton =
 				applyModal?.querySelectorAll &&
 				Array.from(applyModal.querySelectorAll("button")).find((button) =>
@@ -1242,25 +1257,27 @@ const runApplyModelLogic = async (jobTitle) => {
 				timeout: 2000,
 			});
 			const submitButton = submitButtonWait?.[0];
-			
+
 			if (submitButton) {
 				await uncheckFollowCompany();
-				
+
 				const isStillRunning = await checkAndPrepareRunState();
-				if (!isStillRunning) {
-					return;
-				}
-				
+				if (!isStillRunning) return;
+
 				if (!isElementVisible(submitButton)) {
 					submitButton.scrollIntoView({block: "center", behavior: "smooth"});
 					await addDelay(1000);
 				}
-				
+
+				let clicked = false;
 				let clickAttempts = 0;
 				const maxAttempts = 3;
 				while (clickAttempts < maxAttempts) {
 					if (isElementVisible(submitButton)) {
 						await clickElement({elementOrSelector: submitButton});
+						clicked = true;
+						__aaApplyOutcome.submitClicked = true;
+						aaLog('runApplyModelLogic', 'Submit application clicked');
 						break;
 					} else {
 						submitButton.scrollIntoView({block: "center", behavior: "smooth"});
@@ -1268,15 +1285,32 @@ const runApplyModelLogic = async (jobTitle) => {
 						clickAttempts++;
 					}
 				}
-				
-									await waitForJobsLoaderToDisappear();
-					await addDelay(2000);
+
+				if (!clicked) {
+					aaWarn('runApplyModelLogic', 'Submit found but never visible enough to click');
+				}
+
+				await waitForJobsLoaderToDisappear();
+
+				// Wait for the success "Your application was sent" modal — this is
+				// the only reliable signal that LinkedIn actually accepted the apply.
+				if (clicked) {
+					const sent = await waitForApplicationSentModal(8000);
+					if (sent) {
+						__aaApplyOutcome.sentModalDetected = true;
+						aaLog('runApplyModelLogic', 'Application sent modal detected');
+					} else {
+						aaWarn('runApplyModelLogic',
+							'Submit was clicked but "Your application was sent" modal never appeared — submission may not have landed');
+					}
+				}
+
+				await addDelay(1500);
 				await handleSaveApplicationModal();
 				const isStillRunning2 = await checkAndPrepareRunState();
-				if (!isStillRunning2) {
-					return;
-				}
-				
+				if (!isStillRunning2) return;
+
+				// Dismiss the success modal (X) so the next iteration starts clean.
 				const modalCloseButton = document.querySelector(
 					".artdeco-modal__dismiss"
 				);
@@ -1433,16 +1467,55 @@ async function runFindEasyApply(jobTitle, companyName, listItem = null) {
 					description: 'External apply — saved to External Apply list',
 				});
 			} else {
+				// No Apply control AND no External Apply control. The most likely
+				// explanation on the new UI is that the user has already applied —
+				// LinkedIn hides every apply control on already-applied jobs.
+				// Re-fetch the card live and re-check the "Applied" badge with the
+				// updated DOM (LazyColumn lazy-renders this badge after scroll).
+				const refetched = listItem ? findJobItemByJobId(getJobIdFromItem(listItem)) : null;
+				const cardForCheck = refetched || listItem;
+				if (cardForCheck && isItemAlreadyApplied(cardForCheck)) {
+					aaLog('runFindEasyApply', 'no apply button + card shows Applied — recording alreadyApplied', { jobTitle });
+					await recordApplyHistoryEntry({
+						item: cardForCheck,
+						title: jobTitle,
+						companyName,
+						applied: false,
+						reason: AA_REASONS.ALREADY_APPLIED,
+						description: 'No Apply control on the page and the card shows the "Applied" badge',
+					});
+				} else {
+					await recordApplyHistoryEntry({
+						item: listItem,
+						title: jobTitle,
+						companyName,
+						applied: false,
+						reason: AA_REASONS.NO_EASY_APPLY,
+						description: 'No Easy Apply control found on this job',
+					});
+				}
+			}
+			return null;
+		}
+
+		// Last-mile applied check — even if the apply control is shown, the card
+		// itself may have an "Applied" badge that we missed during iteration
+		// (LazyColumn lazy-render race). If so, skip without clicking.
+		{
+			const refetched = listItem ? findJobItemByJobId(getJobIdFromItem(listItem)) : null;
+			const cardForCheck = refetched || listItem;
+			if (cardForCheck && isItemAlreadyApplied(cardForCheck)) {
+				aaLog('runFindEasyApply', 'card shows Applied — skipping before clicking apply', { jobTitle });
 				await recordApplyHistoryEntry({
-					item: listItem,
+					item: cardForCheck,
 					title: jobTitle,
 					companyName,
 					applied: false,
-					reason: AA_REASONS.NO_EASY_APPLY,
-					description: 'No Easy Apply control found on this job',
+					reason: AA_REASONS.ALREADY_APPLIED,
+					description: 'Card shows the "Applied" badge (caught right before clicking Apply)',
 				});
+				return null;
 			}
-			return null;
 		}
 
 		const isSdui = (easyApplyButton.getAttribute('href') || '').includes('openSDUIApplyFlow');
@@ -1459,6 +1532,10 @@ async function runFindEasyApply(jobTitle, companyName, listItem = null) {
 			aaWarn('runFindEasyApply', 'auto-apply paused before clicking');
 			return null;
 		}
+
+		// Reset before each Easy-Apply attempt. runApplyModelLogic mutates this
+		// when it actually clicks Submit and again when it sees the success modal.
+		resetApplyOutcome();
 
 		easyApplyButton.click();
 		await waitForJobsLoaderToDisappear();
@@ -1495,14 +1572,60 @@ async function runFindEasyApply(jobTitle, companyName, listItem = null) {
 		await handleSaveApplicationModal();
 		await addDelay(2000);
 
-		// Best-effort success record. We can't 100% verify a submission landed,
-		// but we got past the apply flow without skipping out.
-		await recordApplyHistoryEntry({
-			item: listItem,
-			title: jobTitle,
-			companyName,
-			applied: true,
-		});
+		// Decide the actual outcome of this Easy-Apply attempt.
+		const outcome = __aaApplyOutcome;
+		if (outcome.submitClicked && outcome.sentModalDetected) {
+			aaLog('runFindEasyApply', 'submission confirmed', { jobTitle });
+			await recordApplyHistoryEntry({
+				item: listItem,
+				title: jobTitle,
+				companyName,
+				applied: true,
+			});
+		} else if (outcome.submitClicked && !outcome.sentModalDetected) {
+			aaWarn('runFindEasyApply',
+				'Submit was clicked but no "Your application was sent" modal — recording as not confirmed',
+				{ jobTitle });
+			await recordApplyHistoryEntry({
+				item: listItem,
+				title: jobTitle,
+				companyName,
+				applied: false,
+				reason: AA_REASONS.SUBMIT_NOT_CONFIRMED,
+				description:
+					'Submit application was clicked but the "Your application was sent" '
+					+ 'success modal did not appear within 8s. Submission status is unknown.',
+			});
+		} else if (outcome.reachedModal && !outcome.submitClicked) {
+			aaWarn('runFindEasyApply',
+				'Apply modal opened but Submit button was never reached/clicked',
+				{ jobTitle });
+			await recordApplyHistoryEntry({
+				item: listItem,
+				title: jobTitle,
+				companyName,
+				applied: false,
+				reason: AA_REASONS.NO_SUBMIT_BUTTON,
+				description:
+					'The apply modal opened but the script never reached or never '
+					+ 'managed to click "Submit application" (form was likely incomplete '
+					+ 'or had a question we could not answer).',
+			});
+		} else {
+			// Apply modal didn't even open. Record a generic "no easy apply" which
+			// is the closest existing reason — not a submit at all.
+			aaWarn('runFindEasyApply',
+				'Apply modal never opened after clicking Apply',
+				{ jobTitle });
+			await recordApplyHistoryEntry({
+				item: listItem,
+				title: jobTitle,
+				companyName,
+				applied: false,
+				reason: AA_REASONS.NO_EASY_APPLY,
+				description: 'Clicked Apply control but the application modal never opened.',
+			});
+		}
 
 		return null;
 	} catch (error) {
@@ -1788,7 +1911,7 @@ async function runScript() {
 		aaLog('runScript', `processing ${listItems.length} job items (${ui} UI)`);
 
 		for (let i = 0; i < listItems.length; i++) {
-			const listItem = listItems[i];
+			let listItem = listItems[i];
 
 			if (i % 5 === 0 && !isExtensionContextValid()) {
 				aaWarn('runScript', 'extension context invalid mid-loop', { i });
@@ -1817,7 +1940,20 @@ async function runScript() {
 				});
 				continue;
 			}
+
 			clickTarget?.scrollIntoView({behavior: "smooth", block: "center"});
+			// LazyColumn lazy-renders the "Applied" badge after the card scrolls
+			// into view, so wait for it to settle before checking.
+			await addDelay(700);
+
+			// Re-fetch the card from the DOM by jobId — the LazyColumn frequently
+			// re-renders rows during scroll, so the original `listItem` reference
+			// may be detached or stripped of its current state.
+			const initialJobId = getJobIdFromItem(listItem);
+			let freshItem = (initialJobId && findJobItemByJobId(initialJobId)) || listItem;
+			if (freshItem !== listItem) {
+				listItem = freshItem;
+			}
 
 			if (isItemAlreadyApplied(listItem)) {
 				aaLog('iterate', `item #${i}: already applied - skipping`);
