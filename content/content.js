@@ -762,23 +762,41 @@ async function validateAndCloseConfirmationModal() {
 
 async function handleSaveApplicationModal() {
 	const currentTime = Date.now();
-	
+
 	if (isSaveModalBeingHandled) {
 		return false;
 	}
-	
+
 	if (currentTime - lastSaveModalHandleTime < 4000) {
 		return false;
 	}
-	
+
+	// Check for confirm dialog first (appears after clicking outside loader)
+	const confirmDialog = document.querySelector('.artdeco-modal__actionbar--confirm-dialog');
+	if (confirmDialog) {
+		const discardBtn = confirmDialog.querySelector(
+			'button[data-control-name="discard_application_confirm_btn"], button[data-test-dialog-secondary-btn]'
+		);
+		if (discardBtn && discardBtn.textContent.trim().toLowerCase().includes('discard')) {
+			isSaveModalBeingHandled = true;
+			lastSaveModalHandleTime = currentTime;
+			discardBtn.click();
+			await addDelay(1500);
+			setTimeout(() => {
+				isSaveModalBeingHandled = false;
+			}, 1000);
+			return true;
+		}
+	}
+
 	const saveModal = document.querySelector(
 		'[data-test-modal=""][role="alertdialog"]'
 	);
-	
+
 	if (!saveModal) {
 		return false;
 	}
-	
+
 	const titleElement = saveModal.querySelector("h2[data-test-dialog-title]");
 	if (
 		!titleElement ||
@@ -786,27 +804,27 @@ async function handleSaveApplicationModal() {
 	) {
 		return false;
 	}
-	
+
 	isSaveModalBeingHandled = true;
 	lastSaveModalHandleTime = currentTime;
-	
+
 	if (saveModalDetectedTime === 0) {
 		saveModalDetectedTime = currentTime;
 		saveModalFailureCount = 0;
 	}
-	
+
 	const waitTime = currentTime - saveModalDetectedTime;
 	if (waitTime > MAX_SAVE_MODAL_WAIT_TIME) {
 		await stopScript();
 		return false;
 	}
-	
+
 	if (saveModalFailureCount >= MAX_SAVE_MODAL_FAILURES) {
-		
+
 		await stopScript();
 		return false;
 	}
-	
+
 	try {
 		const discardButton = saveModal.querySelector(
 			"button[data-test-dialog-secondary-btn]"
@@ -817,7 +835,7 @@ async function handleSaveApplicationModal() {
 		) {
 			discardButton.click();
 			await addDelay(1500);
-			
+
 			const modalStillExists = document.querySelector(
 				'[data-test-modal=""][role="alertdialog"]'
 			);
@@ -829,34 +847,34 @@ async function handleSaveApplicationModal() {
 				saveModalFailureCount++;
 			}
 		}
-		
+
 		const dismissButton = saveModal.querySelector(
 			'button[aria-label="Dismiss"]'
 		);
 		if (dismissButton) {
-			
-			
+
+
 			dismissButton.click();
 			await addDelay(1500);
-			
+
 			const modalStillExists = document.querySelector(
 				'[data-test-modal=""][role="alertdialog"]'
 			);
 			if (!modalStillExists) {
-				
+
 				saveModalDetectedTime = 0;
 				saveModalFailureCount = 0;
 				return true;
 			} else {
-				
+
 				saveModalFailureCount++;
 			}
 		}
-		
+
 		saveModalFailureCount++;
 		return false;
 	} catch (error) {
-		
+
 		saveModalFailureCount++;
 		return false;
 	} finally {
@@ -1646,7 +1664,10 @@ async function runScript() {
 			
 			await closeApplicationSentModal();
 			await handleSaveApplicationModal();
-			
+
+			// Ensure all application modals are closed before processing next job
+			await ensureNoApplicationModalOpen();
+
 			const linksElements = await waitForElements({
 				elementOrSelector:
 					".artdeco-entity-lockup__title .job-card-container__link",
@@ -1767,13 +1788,13 @@ async function runScript() {
 
 			await clickJob(listItem, companyName, jobTitle, badWordsEnabled);
 			await handleSaveApplicationModal();
-			
-			await waitForJobsLoaderToDisappear();
+
+			await waitForJobsLoaderToDisappearAndHandle();
 		}
-		
+
 			const finalRunCheck = await checkAndPrepareRunState();
 	if (finalRunCheck) {
-		await waitForJobsLoaderToDisappear();
+		await waitForJobsLoaderToDisappearAndHandle();
 		await goToNextPage();
 	}
 	} catch (error) {
@@ -1781,8 +1802,6 @@ async function runScript() {
 		console.trace(message);
 		await stopScript();
 	}
-	
-	
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -1940,7 +1959,14 @@ function startSaveModalMonitoring() {
 		if (isSaveModalBeingHandled) {
 			return;
 		}
-		
+
+		// Check for confirm dialog first (appears after clicking outside loader)
+		const confirmDialog = document.querySelector('.artdeco-modal__actionbar--confirm-dialog');
+		if (confirmDialog) {
+			await handleSaveApplicationModal();
+			return;
+		}
+
 		const saveModal = document.querySelector(
 			'[data-test-modal=""][role="alertdialog"]'
 		);
@@ -1955,7 +1981,7 @@ function startSaveModalMonitoring() {
 				await handleSaveApplicationModal();
 			}
 		}
-	}, 5000);
+	}, 2000);
 }
 
 function stopSaveModalMonitoring() {

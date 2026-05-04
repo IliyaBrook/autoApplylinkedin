@@ -687,26 +687,143 @@ async function waitForLoaderToDisappear(timeout = 15000) {
 
 async function waitForJobsLoaderToDisappear(timeout = 15000) {
 	const startTime = Date.now();
-	
+
 	while (Date.now() - startTime < timeout) {
 		const jobsLoaders = document.querySelectorAll('.jobs-loader, [class*="jobs-loader"]');
 		let hasVisibleJobsLoader = false;
-		
+
 		for (const loader of jobsLoaders) {
 			if (isElementVisible(loader)) {
 				hasVisibleJobsLoader = true;
 				break;
 			}
 		}
-		
+
 		if (!hasVisibleJobsLoader) {
 			return true;
 		}
-		
+
 		await addDelay(500);
 	}
-	
+
 	return false;
+}
+
+async function handleDiscardConfirmDialog() {
+	// Check for confirm dialog with Discard/Save buttons
+	const confirmDialog = document.querySelector('.artdeco-modal__actionbar--confirm-dialog');
+	if (confirmDialog) {
+		const discardButton = confirmDialog.querySelector(
+			'button[data-control-name="discard_application_confirm_btn"], button[data-test-dialog-secondary-btn]'
+		);
+
+		if (discardButton && discardButton.textContent.trim().toLowerCase().includes('discard')) {
+			discardButton.click();
+			await addDelay(1500);
+			return true;
+		}
+	}
+
+	// Also check for the alert dialog with "Save this application?" title
+	const saveModal = document.querySelector('[data-test-modal=""][role="alertdialog"]');
+	if (saveModal) {
+		const titleElement = saveModal.querySelector('h2[data-test-dialog-title]');
+		if (titleElement && titleElement.textContent.includes('Save this application?')) {
+			const discardButton = saveModal.querySelector('button[data-test-dialog-secondary-btn]');
+			if (discardButton && discardButton.textContent.trim().toLowerCase().includes('discard')) {
+				discardButton.click();
+				await addDelay(1500);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+async function ensureNoApplicationModalOpen(maxAttempts = 10) {
+	for (let i = 0; i < maxAttempts; i++) {
+		// Check if any application modal is open
+		const saveModal = document.querySelector('[data-test-modal=""][role="alertdialog"]');
+		const confirmDialog = document.querySelector('.artdeco-modal__actionbar--confirm-dialog');
+		const easyApplyModal = document.querySelector('.artdeco-modal.jobs-easy-apply-modal');
+
+		if (!saveModal && !confirmDialog && !easyApplyModal) {
+			return true; // No modal open
+		}
+
+		// Try to close the modal
+		const handled = await handleDiscardConfirmDialog();
+		if (handled) {
+			await addDelay(1000);
+			continue; // Check again if modal is closed
+		}
+
+		// If handleDiscardConfirmDialog didn't work, try clicking dismiss button
+		const dismissButton = document.querySelector('.artdeco-modal__dismiss');
+		if (dismissButton) {
+			dismissButton.click();
+			await addDelay(1000);
+			continue;
+		}
+
+		await addDelay(500);
+	}
+
+	// Final check
+	const anyModal = document.querySelector('[data-test-modal=""][role="alertdialog"], .artdeco-modal__actionbar--confirm-dialog, .artdeco-modal.jobs-easy-apply-modal');
+	return !anyModal;
+}
+
+async function waitForJobsLoaderToDisappearAndHandle(initialTimeout = 5000) {
+	const startTime = Date.now();
+
+	// Wait for loader to disappear
+	while (Date.now() - startTime < initialTimeout) {
+		const jobsLoaders = document.querySelectorAll('.jobs-loader, [class*="jobs-loader"]');
+		let hasVisibleJobsLoader = false;
+
+		for (const loader of jobsLoaders) {
+			if (isElementVisible(loader)) {
+				hasVisibleJobsLoader = true;
+				break;
+			}
+		}
+
+		if (!hasVisibleJobsLoader) {
+			break; // Loader gone, but still need to check for modals
+		}
+
+		await addDelay(500);
+	}
+
+	// After loader disappears or timeout, check if loader is still visible
+	const jobsLoader = document.querySelector('.jobs-loader');
+	if (jobsLoader && isElementVisible(jobsLoader)) {
+		// Loader still visible after timeout - click outside modal
+		const modal = document.querySelector('.artdeco-modal.jobs-easy-apply-modal');
+		if (modal) {
+			const modalRect = modal.getBoundingClientRect();
+			const clickX = modalRect.left - 10;
+			const clickY = modalRect.top + modalRect.height / 2;
+
+			const clickEvent = new MouseEvent('click', {
+				bubbles: true,
+				cancelable: true,
+				view: window,
+				clientX: clickX,
+				clientY: clickY
+			});
+			document.elementFromPoint(clickX, clickY)?.dispatchEvent(clickEvent);
+		}
+
+		await addDelay(1500);
+	}
+
+	// ALWAYS check and close any open application modals before returning
+	await ensureNoApplicationModalOpen();
+
+	return true;
 }
 
 function getJobLink(link) {
