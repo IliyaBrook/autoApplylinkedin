@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Auto Apply — Apply History</title>
+	<link rel="stylesheet" href="applyHistory.css">
+</head>
+<body>
+<header class="page-header">
+	<h1>Apply History</h1>
+	<div class="stats">
+		<span class="stat"><strong id="stat-total">0</strong> total</span>
+		<span class="stat ok"><strong id="stat-applied">0</strong> applied</span>
+		<span class="stat skip"><strong id="stat-skipped">0</strong> skipped</span>
+		<span class="stat err"><strong id="stat-error">0</strong> errors</span>
+	</div>
+</header>
+
+<section class="controls">
+	<div class="left">
+		<label class="filter">
+			Show:
+			<select id="filter-status">
+				<option value="all">All</option>
+				<option value="applied">Applied only</option>
+				<option value="not-applied">Not applied only</option>
+				<option value="error">Errors only</option>
+			</select>
+		</label>
+		<label class="filter">
+			Reason:
+			<select id="filter-reason">
+				<option value="all">All reasons</option>
+			</select>
+		</label>
+		<input id="search-input" type="text" placeholder="Search title / company / description…" />
+	</div>
+	<div class="right">
+		<button id="export-csv" class="btn btn-secondary">Export CSV</button>
+		<button id="clear-all" class="btn btn-danger">Clear all</button>
+	</div>
+</section>
+
+<main>
+	<div class="table-wrap">
+		<table id="history-table">
+			<thead>
+			<tr>
+				<th class="col-time">Time</th>
+				<th class="col-title">Title</th>
+				<th class="col-company">Company</th>
+				<th class="col-applied">Applied</th>
+				<th class="col-reason">Reason</th>
+				<th class="col-desc">Description</th>
+				<th class="col-url">URL</th>
+				<th class="col-actions"></th>
+			</tr>
+			</thead>
+			<tbody id="history-tbody"></tbody>
+		</table>
+		<div id="empty-state" class="empty">No history yet — start auto-apply and entries will show up here.</div>
+	</div>
+</main>
+
+<!-- Confirm dialog for "Clear all" -->
+<div id="confirm-overlay" class="overlay" style="display:none">
+	<div class="dialog">
+		<h3>Clear all history?</h3>
+		<p>This will permanently remove every entry from the table. This cannot be undone.</p>
+		<div class="dialog-buttons">
+			<button id="confirm-yes" class="btn btn-danger">Clear all</button>
+			<button id="confirm-no" class="btn btn-secondary">Cancel</button>
+		</div>
+	</div>
+</div>
+
+<script src="applyHistory.js"></script>
+</body>
+</html>

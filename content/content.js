@@ -216,16 +216,15 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 	return new Promise(async (resolve) => {
 		try {
 			await updateScriptActivity();
-			
+
 			await waitForJobsLoaderToDisappear();
-			
+
 			const isRunning = await checkAndPrepareRunState();
 			if (!isRunning) {
-				
 				resolve(null);
 				return;
 			}
-			
+
 			if (badWordsEnabled) {
 				const jobDetailsElement = document.querySelector(
 					'[class*="jobs-box__html-content"]'
@@ -249,22 +248,36 @@ async function clickJob(listItem, companyName, jobTitle, badWordsEnabled) {
 							}
 						}
 						if (matchedBadWord) {
-							// console.log("🔴 BAD WORD FILTER: Word found in job content", {
-							// 	word: matchedBadWord,
-							// 	jobTitle,
-							// 	companyName
-							// });
-							// console.log("❌ Job SKIPPED by bad word:", matchedBadWord);
+							aaLog('clickJob', 'bad-word match in description', { jobTitle, matchedBadWord });
+							await recordApplyHistoryEntry({
+								item: listItem,
+								title: jobTitle,
+								companyName,
+								applied: false,
+								reason: AA_REASONS.BAD_WORD,
+								description: `Matched bad word in job description: "${matchedBadWord}"`,
+							});
 							resolve(null);
 							return;
 						}
 					}
 				}
 			}
-			
-			await runFindEasyApply(jobTitle, companyName);
+
+			await runFindEasyApply(jobTitle, companyName, listItem);
 			resolve(null);
 		} catch (error) {
+			aaError('clickJob', 'unhandled error', error?.message);
+			try {
+				await recordApplyHistoryEntry({
+					item: listItem,
+					title: jobTitle,
+					companyName,
+					applied: false,
+					reason: AA_REASONS.ERROR,
+					description: `clickJob exception: ${error?.message || String(error)}`,
+				});
+			} catch {}
 			resolve(null);
 		}
 	});
@@ -1353,7 +1366,7 @@ async function runApplyModel(jobTitle) {
 	}
 }
 
-async function runFindEasyApply(jobTitle, companyName) {
+async function runFindEasyApply(jobTitle, companyName, listItem = null) {
 	try {
 		await addDelay(1000);
 		const saveModalHandled = await handleSaveApplicationModal();
@@ -1369,6 +1382,14 @@ async function runFindEasyApply(jobTitle, companyName) {
 			const textContent = alreadyAppliedElement.textContent;
 			if (checkIfAlreadyApplied(textContent)) {
 				aaLog('runFindEasyApply', 'already applied - skipping', { jobTitle });
+				await recordApplyHistoryEntry({
+					item: listItem,
+					title: jobTitle,
+					companyName,
+					applied: false,
+					reason: AA_REASONS.ALREADY_APPLIED,
+					description: 'Inline feedback indicates job was already applied to',
+				});
 				return null;
 			}
 		}
@@ -1402,6 +1423,23 @@ async function runFindEasyApply(jobTitle, companyName) {
 				await chrome.runtime.sendMessage({
 					action: "externalApplyAction",
 					data: {jobTitle, currentPageLink, companyName},
+				});
+				await recordApplyHistoryEntry({
+					item: listItem,
+					title: jobTitle,
+					companyName,
+					applied: false,
+					reason: AA_REASONS.EXTERNAL,
+					description: 'External apply — saved to External Apply list',
+				});
+			} else {
+				await recordApplyHistoryEntry({
+					item: listItem,
+					title: jobTitle,
+					companyName,
+					applied: false,
+					reason: AA_REASONS.NO_EASY_APPLY,
+					description: 'No Easy Apply control found on this job',
 				});
 			}
 			return null;
@@ -1438,6 +1476,16 @@ async function runFindEasyApply(jobTitle, companyName) {
 			);
 			await dismissSduiApplyModal();
 			await addDelay(1000);
+			await recordApplyHistoryEntry({
+				item: listItem,
+				title: jobTitle,
+				companyName,
+				applied: false,
+				reason: AA_REASONS.SDUI_NOT_SUPPORTED,
+				description:
+					'New LinkedIn SDUI apply modal renders inside a shadow DOM. '
+					+ 'Use the legacy URL https://www.linkedin.com/jobs/search/?… to actually apply.',
+			});
 			return null;
 		}
 
@@ -1447,9 +1495,28 @@ async function runFindEasyApply(jobTitle, companyName) {
 		await handleSaveApplicationModal();
 		await addDelay(2000);
 
+		// Best-effort success record. We can't 100% verify a submission landed,
+		// but we got past the apply flow without skipping out.
+		await recordApplyHistoryEntry({
+			item: listItem,
+			title: jobTitle,
+			companyName,
+			applied: true,
+		});
+
 		return null;
 	} catch (error) {
 		aaError('runFindEasyApply', 'unhandled error', error?.message);
+		try {
+			await recordApplyHistoryEntry({
+				item: listItem,
+				title: jobTitle,
+				companyName,
+				applied: false,
+				reason: AA_REASONS.ERROR,
+				description: `runFindEasyApply exception: ${error?.message || String(error)}`,
+			});
+		} catch {}
 		return null;
 	}
 }
@@ -1680,6 +1747,11 @@ async function runScript() {
 		const limitReached = await checkLimitReached();
 		if (limitReached) {
 			aaWarn('runScript', 'daily application limit reached');
+			await recordApplyHistoryEntry({
+				applied: false,
+				reason: AA_REASONS.LIMIT_REACHED,
+				description: "LinkedIn's daily Easy Apply limit was reached",
+			});
 			const feedbackMessageElement = document.querySelector(
 				".artdeco-inline-feedback__message"
 			);
@@ -1737,12 +1809,24 @@ async function runScript() {
 			const clickTarget = getJobItemClickTarget(listItem);
 			if (!clickTarget) {
 				aaWarn('iterate', `item #${i}: no click target`, { ui });
+				await recordApplyHistoryEntry({
+					item: listItem,
+					applied: false,
+					reason: AA_REASONS.NO_CLICK_TARGET,
+					description: `Item #${i} has no clickable element (UI: ${ui})`,
+				});
 				continue;
 			}
 			clickTarget?.scrollIntoView({behavior: "smooth", block: "center"});
 
 			if (isItemAlreadyApplied(listItem)) {
 				aaLog('iterate', `item #${i}: already applied - skipping`);
+				await recordApplyHistoryEntry({
+					item: listItem,
+					applied: false,
+					reason: AA_REASONS.ALREADY_APPLIED,
+					description: 'Card already shows the "Applied" badge',
+				});
 				continue;
 			}
 
@@ -1751,60 +1835,59 @@ async function runScript() {
 
 			if (!jobTitle) {
 				aaWarn('iterate', `item #${i}: empty job title - skipping`);
+				await recordApplyHistoryEntry({
+					item: listItem,
+					companyName,
+					applied: false,
+					reason: AA_REASONS.NO_TITLE,
+					description: 'Could not extract job title from card',
+				});
 				continue;
 			}
 			aaLog('iterate', `item #${i}`, { jobTitle, companyName });
 
-			// Priority 1: titleSkipWords - highest priority
-			// If found, skip this job immediately without checking other filters
+			// Priority 1: titleSkipWords - highest priority.
+			// If found, skip this job immediately without checking other filters.
 			if (titleSkipEnabled && titleSkipWords?.length > 0) {
+				let matchedIn = null;
 				const matchedSkipWord = titleSkipWords.find((word) => {
-					const jobMatch = matchesFilter(jobTitle, word);
-					const companyMatch = matchesFilter(companyName, word);
-					// if (jobMatch || companyMatch) {
-					// 	console.log(`🔴 SKIP FILTER: Word "${word}" found in:`, {
-					// 		jobTitle,
-					// 		companyName,
-					// 		matchedIn: jobMatch ? 'jobTitle' : 'companyName',
-					// 		jobLink: getJobLink(jobNameLink),
-					// 	});
-					// }
-					return jobMatch || companyMatch;
+					if (matchesFilter(jobTitle, word)) { matchedIn = 'jobTitle'; return true; }
+					if (matchesFilter(companyName, word)) { matchedIn = 'companyName'; return true; }
+					return false;
 				});
 				if (matchedSkipWord) {
-					// console.log("❌ Job SKIPPED by word: ", {
-					// 	word: matchedSkipWord,
-					// 	jobTitle,
-					// 	companyName,
-					// 	jobLink: getJobLink(jobNameLink),
-					// });
-					continue; // Skip this job, don't check other filters
+					aaLog('iterate', `item #${i}: matched titleSkipWord`, { matchedSkipWord, matchedIn });
+					await recordApplyHistoryEntry({
+						item: listItem,
+						title: jobTitle,
+						companyName,
+						applied: false,
+						reason: AA_REASONS.TITLE_SKIP,
+						description: `Title Must Skip — matched "${matchedSkipWord}" in ${matchedIn}`,
+					});
+					continue;
 				}
 			}
 
-			// Priority 2: titleFilterWords - only checked if skip filter passed
-			// If not found, skip this job and don't check badWords
+			// Priority 2: titleFilterWords - only checked if skip filter passed.
+			// If not found, skip this job and don't check badWords.
 			if (titleFilterEnabled && titleFilterWords?.length > 0) {
-				const matchedFilterWord = titleFilterWords.find((word) => {
-					const jobMatch = matchesFilter(jobTitle, word);
-					const companyMatch = matchesFilter(companyName, word);
-					// if (jobMatch || companyMatch) {
-					// 	console.log(`✅ MUST CONTAIN: Word "${word}" found in:`, {
-					// 		jobTitle,
-					// 		companyName,
-					// 		matchedIn: jobMatch ? 'jobTitle' : 'companyName',
-					// 		jobLink: getJobLink(jobNameLink),
-					// 	});
-					// }
-					return jobMatch || companyMatch;
-				});
+				const matchedFilterWord = titleFilterWords.find((word) =>
+					matchesFilter(jobTitle, word) || matchesFilter(companyName, word)
+				);
 				if (!matchedFilterWord) {
-					// console.log(`❌ Job REJECTED: No required words found in`, {
-					// 	jobTitle,
-					// 	companyName,
-					// 	jobLink: getJobLink(jobNameLink),
-					// });
-					continue; // Skip this job, don't check badWords
+					aaLog('iterate', `item #${i}: no titleFilterWord matched`);
+					await recordApplyHistoryEntry({
+						item: listItem,
+						title: jobTitle,
+						companyName,
+						applied: false,
+						reason: AA_REASONS.TITLE_FILTER_MISS,
+						description:
+							'Title Must Contain — none of the required words matched. '
+							+ `Tried: ${titleFilterWords.join(', ')}`,
+					});
+					continue;
 				}
 			}
 			
@@ -1822,6 +1905,14 @@ async function runScript() {
 				}
 			} catch (error) {
 				aaError('iterate', `item #${i}: click failed`, error?.message);
+				await recordApplyHistoryEntry({
+					item: listItem,
+					title: jobTitle,
+					companyName,
+					applied: false,
+					reason: AA_REASONS.CLICK_FAILED,
+					description: `Click on card threw: ${error?.message || String(error)}`,
+				});
 				continue;
 			}
 
@@ -1832,6 +1923,14 @@ async function runScript() {
 			const detailsLoaded = await waitForJobDetailsLoaded(12000, expectedJobId);
 			if (!detailsLoaded) {
 				aaWarn('iterate', `item #${i}: job details did not load - skipping`, { expectedJobId });
+				await recordApplyHistoryEntry({
+					item: listItem,
+					title: jobTitle,
+					companyName,
+					applied: false,
+					reason: AA_REASONS.DETAILS_NOT_LOADED,
+					description: `Right details panel did not render within 12s (expectedJobId: ${expectedJobId || 'unknown'})`,
+				});
 				continue;
 			}
 
@@ -1854,6 +1953,13 @@ async function runScript() {
 	} catch (error) {
 		const message = "Error in runScript: " + error?.message + " script stopped";
 		console.trace(message);
+		try {
+			await recordApplyHistoryEntry({
+				applied: false,
+				reason: AA_REASONS.ERROR,
+				description: `runScript exception: ${error?.message || String(error)}`,
+			});
+		} catch {}
 		await stopScript();
 	}
 }

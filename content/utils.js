@@ -1251,6 +1251,82 @@ async function waitForJobDetailsLoaded(timeout = 8000, expectedJobId = null) {
 	return false;
 }
 
+// ============================================================================
+// Apply-history tracking
+// ----------------------------------------------------------------------------
+// Every job that the iterator touches is recorded to chrome.storage.local
+// under `applyHistory`. Newest entries first, capped at AA_HISTORY_LIMIT to
+// keep storage manageable. The popup → "Apply History" page renders this
+// list as a table with a Clear button.
+// ============================================================================
+const AA_REASONS = Object.freeze({
+	APPLIED:           'applied',           // Successfully reached Submit
+	ALREADY_APPLIED:   'alreadyApplied',    // Card / details already say "Applied"
+	EXTERNAL:          'external',          // External apply — saved separately
+	NO_EASY_APPLY:     'noEasyApply',       // No Easy Apply control on the page
+	SDUI_NOT_SUPPORTED:'sduiNotSupported',  // New SDUI modal in shadow DOM (skipped)
+	TITLE_SKIP:        'titleSkip',         // Matched a titleSkipWords entry
+	TITLE_FILTER_MISS: 'titleFilterMissing',// None of the titleFilterWords matched
+	BAD_WORD:          'badWord',           // Description hit a bad-word entry
+	NO_TITLE:          'noTitle',           // Could not extract the job title
+	NO_CLICK_TARGET:   'noClickTarget',     // Couldn't find what to click
+	CLICK_FAILED:      'clickFailed',       // The click itself threw
+	DETAILS_NOT_LOADED:'detailsNotLoaded',  // Right panel didn't render
+	LIMIT_REACHED:     'limitReached',      // Daily LinkedIn limit exceeded
+	ERROR:             'error',             // Unexpected exception thrown
+	OTHER:             'other',
+});
+
+const AA_HISTORY_LIMIT = 2000;
+
+function buildLinkedInJobUrl(jobId) {
+	if (!jobId) return '';
+	return `https://www.linkedin.com/jobs/view/${jobId}/`;
+}
+
+// Persist one job iteration outcome. `params` shape:
+//   { item?, jobId?, title?, companyName?, applied:bool, reason?, description? }
+// `item` is the DOM card — used to derive jobId/title/company when absent.
+async function recordApplyHistoryEntry(params) {
+	try {
+		const {
+			item = null,
+			applied = false,
+			reason = null,
+			description = null,
+		} = params || {};
+		let { jobId = null, title = null, companyName = null } = params || {};
+
+		if (item) {
+			if (!jobId) jobId = getJobIdFromItem(item);
+			if (!title) title = extractJobTitleFromItem(item);
+			if (!companyName) companyName = extractCompanyNameFromItem(item);
+		}
+
+		const entry = {
+			timestamp: Date.now(),
+			jobId: jobId || null,
+			title: (title || '').trim(),
+			companyName: (companyName || '').trim(),
+			url: buildLinkedInJobUrl(jobId),
+			applied: !!applied,
+			reason: applied ? AA_REASONS.APPLIED : (reason || AA_REASONS.OTHER),
+			description: description || null,
+		};
+
+		if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+
+		const data = await chrome.storage.local.get('applyHistory');
+		const history = Array.isArray(data?.applyHistory) ? data.applyHistory : [];
+		history.unshift(entry);
+		if (history.length > AA_HISTORY_LIMIT) history.length = AA_HISTORY_LIMIT;
+		await chrome.storage.local.set({ applyHistory: history });
+	} catch (e) {
+		// Tracking should never break the main flow.
+		try { console.warn('[AutoApply] recordApplyHistoryEntry failed', e?.message); } catch {}
+	}
+}
+
 // Extract LinkedIn job id from a card element. New UI uses the
 // `componentkey="job-card-component-ref-<id>"` attribute. Legacy uses
 // `[data-occludable-job-id]`. Return null if neither is present.

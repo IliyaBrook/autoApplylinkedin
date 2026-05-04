@@ -188,6 +188,9 @@ document.addEventListener("click", (event) => {
       case "settings-button":
         chrome.tabs.create({ url: "/popup/settings/settings.html" });
         break;
+      case "apply-history-button":
+        chrome.tabs.create({ url: "/popup/applyHistory/applyHistory.html" });
+        break;
 
 
       case "save-link":
