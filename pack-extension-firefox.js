@@ -87,17 +87,13 @@ async function createBackgroundWrapper() {
 	const backgroundOriginalName = 'background-original.js';
 	const backgroundOriginalPath = path.join(firefoxTempDir, backgroundOriginalName);
 	
-	// Переименовываем оригинальный background.js
 	await fs.move(originalBackgroundPath, backgroundOriginalPath);
 	
-	// Создаём wrapper, который будет работать в Firefox
 	const wrapperContent = `// Firefox compatibility wrapper
-// Загружаем browser-polyfill для совместимости API
 if (typeof browser === "undefined") {
 	var browser = chrome;
 }
 
-// Импортируем оригинальный background script
 importScripts('${backgroundOriginalName}');
 `;
 	

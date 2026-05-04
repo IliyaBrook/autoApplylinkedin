@@ -54,7 +54,6 @@ function modifyManifestForFirefox(manifestPath) {
 	if (manifest.content_scripts && Array.isArray(manifest.content_scripts)) {
 		manifest.content_scripts.forEach(script => {
 			if (script.js && Array.isArray(script.js)) {
-				// Добавить browser-polyfill.js в начало, если его ещё нет
 				if (!script.js.includes('browser-polyfill.js')) {
 					script.js.unshift('browser-polyfill.js');
 				}
