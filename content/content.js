@@ -1768,8 +1768,10 @@ async function closeApplicationSentModal() {
 let isNavigating = false;
 
 async function goToNextPage() {
+	aaLog('goToNextPage: entering');
 	await addDelay();
 	if (isNavigating) {
+		aaLog('goToNextPage: already navigating, bailing');
 		return false;
 	}
 
@@ -1780,19 +1782,20 @@ async function goToNextPage() {
 
 		const isStillRunning = await checkAndPrepareRunState();
 		if (!isStillRunning) {
+			aaLog('goToNextPage: auto-apply not running, aborting');
 			isNavigating = false;
 			return false;
 		}
 
 		const pageInfo = getPaginationInfo();
-		aaLog('goToNextPage', 'pagination state', {
+		aaLog('goToNextPage: pagination state', {
 			ui: pageInfo.ui,
 			activePage: pageInfo.activePageText,
 			hasNext: !!pageInfo.nextButton,
 		});
 
 		if (!pageInfo.nextButton) {
-			aaLog('goToNextPage', 'no next button - stopping script');
+			aaLog('goToNextPage: no next button — last page reached, stopping script');
 			isNavigating = false;
 			stopScript();
 			return false;
@@ -1827,10 +1830,11 @@ async function goToNextPage() {
 		currentPage = pageInfo.activePageText;
 		isNavigating = false;
 
+		aaLog('goToNextPage: navigated, restarting runScript');
 		await runScript();
 		return true;
 	} catch (error) {
-		aaError('goToNextPage', error?.message);
+		aaError('goToNextPage threw:', error?.message, error);
 		isNavigating = false;
 		return false;
 	}
@@ -1849,22 +1853,8 @@ async function runScript() {
 		aaLog('runScript', 'starting', { url: currentUrl, ui, path: window.location.pathname });
 
 		if (ui === AA_UI_UNKNOWN || !isJobsSearchPage()) {
-			aaWarn('runScript', 'not a jobs search page or unknown UI - aborting', { ui });
+			aaWarn('runScript: not a jobs search page or unknown UI - aborting', { ui });
 			return;
-		}
-
-		// One-time heads-up for the new UI: the in-app apply modal renders inside
-		// a shadow root we cannot reach with the legacy form-filler. Iteration,
-		// filtering, and external-apply detection still work — we simply skip
-		// the SDUI modal and the user must use the legacy URL to actually apply.
-		if (ui === AA_UI_NEW) {
-			aaWarn(
-				'runScript',
-				'new UI (/jobs/search-results/) detected — SDUI apply modal lives in a shadow DOM '
-				+ 'and is not yet form-fillable. For full auto-apply please use the legacy URL: '
-				+ 'https://www.linkedin.com/jobs/search/?<same query params>. '
-				+ 'External-apply jobs will still be saved.'
-			);
 		}
 
 		if (
@@ -1945,16 +1935,22 @@ async function runScript() {
 			let listItem = listItems[i];
 
 			if (i % 5 === 0 && !isExtensionContextValid()) {
-				aaWarn('runScript', 'extension context invalid mid-loop', { i });
+				aaWarn('runScript: extension context invalid mid-loop, exiting', { i });
 				return;
 			}
 
 			const stillRunning = await checkAndPrepareRunState();
-			if (!stillRunning) return;
+			if (!stillRunning) {
+				aaLog('runScript: auto-apply paused at item', { i });
+				return;
+			}
 
 			await addDelay(300);
 			const stillRunning2 = await checkAndPrepareRunState();
-			if (!stillRunning2) return;
+			if (!stillRunning2) {
+				aaLog('runScript: auto-apply paused at item (post-delay)', { i });
+				return;
+			}
 
 			await closeApplicationSentModal();
 			await handleSaveApplicationModal();
@@ -2112,11 +2108,16 @@ async function runScript() {
 			await waitForJobsLoaderToDisappearAndHandle();
 		}
 
-			const finalRunCheck = await checkAndPrepareRunState();
-	if (finalRunCheck) {
+			aaLog(`runScript: finished iterating ${listItems.length} items on page; advancing to next page`);
+
+		const finalRunCheck = await checkAndPrepareRunState();
+		if (!finalRunCheck) {
+			aaLog('runScript: auto-apply was paused after the last item — staying put');
+			return;
+		}
 		await waitForJobsLoaderToDisappearAndHandle();
-		await goToNextPage();
-	}
+		const advanced = await goToNextPage();
+		aaLog('runScript: goToNextPage finished', { advanced });
 	} catch (error) {
 		const message = "Error in runScript: " + error?.message + " script stopped";
 		console.trace(message);

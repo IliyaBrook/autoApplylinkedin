@@ -882,27 +882,17 @@ function getJobLink(link) {
 // ============================================================================
 // Debug logging
 // ----------------------------------------------------------------------------
-// Toggle from DevTools at runtime: window.__autoApplyDebug = false
+// `aaLog`/`aaWarn`/`aaError` are bound `console` methods (NOT wrappers).
+// This is intentional — bound console methods are the only way to keep the
+// real call-site visible in DevTools. A function wrapper would always show
+// `utils.js:<line>` as the source, hiding the actual caller.
+//
+// Side-effect: there's no runtime toggle. Use the DevTools console filter
+// to hide "[AutoApply]" entries if you want them out of the way.
 // ============================================================================
-const AA_DEBUG_DEFAULT = true;
-function aaDebugEnabled() {
-	try {
-		if (typeof window === 'undefined') return AA_DEBUG_DEFAULT;
-		if (window.__autoApplyDebug === undefined) return AA_DEBUG_DEFAULT;
-		return !!window.__autoApplyDebug;
-	} catch {
-		return AA_DEBUG_DEFAULT;
-	}
-}
-function aaLog(tag, ...args) {
-	if (aaDebugEnabled()) console.log('[AutoApply]', tag, ...args);
-}
-function aaWarn(tag, ...args) {
-	if (aaDebugEnabled()) console.warn('[AutoApply]', tag, ...args);
-}
-function aaError(tag, ...args) {
-	console.error('[AutoApply]', tag, ...args);
-}
+const aaLog   = console.log  .bind(console, '[AutoApply]');
+const aaWarn  = console.warn .bind(console, '[AutoApply]');
+const aaError = console.error.bind(console, '[AutoApply]');
 
 // ============================================================================
 // LinkedIn jobs UI detection
