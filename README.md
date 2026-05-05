@@ -87,6 +87,8 @@ Easy Apply contact-info step.
 
 A dedicated page with a complete log of every job the bot evaluated.
 
+![Apply History](assets/for_readme/apply_history.png)
+
 | Column | Meaning |
 |---|---|
 | Time | When the entry was recorded |
