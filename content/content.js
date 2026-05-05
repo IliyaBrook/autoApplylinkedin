@@ -365,25 +365,34 @@ async function performInputFieldChecks(context = document) {
 			
 			let label = null;
 			let labelText = "";
-			
+
+			// Use the input's own root node so label-by-id lookup works inside
+			// the SDUI shadow DOM (where document.querySelector can't reach).
+			const rootForInput = inputField.getRootNode() || document;
+
 			if (inputField.id) {
-				label = document.querySelector(`label[for="${inputField.id}"]`);
+				label = rootForInput.querySelector(`label[for="${inputField.id}"]`);
 			}
-			
+
 			if (!label) {
 				label = inputField.closest("label");
 			}
-			
+
 			if (!label) {
 				const container = inputField.closest("div, fieldset, section, form");
 				if (container) {
 					label = container.querySelector("label");
 				}
 			}
-			
+
 			if (!label && inputField.getAttribute("aria-labelledby")) {
 				const labelId = inputField.getAttribute("aria-labelledby");
-				label = document.getElementById(labelId);
+				// rootForInput.getElementById exists on Document and ShadowRoot.
+				label =
+					(typeof rootForInput.getElementById === 'function'
+						? rootForInput.getElementById(labelId)
+						: null)
+					|| rootForInput.querySelector(`#${CSS.escape(labelId)}`);
 			}
 			
 			if (!label && inputField.placeholder) {
@@ -551,14 +560,14 @@ async function performFillForm(inputField) {
 	}
 }
 
-async function performRadioButtonChecks() {
+async function performRadioButtonChecks(context = document) {
 	const storedRadioButtons = await new Promise((resolve) => {
 		chrome.storage.local.get("radioButtons", (result) => {
 			resolve(result.radioButtons || []);
 		});
 	});
-	
-	const radioFieldsets = document.querySelectorAll(
+
+	const radioFieldsets = context.querySelectorAll(
 		'fieldset[data-test-form-builder-radio-button-form-component="true"]'
 	);
 	
@@ -643,14 +652,14 @@ async function performRadioButtonChecks() {
 	await chrome.storage.local.set({radioButtons: storedRadioButtons});
 }
 
-async function performDropdownChecks() {
+async function performDropdownChecks(context = document) {
 	const storedDropdowns = await new Promise((resolve) => {
 		chrome.storage.local.get("dropdowns", (result) => {
 			resolve(result.dropdowns || []);
 		});
 	});
-	
-	const dropdowns = document.querySelectorAll(".fb-dash-form-element select");
+
+	const dropdowns = context.querySelectorAll(".fb-dash-form-element select");
 	dropdowns.forEach((dropdown, index) => {
 		const parentElement = dropdown.closest(".fb-dash-form-element");
 		if (parentElement) {
@@ -717,8 +726,8 @@ async function performDropdownChecks() {
 	void chrome.storage.local.set({dropdowns: storedDropdowns});
 }
 
-async function performCheckBoxFieldCityCheck() {
-	const checkboxFieldsets = document.querySelectorAll(
+async function performCheckBoxFieldCityCheck(context = document) {
+	const checkboxFieldsets = context.querySelectorAll(
 		'fieldset[data-test-checkbox-form-component="true"]'
 	);
 	for (const fieldset of checkboxFieldsets) {
@@ -1069,20 +1078,29 @@ async function performUniversalCheckboxChecks(context = document) {
 	}
 }
 
-async function runValidations() {
+async function runValidations(modalOverride = null) {
 	try {
 		const saveModalHandled = await handleSaveApplicationModal();
 		if (saveModalHandled) {
 			return;
 		}
-		
+
 		await validateAndCloseConfirmationModal();
-		const applyModal = document.querySelector(".artdeco-modal") || document;
+		// Prefer the modal passed by the caller (so SDUI shadow modal works);
+		// otherwise fall back to the legacy artdeco modal.
+		const applyModal =
+			modalOverride
+			|| findSduiApplyModal()
+			|| document.querySelector(".artdeco-modal")
+			|| document;
+		// All form-fillers are scoped to the apply modal so radio fieldsets,
+		// dropdowns, and checkbox-city checks find their elements inside the
+		// SDUI shadow root on the new UI.
 		await performInputFieldChecks(applyModal);
 		await performUniversalCheckboxChecks(applyModal);
-		await performRadioButtonChecks();
-		await performDropdownChecks();
-		await performCheckBoxFieldCityCheck();
+		await performRadioButtonChecks(applyModal);
+		await performDropdownChecks(applyModal);
+		await performCheckBoxFieldCityCheck(applyModal);
 		await handleSaveApplicationModal();
 	} catch (error) {
 		console.error("Error in runValidations, continuing...", error?.message);
@@ -1177,23 +1195,32 @@ async function selectCvFile(applyModal, jobTitle) {
 }
 
 async function uncheckFollowCompany() {
-	const followCheckboxWait = await waitForElements({
-		elementOrSelector: "#follow-company-checkbox",
-		timeout: 3000,
-	});
-	
-	const followCheckbox = followCheckboxWait?.[0];
-	if (followCheckbox?.checked) {
-		followCheckbox?.scrollIntoView({block: "center"});
-		await addDelay(300);
-		followCheckbox.checked = false;
-		const changeEvent = new Event("change", {
-			bubbles: true,
-			cancelable: true,
+	// Check both main DOM (legacy artdeco modal) AND the SDUI shadow root.
+	// Same `#follow-company-checkbox` id is used in both UIs.
+	let followCheckbox = document.querySelector('#follow-company-checkbox');
+	if (!followCheckbox) {
+		const sr = document.querySelector('[data-testid="interop-shadowdom"]')?.shadowRoot;
+		followCheckbox = sr?.querySelector('#follow-company-checkbox');
+	}
+
+	if (!followCheckbox) {
+		// Last attempt — wait for legacy DOM rendering.
+		const wait = await waitForElements({
+			elementOrSelector: '#follow-company-checkbox',
+			timeout: 3000,
 		});
-		
-		followCheckbox.dispatchEvent(changeEvent);
-		await addDelay(200);
+		followCheckbox = wait?.[0];
+	}
+
+	if (followCheckbox?.checked) {
+		try { followCheckbox.scrollIntoView({block: 'center'}); } catch {}
+		await addDelay(300);
+		// Native click toggles + fires React-bound events properly.
+		// Don't combine with manual `.checked = false` or dispatchEvent —
+		// that produces a double-toggle on some implementations.
+		followCheckbox.click();
+		await addDelay(300);
+		aaLog('uncheckFollowCompany', 'Follow checkbox toggled', { nowChecked: followCheckbox.checked });
 	}
 }
 async function toggleBlinkingBorder(element) {
@@ -1218,19 +1245,35 @@ const runApplyModelLogic = async (jobTitle) => {
 	{
 		await addDelay();
 		await performSafetyReminderCheck();
-		
+
 		const saveModalHandled = await handleSaveApplicationModal();
 		if (saveModalHandled) {
 			return;
 		}
-		const applyModalWait = await waitForElements({
-			elementOrSelector: ".artdeco-modal",
-			timeout: 3000,
-		});
-		
-		if (Array.isArray(applyModalWait)) {
-			const applyModal = applyModalWait[0];
+
+		// Pick the modal to operate on. New /jobs/search-results/ flow renders
+		// every Easy Apply inside the SDUI shadow root, so we look there FIRST.
+		// Both modals expose the same internal markup, so once we have the
+		// container element we can scope every subsequent query to it and the
+		// existing form-filling logic works for both UIs.
+		let applyModal = findSduiApplyModal();
+		let isShadowApply = !!applyModal;
+		if (!applyModal) {
+			const wait = await waitForElements({
+				elementOrSelector: ".artdeco-modal",
+				timeout: 3000,
+			});
+			if (Array.isArray(wait)) applyModal = wait[0];
+		}
+
+		if (applyModal) {
 			__aaApplyOutcome.reachedModal = true;
+			aaLog('runApplyModelLogic', 'apply modal located', {
+				ui: isShadowApply ? 'shadow-SDUI' : 'artdeco',
+				inputs: applyModal.querySelectorAll('input, select, textarea').length,
+				buttons: applyModal.querySelectorAll('button').length,
+			});
+
 			const continueApplyingButton = applyModal?.querySelector(
 				'button[aria-label="Continue applying"]'
 			);
@@ -1247,14 +1290,18 @@ const runApplyModelLogic = async (jobTitle) => {
 				Array.from(applyModal.querySelectorAll("button")).find((button) =>
 					button.textContent.includes("Next")
 				);
+			// Scope review/submit to the apply-modal container so they are found
+			// inside the shadow root on the new UI.
 			const reviewButtonWait = await waitForElements({
 				elementOrSelector: 'button[aria-label="Review your application"]',
 				timeout: 2000,
+				contextNode: applyModal,
 			});
 			const reviewButton = reviewButtonWait?.[0];
 			const submitButtonWait = await waitForElements({
 				elementOrSelector: 'button[aria-label="Submit application"]',
 				timeout: 2000,
+				contextNode: applyModal,
 			});
 			const submitButton = submitButtonWait?.[0];
 
@@ -1311,9 +1358,11 @@ const runApplyModelLogic = async (jobTitle) => {
 				if (!isStillRunning2) return;
 
 				// Dismiss the success modal (X) so the next iteration starts clean.
-				const modalCloseButton = document.querySelector(
-					".artdeco-modal__dismiss"
-				);
+				// Try the SDUI/shadow modal first, then fall back to artdeco.
+				const sentModal = findApplicationSentModal();
+				const sduiClose = sentModal?.querySelector('button[aria-label="Dismiss"], button[aria-label="Close"]');
+				const artdecoClose = document.querySelector(".artdeco-modal__dismiss");
+				const modalCloseButton = sduiClose || artdecoClose;
 				if (modalCloseButton) {
 					modalCloseButton?.scrollIntoView({block: "center"});
 					await addDelay(300);
@@ -1325,7 +1374,7 @@ const runApplyModelLogic = async (jobTitle) => {
 			if (nextButton || reviewButton) {
 				const buttonToClick = reviewButton || nextButton;
 				await selectCvFile(applyModal, jobTitle);
-				await runValidations();
+				await runValidations(applyModal);
 				const isError = await checkForFormValidationError();
 				if (isError) {
 					await terminateJobModel();
@@ -1539,33 +1588,11 @@ async function runFindEasyApply(jobTitle, companyName, listItem = null) {
 
 		easyApplyButton.click();
 		await waitForJobsLoaderToDisappear();
-
-		// New SDUI flow renders the apply modal INSIDE a shadow root, where our
-		// existing form-filling logic cannot reach. Detect, dismiss, and tell
-		// the user to switch to the legacy URL until shadow-aware filling lands.
 		await addDelay(2000);
-		if (findSduiApplyModal()) {
-			aaWarn(
-				'runFindEasyApply',
-				'SDUI apply modal opened (shadow DOM) — form-filling not yet supported. '
-				+ 'Switch to legacy URL: https://www.linkedin.com/jobs/search/?…  Dismissing & skipping.',
-				{ jobTitle }
-			);
-			await dismissSduiApplyModal();
-			await addDelay(1000);
-			await recordApplyHistoryEntry({
-				item: listItem,
-				title: jobTitle,
-				companyName,
-				applied: false,
-				reason: AA_REASONS.SDUI_NOT_SUPPORTED,
-				description:
-					'New LinkedIn SDUI apply modal renders inside a shadow DOM. '
-					+ 'Use the legacy URL https://www.linkedin.com/jobs/search/?… to actually apply.',
-			});
-			return null;
-		}
 
+		// Both UIs are now driven through runApplyModel — runApplyModelLogic
+		// detects shadow-DOM SDUI modal vs legacy artdeco-modal and scopes all
+		// queries to the right container.
 		await runApplyModel(jobTitle);
 		await waitForLoaderToDisappear();
 
@@ -1721,14 +1748,18 @@ async function closeApplicationSentModal() {
 	if (saveModalHandled) {
 		return;
 	}
-	
-	const modal = document.querySelector(".artdeco-modal");
-	
-	if (
-		modal?.textContent.includes("Application sent") &&
-		modal.textContent.includes("Your application was sent to")
-	) {
-		modal.querySelector(".artdeco-modal__dismiss")?.click();
+
+	// findApplicationSentModal() looks in both the main DOM (.artdeco-modal)
+	// and the SDUI shadow root.
+	const modal = findApplicationSentModal();
+	if (!modal) return;
+
+	const dismiss =
+		modal.querySelector(".artdeco-modal__dismiss")
+		|| modal.querySelector('button[aria-label="Dismiss"]')
+		|| modal.querySelector('button[aria-label="Close"]');
+	if (dismiss) {
+		dismiss.click();
 		await addDelay(500);
 		await waitForJobsLoaderToDisappear();
 	}
