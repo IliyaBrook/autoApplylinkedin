@@ -1,4 +1,4 @@
-**The project has moved to a new tech stack: Vite + WXP ** [Chrome-linkedin-applier](https://github.com/IliyaBrook/Chrome-linkedin-applier)
+**The project has moved to a new tech stack: Vite + WXP** [Chrome-linkedin-applier](https://github.com/IliyaBrook/Chrome-linkedin-applier)
 
 # Easy Apply LinkedIn
 
